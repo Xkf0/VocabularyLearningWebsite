@@ -7,9 +7,6 @@ import http.server
 import json
 import os
 import sys
-import webbrowser
-import threading
-import time
 
 PORT = 3000
 DATA_FILE = os.path.join(os.path.dirname(__file__), 'vocabulary-data.json')
@@ -82,9 +79,6 @@ if __name__ == '__main__':
   ║   按 Ctrl+C 停止服务器                     ║
   ╚═══════════════════════════════════════════╝
     ''')
-
-    # 自动打开浏览器
-    threading.Thread(target=lambda: (time.sleep(1), webbrowser.open(f'http://localhost:{PORT}')), daemon=True).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
