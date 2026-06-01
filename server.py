@@ -13,7 +13,7 @@ DATA_FILE = os.path.join(os.path.dirname(__file__), 'vocabulary-data.json')
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
-    """同时提供静态文件服务和 /api/words 读写接口"""
+    """同时提供静态文件服务和 /api/words 读写接口（兼容 {words, sentences} 新格式）"""
 
     def _send_json(self, data, status=200):
         self.send_response(status)
@@ -44,10 +44,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 body = self.rfile.read(length).decode('utf-8')
                 data = json.loads(body)
 
+                # 兼容新旧格式：旧格式为纯数组 [words]，新格式为 {words, sentences}
+                if isinstance(data, dict) and 'words' in data:
+                    count = len(data['words']) + len(data.get('sentences', []))
+                else:
+                    count = len(data)
+
                 with open(DATA_FILE, 'w', encoding='utf-8') as f:
                     json.dump(data, f, ensure_ascii=False, indent=2)
 
-                self._send_json({'ok': True, 'count': len(data)})
+                self._send_json({'ok': True, 'count': count})
             except Exception as e:
                 self._send_json({'ok': False, 'error': str(e)}, 500)
 

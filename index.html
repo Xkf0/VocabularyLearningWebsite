@@ -28,7 +28,7 @@
     /* Stats Bar */
     .stats-bar {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       gap: 8px;
       margin: -32px auto 0;
       padding: 0 16px;
@@ -244,6 +244,23 @@
     .play-btn:hover { transform: scale(1.25); }
     .play-btn:active { transform: scale(0.9); }
 
+    /* Sentence badge */
+    .sentence-badge {
+      display: inline-block;
+      background: #fff3e0;
+      color: #e67e22;
+      padding: 2px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .sentence-item { border-left: 3px solid #e67e22; padding-left: 12px; margin-bottom: 8px; }
+    .sentence-item .sen-english { font-weight: 600; font-size: 15px; }
+    .sentence-item .sen-chinese { font-size: 13px; color: #666; margin-top: 2px; }
+    .sentence-item .sen-meta { font-size: 11px; color: #999; margin-top: 2px; }
+    .review-list .review-item.sentence { border-left: 3px solid #e67e22; }
+
     /* Toast */
     .toast {
       position: fixed;
@@ -269,7 +286,7 @@
 
     /* Responsive */
     @media (max-width: 600px) {
-      .stats-bar { grid-template-columns: repeat(2, 1fr); }
+      .stats-bar { grid-template-columns: repeat(3, 1fr); }
       .review-card .word { font-size: 28px; }
       .review-card .definition { font-size: 18px; }
       .word-row { flex-wrap: wrap; gap: 4px; }
@@ -303,6 +320,10 @@
   <div class="stat-card">
     <div class="num" id="statMastered">0</div>
     <div class="label">年复习中</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" id="statSentenceCount">0</div>
+    <div class="label">句子</div>
   </div>
 </div>
 
@@ -366,8 +387,10 @@
         <button class="filter-btn active" data-filter="all">全部</button>
         <button class="filter-btn" data-filter="learning">学习中</button>
         <button class="filter-btn" data-filter="mastered">年复习中</button>
+        <button class="filter-btn" data-filter="sentence">句子</button>
       </div>
       <div id="wordList"></div>
+      <div id="sentenceList" style="margin-top:16px;border-top:1px solid #f0f0f0;padding-top:12px;display:none;"></div>
     </div>
   </div>
 
@@ -384,6 +407,18 @@
         <button class="btn btn-warning" onclick="exportData()">导出备份</button>
         <button class="btn btn-danger" onclick="document.getElementById('importInput').click()">导入恢复</button>
       </div>
+    </div>
+    <div class="card">
+      <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;">AI 设置</h3>
+      <div style="font-size:13px;color:#666;margin-bottom:12px;line-height:1.6;">
+        每积累 10 个单词，AI 自动生成句子用于复习。需要配置 DeepSeek API Key。
+      </div>
+      <div class="form-group">
+        <label for="apiKeyInput">DeepSeek API Key</label>
+        <input type="password" id="apiKeyInput" placeholder="sk-..." autocomplete="off" style="font-family:monospace;">
+      </div>
+      <button class="btn btn-primary" onclick="saveApiKey()">保存 API Key</button>
+      <button class="btn btn-outline" onclick="document.getElementById('apiKeyInput').value='';localStorage.removeItem('ebbinghaus_api_key');showToast('已清除 API Key');" style="margin-left:8px;">清除</button>
     </div>
     <div class="card">
       <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;">如何使用</h3>
@@ -435,6 +470,7 @@ const INTERVALS = [
 ];
 const TOTAL_STAGES = INTERVALS.length;
 const YEARLY_INTERVAL = 365 * 24 * 60 * 60 * 1000; // 年复习间隔
+const SENTENCE_KEY = 'ebbinghaus_sentences';
 
 // ============================================================
 // 数据层：服务器 + localStorage 双写
@@ -453,8 +489,17 @@ async function detectServer() {
     if (res.ok) {
       useServer = true;
       const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      if (Array.isArray(data)) {
+        // 旧格式：纯单词数组
+        if (data.length > 0) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+      } else if (data && data.words) {
+        // 新格式：{words, sentences}
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data.words || []));
+        if (data.sentences) {
+          localStorage.setItem(SENTENCE_KEY, JSON.stringify(data.sentences));
+        }
       }
       if (textEl) textEl.textContent = '已连接服务器, 数据自动保存到 vocabulary-data.json';
       if (iconEl) iconEl.textContent = '\u{1F7E2}';
@@ -466,7 +511,11 @@ async function detectServer() {
   if (textEl) textEl.textContent = '浏览器模式（数据保存在浏览器中）';
   if (iconEl) iconEl.textContent = '\u{1F7E1}';
   if (modeEl) { modeEl.textContent = '浏览器模式（数据保存在浏览器中）'; modeEl.style.color = '#FAAD14'; }
-  if (cntEl) cntEl.textContent = loadWords().length;
+  if (cntEl) {
+    var w = loadWords();
+    var s = loadSentences();
+    cntEl.textContent = w.length + ' 个单词, ' + s.length + ' 个句子';
+  }
 }
 
 function loadWords() {
@@ -478,15 +527,39 @@ function loadWords() {
 
 // 保存到 localStorage + 后台同步到服务器文件
 function saveWords(words) {
-  const json = JSON.stringify(words);
-  localStorage.setItem(STORAGE_KEY, json);
-  if (useServer) {
-    fetch('/api/words', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: json,
-    }).catch(function() {});
-  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
+  syncToServer();
+}
+
+function loadSentences() {
+  try {
+    const raw = localStorage.getItem(SENTENCE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveSentences(sentences) {
+  localStorage.setItem(SENTENCE_KEY, JSON.stringify(sentences));
+  syncToServer();
+}
+
+// 同时保存单词和句子（用于导入恢复等场景）
+function saveData(words, sentences) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
+  localStorage.setItem(SENTENCE_KEY, JSON.stringify(sentences));
+  syncToServer();
+}
+
+// 以 {words, sentences} 格式同步到服务器
+function syncToServer() {
+  if (!useServer) return;
+  var words = loadWords();
+  var sentences = loadSentences();
+  fetch('/api/words', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ words: words, sentences: sentences }),
+  }).catch(function() {});
 }
 
 // ============================================================
@@ -499,6 +572,20 @@ function showToast(msg) {
   el.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(function() { el.classList.remove('show'); }, 2000);
+}
+
+// ============================================================
+// AI 设置
+// ============================================================
+function saveApiKey() {
+  var key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) { showToast('请输入 API Key'); return; }
+  localStorage.setItem('ebbinghaus_api_key', key);
+  showToast('API Key 已保存');
+}
+
+function getApiKey() {
+  return localStorage.getItem('ebbinghaus_api_key') || '';
 }
 
 // ============================================================
@@ -530,6 +617,120 @@ async function fetchPhonetic(word) {
     }
   } catch (e) { /* 网络错误，静默处理 */ }
   return { phonetic: '', audioUrl: '' };
+}
+
+// 每满 10 个单词触发 AI 句子生成（fire-and-forget）
+async function triggerSentenceGeneration(allWords) {
+  var apiKey = getApiKey();
+  if (!apiKey) return;
+
+  var sentences = loadSentences();
+  var count = allWords.length;
+  var startIdx = Math.max(0, count - 10);
+  var last10 = allWords.slice(startIdx, count);
+  var wordRange = (startIdx + 1) + '-' + count;
+
+  // 检查这个范围的句子是否已存在
+  var exists = sentences.some(function(s) { return s.wordRange === wordRange; });
+  if (exists) return;
+
+  showToast('正在用 AI 生成句子 ' + wordRange + '...');
+  var result = await generateSentence(last10);
+  if (!result) {
+    showToast('AI 生成句子失败，可检查 API Key 是否正确');
+    return;
+  }
+
+  var now = new Date();
+  var sentence = {
+    id: Date.now() + Math.random(),
+    wordIds: last10.map(function(w) { return w.id; }),
+    wordRange: wordRange,
+    english: result.english,
+    chinese: result.chinese,
+    stage: 0,
+    createdAt: now.toISOString(),
+    nextReviewAt: new Date(now.getTime() + INTERVALS[0]).toISOString(),
+    reviewedAt: [],
+    forgottenCount: 0,
+  };
+  sentences.push(sentence);
+  saveSentences(sentences);
+  showToast('句子 ' + wordRange + ' 已生成并加入复习');
+  refreshAll();
+}
+
+// 检查所有已完成的 10 词分组，为缺少句子的分组生成句子
+async function generateMissingSentences() {
+  var apiKey = getApiKey();
+  if (!apiKey) {
+    // 还没配置 API Key，提示用户去设置页配置
+    if (loadWords().length >= 10) {
+      showToast('请在设置页配置 DeepSeek API Key 以启用 AI 造句');
+    }
+    return;
+  }
+
+  var words = loadWords();
+  var sentences = loadSentences();
+  var groups = Math.floor(words.length / 10);
+
+  for (var g = 1; g <= groups; g++) {
+    var target = g * 10;
+    var range = (target - 9) + '-' + target;
+    var exists = sentences.some(function(s) { return s.wordRange === range; });
+    if (!exists) {
+      await triggerSentenceGeneration(words.slice(0, target));
+      return; // 一次只生成一个，避免并发
+    }
+  }
+}
+
+// 调用 DeepSeek API 生成句子
+async function generateSentence(words) {
+  var apiKey = getApiKey();
+  if (!apiKey) return null;
+
+  var wordList = words.map(function(w) { return w.word; }).join(', ');
+  var prompt = '用以下单词组成一个通顺地道的英文句子（难度适中），并给出中文翻译。\n'
+    + '单词：' + wordList + '\n'
+    + '格式要求：先输出英文句子，然后换行，再输出中文翻译。不要包含其他内容。';
+
+  try {
+    var res = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + apiKey,
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.8,
+        max_tokens: 500,
+      }),
+    });
+
+    if (!res.ok) {
+      console.warn('DeepSeek API 返回错误:', res.status);
+      return null;
+    }
+
+    var data = await res.json();
+    var content = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+    if (!content) return null;
+
+    // 解析返回内容：第一行英文，其余中文
+    var lines = content.trim().split('\n').filter(function(l) { return l.trim(); });
+    var english = lines[0] ? lines[0].trim() : '';
+    var chinese = lines.slice(1).join('\n').trim();
+
+    if (!english) return null;
+    return { english: english, chinese: chinese || '' };
+  } catch (e) {
+    console.warn('调用 DeepSeek API 失败:', e);
+    return null;
+  }
 }
 
 async function addWord() {
@@ -573,6 +774,8 @@ async function addWord() {
   btn.disabled = false;
   showToast(phonetic ? '添加成功  ' + phonetic : '添加成功（未找到音标）');
   refreshAll();
+  // 检查是否有已完成但缺少句子的 10 词分组（兼容从文件/批量导入的场景）
+  await generateMissingSentences();
 }
 
 async function addBatch() {
@@ -612,6 +815,8 @@ async function addBatch() {
   document.getElementById('inputBatch').value = '';
   showToast('成功添加 ' + added + ' 个单词');
   refreshAll();
+  // 检查所有已完成但缺少句子的 10 词分组
+  await generateMissingSentences();
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -633,35 +838,57 @@ document.addEventListener('DOMContentLoaded', function() {
 // 复习
 // ============================================================
 var currentReviewId = null;
+var currentReviewType = 'word'; // 'word' or 'sentence'
 var answerRevealed = false;
 
 function renderReview() {
   var area = document.getElementById('reviewArea');
   var words = loadWords();
+  var sentences = loadSentences();
   var now = new Date();
+
+  // 合并待复习的单词和句子
   var dueWords = words.filter(function(w) {
     return w.nextReviewAt && new Date(w.nextReviewAt) <= now;
-  });
-  dueWords.sort(function(a, b) { return new Date(a.nextReviewAt) - new Date(b.nextReviewAt); });
+  }).map(function(w) { w._type = 'word'; return w; });
 
-  if (currentReviewId && !dueWords.some(function(w) { return w.id === currentReviewId; })) {
+  var dueSentences = sentences.filter(function(s) {
+    return s.nextReviewAt && new Date(s.nextReviewAt) <= now;
+  }).map(function(s) { s._type = 'sentence'; return s; });
+
+  var dueItems = dueWords.concat(dueSentences);
+  dueItems.sort(function(a, b) { return new Date(a.nextReviewAt) - new Date(b.nextReviewAt); });
+
+  if (currentReviewId && !dueItems.some(function(item) { return item.id === currentReviewId && item._type === currentReviewType; })) {
     currentReviewId = null;
     answerRevealed = false;
   }
 
-  if (dueWords.length === 0) {
-    if (words.length === 0) {
-      area.innerHTML = '<div class="card review-empty"><div class="icon">\u{1F4DA}</div><p style="font-size:16px;font-weight:600;color:#333;">还没有单词</p><p style="font-size:13px;margin-top:4px;">前往添加单词开始吧</p></div>';
+  var totalItems = words.length + sentences.length;
+
+  if (dueItems.length === 0) {
+    if (totalItems === 0) {
+      area.innerHTML = '<div class="card review-empty"><div class="icon">\u{1F4DA}</div><p style="font-size:16px;font-weight:600;color:#333;">还没有内容</p><p style="font-size:13px;margin-top:4px;">前往添加单词开始吧</p></div>';
     } else {
-      area.innerHTML = '<div class="card review-empty"><div class="icon">\u{1F389}</div><p style="font-size:16px;font-weight:600;color:#333;">全部复习完毕！</p><p style="font-size:13px;margin-top:4px;">太棒了，当前没有待复习的单词</p></div>';
+      area.innerHTML = '<div class="card review-empty"><div class="icon">\u{1F389}</div><p style="font-size:16px;font-weight:600;color:#333;">全部复习完毕！</p><p style="font-size:13px;margin-top:4px;">太棒了，当前没有待复习的内容</p></div>';
     }
     return;
   }
 
-  var reviewWord;
-  if (currentReviewId) { reviewWord = dueWords.find(function(w) { return w.id === currentReviewId; }); }
-  if (!reviewWord) { reviewWord = dueWords[0]; currentReviewId = reviewWord.id; answerRevealed = false; }
+  var reviewItem;
+  if (currentReviewId) { reviewItem = dueItems.find(function(item) { return item.id === currentReviewId && item._type === currentReviewType; }); }
+  if (!reviewItem) { reviewItem = dueItems[0]; currentReviewId = reviewItem.id; currentReviewType = reviewItem._type; answerRevealed = false; }
 
+  var isSentence = reviewItem._type === 'sentence';
+
+  if (isSentence) {
+    renderSentenceReview(area, reviewItem, dueItems, now);
+  } else {
+    renderWordReview(area, reviewItem, dueItems, now);
+  }
+}
+
+function renderWordReview(area, reviewWord, dueItems, now) {
   var stageLabel = reviewWord.stage >= TOTAL_STAGES
     ? '第 ' + (reviewWord.stage + 1) + ' 次复习 · 年复习'
     : '复习 ' + (reviewWord.stage + 1) + '/' + TOTAL_STAGES;
@@ -687,25 +914,63 @@ function renderReview() {
       '</div>' +
       (reviewWord.forgottenCount > 0 ? '<div style="font-size:11px;color:#bbb;margin-top:12px;">曾忘记 ' + reviewWord.forgottenCount + ' 次</div>' : '') +
     '</div>' +
-    '<div class="card">' +
-      '<div style="font-size:13px;font-weight:600;color:#666;margin-bottom:8px;">其他待复习单词 (' + (dueWords.length - 1) + ')</div>' +
-      '<div class="review-list">' +
-        dueWords.filter(function(w) { return w.id !== currentReviewId; }).slice(0, 20).map(function(w) {
-          var overdue = now - new Date(w.nextReviewAt);
-          return '<div class="review-item" onclick="switchReviewWord(' + w.id + ')">' +
-            '<div class="word-info"><div class="word">' + escapeHtml(w.word) +
-            (w.phonetic || w.audioUrl ? ' <span style="font-size:11px;color:#999;">' +
-              (w.phonetic ? escapeHtml(w.phonetic) : '') +
-              (w.audioUrl ? ' <span class="play-btn" onclick="event.stopPropagation();playWordAudio(' + w.id + ')">🔊</span>' : '') +
-              '</span>' : '') + '</div>' +
-            '<div class="meta">' + (w.stage >= TOTAL_STAGES ? '年复习' : '复习 ' + (w.stage + 1) + '/' + TOTAL_STAGES) + ' - ' + formatShortDuration(overdue) + '</div></div>' +
-            '<div class="overdue">' + (overdue > 0 ? formatShortDuration(overdue) + '前' : '即将') + '</div></div>';
-        }).join('') +
-      '</div>' +
-    '</div>';
+    renderDueSidebar(dueItems, reviewWord.id, 'word', now);
 }
 
-function switchReviewWord(id) { currentReviewId = id; answerRevealed = false; renderReview(); }
+function renderSentenceReview(area, sentence, dueItems, now) {
+  var stageLabel = sentence.stage >= TOTAL_STAGES
+    ? '第 ' + (sentence.stage + 1) + ' 次复习 · 年复习'
+    : '复习 ' + (sentence.stage + 1) + '/' + TOTAL_STAGES;
+  var overdueMs = now - new Date(sentence.nextReviewAt);
+  var overdueText = overdueMs > 0 ? formatDuration(overdueMs) + '前应复习' : '';
+
+  area.innerHTML =
+    '<div class="card review-card">' +
+      '<div class="sentence-badge">\u{1F4DD} 句子 ' + sentence.wordRange + '</div>' +
+      '<div class="word" style="font-size:24px;">' + escapeHtml(sentence.english) + '</div>' +
+      '<div class="stage-badge">' + stageLabel + '</div>' +
+      (overdueText ? '<div style="font-size:12px;color:#FF4D4F;margin-bottom:8px;">' + overdueText + '</div>' : '') +
+      '<div class="definition" style="font-size:18px;' + (answerRevealed ? '' : 'visibility:hidden;') + '">' + escapeHtml(sentence.chinese) + '</div>' +
+      (!answerRevealed ? '<div class="hint">回想一下中文翻译，然后点击下方按钮</div>' : '') +
+      '<div class="btn-group">' +
+        (!answerRevealed
+          ? '<button class="btn btn-primary" onclick="revealAnswer()">显示答案</button>'
+          : '<button class="btn btn-success" onclick="handleSentenceReview(true)">记住了</button><button class="btn btn-warning" onclick="handleSentenceReview(false)">忘记了</button>'
+        ) +
+      '</div>' +
+      (sentence.forgottenCount > 0 ? '<div style="font-size:11px;color:#bbb;margin-top:12px;">曾忘记 ' + sentence.forgottenCount + ' 次</div>' : '') +
+    '</div>' +
+    renderDueSidebar(dueItems, sentence.id, 'sentence', now);
+}
+
+function renderDueSidebar(dueItems, currentId, currentType, now) {
+  var others = dueItems.filter(function(item) { return !(item.id === currentId && item._type === currentType); });
+  return '<div class="card">' +
+    '<div style="font-size:13px;font-weight:600;color:#666;margin-bottom:8px;">其他待复习 (' + others.length + ')</div>' +
+    '<div class="review-list">' +
+      others.slice(0, 20).map(function(item) {
+        var overdue = now - new Date(item.nextReviewAt);
+        if (item._type === 'sentence') {
+          return '<div class="review-item sentence" onclick="switchReviewWord(' + item.id + ', \'sentence\')">' +
+            '<div class="word-info"><div class="word">\u{1F4DD} ' + escapeHtml(item.english) + '</div>' +
+            '<div class="meta">句子 ' + item.wordRange + ' - ' + (item.stage >= TOTAL_STAGES ? '年复习' : '复习 ' + (item.stage + 1) + '/' + TOTAL_STAGES) + '</div></div>' +
+            '<div class="overdue">' + (overdue > 0 ? formatShortDuration(overdue) + '前' : '即将') + '</div></div>';
+        } else {
+          return '<div class="review-item" onclick="switchReviewWord(' + item.id + ', \'word\')">' +
+            '<div class="word-info"><div class="word">' + escapeHtml(item.word) +
+            (item.phonetic || item.audioUrl ? ' <span style="font-size:11px;color:#999;">' +
+              (item.phonetic ? escapeHtml(item.phonetic) : '') +
+              (item.audioUrl ? ' <span class="play-btn" onclick="event.stopPropagation();playWordAudio(' + item.id + ')">🔊</span>' : '') +
+              '</span>' : '') + '</div>' +
+            '<div class="meta">' + (item.stage >= TOTAL_STAGES ? '年复习' : '复习 ' + (item.stage + 1) + '/' + TOTAL_STAGES) + ' - ' + formatShortDuration(overdue) + '</div></div>' +
+            '<div class="overdue">' + (overdue > 0 ? formatShortDuration(overdue) + '前' : '即将') + '</div></div>';
+        }
+      }).join('') +
+    '</div>' +
+  '</div>';
+}
+
+function switchReviewWord(id, type) { currentReviewId = id; currentReviewType = type || 'word'; answerRevealed = false; renderReview(); }
 function revealAnswer() { answerRevealed = true; renderReview(); }
 
 function handleReview(remembered) {
@@ -719,7 +984,6 @@ function handleReview(remembered) {
   if (remembered) {
     word.stage++;
     if (word.stage >= TOTAL_STAGES) {
-      // 之后每年复习一次，永不停止
       word.nextReviewAt = new Date(now.getTime() + YEARLY_INTERVAL).toISOString();
       showToast('"' + word.word + '" 进入年复习（每年一次）');
     } else {
@@ -738,6 +1002,35 @@ function handleReview(remembered) {
   refreshAll();
 }
 
+function handleSentenceReview(remembered) {
+  var sentences = loadSentences();
+  var idx = sentences.findIndex(function(s) { return s.id === currentReviewId; });
+  if (idx === -1) return;
+  var sentence = sentences[idx];
+  var now = new Date();
+  sentence.reviewedAt.push(now.toISOString());
+
+  if (remembered) {
+    sentence.stage++;
+    if (sentence.stage >= TOTAL_STAGES) {
+      sentence.nextReviewAt = new Date(now.getTime() + YEARLY_INTERVAL).toISOString();
+      showToast('句子 ' + sentence.wordRange + ' 进入年复习（每年一次）');
+    } else {
+      sentence.nextReviewAt = new Date(now.getTime() + INTERVALS[sentence.stage]).toISOString();
+      showToast('句子 ' + sentence.wordRange + ' 进入第 ' + (sentence.stage + 1) + ' 次复习');
+    }
+  } else {
+    sentence.forgottenCount++;
+    sentence.stage = 0;
+    sentence.nextReviewAt = new Date(now.getTime() + INTERVALS[0]).toISOString();
+    showToast('句子 ' + sentence.wordRange + ' 已重置，重新开始');
+  }
+  saveSentences(sentences);
+  currentReviewId = null;
+  answerRevealed = false;
+  refreshAll();
+}
+
 // ============================================================
 // 单词本
 // ============================================================
@@ -745,8 +1038,22 @@ var currentFilter = 'all';
 
 function renderBank() {
   var words = loadWords();
+  var sentences = loadSentences();
   var list = document.getElementById('wordList');
+  var senList = document.getElementById('sentenceList');
   var filtered = words;
+
+  if (currentFilter === 'sentence') {
+    // 显示句子列表
+    list.innerHTML = '';
+    renderSentenceBank(senList, sentences);
+    return;
+  }
+
+  // 显示单词列表
+  senList.innerHTML = '';
+  senList.style.display = 'none';
+
   if (currentFilter === 'learning') { filtered = words.filter(function(w) { return w.stage < TOTAL_STAGES; }); }
   else if (currentFilter === 'mastered') { filtered = words.filter(function(w) { return w.stage >= TOTAL_STAGES; }); }
 
@@ -773,6 +1080,34 @@ function renderBank() {
       '<div class="stage-label ' + (isAnnual ? 'stage-mastered' : '') + '">' + stageText + ' - 下次: ' + nextTime + '</div></div>' +
       '<div class="col-action"><button class="btn-del" onclick="deleteWord(' + w.id + ')" title="删除">X</button></div></div>';
   }).join('');
+
+  // 在单词列表下方显示句子列表
+  if (sentences.length > 0 && currentFilter === 'all') {
+    renderSentenceBank(senList, sentences);
+  }
+}
+
+function renderSentenceBank(senList, sentences) {
+  if (!sentences || sentences.length === 0) {
+    senList.innerHTML = '<div class="empty-state"><div class="icon">\u{1F4DD}</div><p>还没有句子</p></div>';
+    senList.style.display = 'block';
+    return;
+  }
+
+  var sorted = sentences.slice().sort(function(a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
+  senList.innerHTML =
+    '<h3 style="font-size:14px;font-weight:600;color:#666;margin-bottom:12px;">\u{1F4DD} 句子 (' + sentences.length + ')</h3>' +
+    sorted.map(function(s) {
+      var stageText = s.stage >= TOTAL_STAGES ? '年复习 (' + (s.stage + 1) + '次)' : '复习 ' + (s.stage + 1) + '/' + TOTAL_STAGES;
+      var nextTime = s.nextReviewAt ? formatDateTime(s.nextReviewAt) : '--';
+      return '<div class="sentence-item">' +
+        '<div class="sen-english">' + escapeHtml(s.english) + '</div>' +
+        '<div class="sen-chinese">' + escapeHtml(s.chinese) + '</div>' +
+        '<div class="sen-meta">句子 #' + s.wordRange + ' - ' + stageText + ' - 下次: ' + nextTime +
+        ' <button class="btn-del" onclick="deleteSentence(' + s.id + ')" title="删除" style="font-size:14px;">X</button></div>' +
+        '</div>';
+    }).join('');
+  senList.style.display = 'block';
 }
 
 function deleteWord(id) {
@@ -780,8 +1115,18 @@ function deleteWord(id) {
   var words = loadWords();
   words = words.filter(function(w) { return w.id !== id; });
   saveWords(words);
-  if (currentReviewId === id) { currentReviewId = null; answerRevealed = false; }
+  if (currentReviewId === id && currentReviewType === 'word') { currentReviewId = null; answerRevealed = false; }
   showToast('已删除');
+  refreshAll();
+}
+
+function deleteSentence(id) {
+  if (!confirm('确定要删除这个句子吗？')) return;
+  var sentences = loadSentences();
+  sentences = sentences.filter(function(s) { return s.id !== id; });
+  saveSentences(sentences);
+  if (currentReviewId === id && currentReviewType === 'sentence') { currentReviewId = null; answerRevealed = false; }
+  showToast('句子已删除');
   refreshAll();
 }
 
@@ -790,15 +1135,18 @@ function deleteWord(id) {
 // ============================================================
 function renderStats() {
   var words = loadWords();
+  var sentences = loadSentences();
   var now = new Date();
   var total = words.length;
   var annual = words.filter(function(w) { return w.stage >= TOTAL_STAGES; }).length;
   var learning = total - annual;
-  var due = words.filter(function(w) { return w.nextReviewAt && new Date(w.nextReviewAt) <= now; }).length;
+  var dueWords = words.filter(function(w) { return w.nextReviewAt && new Date(w.nextReviewAt) <= now; }).length;
+  var dueSentences = sentences.filter(function(s) { return s.nextReviewAt && new Date(s.nextReviewAt) <= now; }).length;
   document.getElementById('statTotal').textContent = total;
-  document.getElementById('statDue').textContent = due;
+  document.getElementById('statDue').textContent = dueWords + dueSentences;
   document.getElementById('statLearning').textContent = learning;
   document.getElementById('statMastered').textContent = annual;
+  document.getElementById('statSentenceCount').textContent = sentences.length;
 }
 
 // ============================================================
@@ -806,8 +1154,9 @@ function renderStats() {
 // ============================================================
 function saveToFile() {
   var words = loadWords();
-  if (words.length === 0) { showToast('没有数据可保存'); return; }
-  var json = JSON.stringify(words, null, 2);
+  var sentences = loadSentences();
+  if (words.length === 0 && sentences.length === 0) { showToast('没有数据可保存'); return; }
+  var json = JSON.stringify({ words: words, sentences: sentences }, null, 2);
   var blob = new Blob([json], { type: 'application/json' });
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
@@ -820,8 +1169,9 @@ function saveToFile() {
 
 function exportData() {
   var words = loadWords();
-  if (words.length === 0) { showToast('没有数据可导出'); return; }
-  var json = JSON.stringify(words, null, 2);
+  var sentences = loadSentences();
+  if (words.length === 0 && sentences.length === 0) { showToast('没有数据可导出'); return; }
+  var json = JSON.stringify({ words: words, sentences: sentences }, null, 2);
   var blob = new Blob([json], { type: 'application/json' });
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
@@ -838,15 +1188,30 @@ function importData(event) {
   var reader = new FileReader();
   reader.onload = function(e) {
     try {
-      var words = JSON.parse(e.target.result);
-      if (!Array.isArray(words)) throw new Error('格式错误');
+      var data = JSON.parse(e.target.result);
+      var words = [];
+      var sentences = [];
+
+      if (Array.isArray(data)) {
+        // 旧格式：纯单词数组
+        words = data;
+      } else if (data && data.words) {
+        // 新格式：{words, sentences}
+        words = data.words || [];
+        sentences = data.sentences || [];
+      } else {
+        throw new Error('格式错误');
+      }
+
       for (var i = 0; i < words.length; i++) {
         if (!words[i].word || words[i].stage === undefined) throw new Error('数据结构不完整');
       }
-      if (!confirm('即将导入 ' + words.length + ' 个单词，这会覆盖当前所有数据，确定吗？')) return;
-      saveWords(words);
-      showToast('成功导入 ' + words.length + ' 个单词');
+
+      if (!confirm('即将导入 ' + words.length + ' 个单词和 ' + sentences.length + ' 个句子，这会覆盖当前所有数据，确定吗？')) return;
+      saveData(words, sentences);
+      showToast('成功导入 ' + words.length + ' 个单词, ' + sentences.length + ' 个句子');
       refreshAll();
+      generateMissingSentences();
     } catch (err) {
       showToast('文件格式错误，请选择有效的 JSON 文件');
       console.error(err);
@@ -932,7 +1297,11 @@ function refreshAll() {
   renderReview();
   renderBank();
   var cntEl = document.getElementById('fileDetailCount');
-  if (cntEl) cntEl.textContent = loadWords().length;
+  if (cntEl) {
+    var words = loadWords();
+    var sentences = loadSentences();
+    cntEl.textContent = words.length + ' 个单词, ' + sentences.length + ' 个句子';
+  }
 }
 
 setInterval(refreshAll, 60000);
@@ -943,6 +1312,11 @@ setInterval(refreshAll, 60000);
 document.addEventListener('DOMContentLoaded', function() {
   setupTabs();
   setupFilters();
+  // 预填 API Key
+  var savedKey = getApiKey();
+  if (savedKey) {
+    document.getElementById('apiKeyInput').value = savedKey;
+  }
   // 先渲染界面（从 localStorage 加载）
   refreshAll();
   // 再检测服务器，如果有服务器数据则覆盖 localStorage
