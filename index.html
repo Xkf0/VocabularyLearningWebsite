@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>艾宾浩斯背单词</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #f0f2f5;
+      color: #333;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    header {
+      background: linear-gradient(135deg, #4A90D9, #357ABD);
+      color: #fff;
+      padding: 24px 0 16px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(74, 144, 217, 0.3);
+    }
+    header h1 { font-size: 24px; font-weight: 700; letter-spacing: 1px; }
+    header p { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+
+    /* Stats Bar */
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin: -32px auto 0;
+      padding: 0 16px;
+      max-width: 800px;
+    }
+    .stat-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 12px 8px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .stat-card .num { font-size: 22px; font-weight: 700; color: #4A90D9; }
+    .stat-card .label { font-size: 11px; color: #999; margin-top: 2px; }
+
+    /* File Bar */
+    .file-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      max-width: 800px;
+      margin: 12px auto 0;
+      padding: 0 16px;
+    }
+    .file-status { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #666; }
+    .file-status .file-icon { font-size: 16px; }
+    .file-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      max-width: 800px;
+      margin: 12px auto 0;
+      padding: 0 16px;
+      gap: 4px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      background: #e8ecf1;
+      color: #666;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 8px 8px 0 0;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover { background: #dce1e8; }
+    .tab-btn.active {
+      background: #fff;
+      color: #4A90D9;
+      box-shadow: 0 -2px 4px rgba(0,0,0,0.04);
+    }
+    .tab-content { max-width: 800px; margin: 0 auto; padding: 0 16px; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* Card */
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    /* Form */
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 4px; }
+    .form-group input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 15px;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+    .form-group input:focus { border-color: #4A90D9; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary { background: #4A90D9; color: #fff; }
+    .btn-primary:hover { background: #357ABD; }
+    .btn-success { background: #52C41A; color: #fff; }
+    .btn-success:hover { background: #45a818; }
+    .btn-danger { background: #FF4D4F; color: #fff; }
+    .btn-danger:hover { background: #e04345; }
+    .btn-warning { background: #FAAD14; color: #fff; }
+    .btn-warning:hover { background: #e09e12; }
+    .btn-sm { padding: 5px 12px; font-size: 12px; }
+    .btn-outline {
+      background: transparent;
+      border: 2px solid #ddd;
+      color: #666;
+    }
+    .btn-outline:hover { border-color: #bbb; background: #f5f5f5; }
+    .btn-block { width: 100%; }
+
+    /* Review */
+    .review-empty { text-align: center; padding: 40px 20px; color: #999; }
+    .review-empty .icon { font-size: 48px; margin-bottom: 12px; }
+    .review-card { text-align: center; padding: 40px 20px; }
+    .review-card .word { font-size: 36px; font-weight: 700; color: #333; margin-bottom: 8px; }
+    .review-card .stage-badge {
+      display: inline-block;
+      background: #e8f4fd;
+      color: #4A90D9;
+      padding: 2px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    .review-card .definition {
+      font-size: 22px;
+      color: #52C41A;
+      font-weight: 600;
+      margin: 20px 0;
+      min-height: 30px;
+    }
+    .review-card .hint { color: #999; font-size: 13px; margin-bottom: 20px; }
+    .review-card .btn-group { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .review-card .btn-group .btn { min-width: 120px; }
+
+    .review-list .review-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid #f0f0f0;
+      cursor: pointer;
+    }
+    .review-list .review-item:hover { background: #fafafa; }
+    .review-list .review-item:last-child { border-bottom: none; }
+    .review-item .word-info { flex: 1; }
+    .review-item .word-info .word { font-weight: 600; font-size: 16px; }
+    .review-item .word-info .meta { font-size: 12px; color: #999; margin-top: 2px; }
+    .review-item .overdue {
+      font-size: 12px;
+      color: #FF4D4F;
+      font-weight: 600;
+      white-space: nowrap;
+      margin-left: 12px;
+    }
+
+    /* Word Bank */
+    .filter-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .filter-btn {
+      padding: 6px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 20px;
+      background: #fff;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #666;
+    }
+    .filter-btn:hover { border-color: #bbb; }
+    .filter-btn.active { border-color: #4A90D9; color: #4A90D9; background: #e8f4fd; }
+
+    .word-row { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+    .word-row:last-child { border-bottom: none; }
+    .word-row .col-word { flex: 2; font-weight: 600; }
+    .word-row .col-def { flex: 3; color: #666; }
+    .word-row .col-stage { flex: 2; }
+    .word-row .col-action { flex: 1; text-align: right; }
+
+    .stage-bar { height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden; }
+    .stage-bar .fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4A90D9, #52C41A);
+      border-radius: 3px;
+      transition: width 0.3s;
+    }
+    .stage-label { font-size: 11px; color: #999; margin-top: 2px; }
+    .stage-mastered { color: #52C41A; font-weight: 600; }
+
+    .btn-del {
+      background: none;
+      border: none;
+      color: #ccc;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 4px 8px;
+      transition: color 0.2s;
+    }
+    .btn-del:hover { color: #FF4D4F; }
+
+    .play-btn {
+      cursor: pointer;
+      font-size: 18px;
+      margin-left: 4px;
+      vertical-align: middle;
+      display: inline-block;
+      user-select: none;
+      transition: transform 0.15s;
+    }
+    .play-btn:hover { transform: scale(1.25); }
+    .play-btn:active { transform: scale(0.9); }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #333;
+      color: #fff;
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 999;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* Empty State */
+    .empty-state { text-align: center; padding: 40px 20px; color: #bbb; }
+    .empty-state .icon { font-size: 40px; margin-bottom: 8px; }
+    .empty-state p { font-size: 14px; }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .stats-bar { grid-template-columns: repeat(2, 1fr); }
+      .review-card .word { font-size: 28px; }
+      .review-card .definition { font-size: 18px; }
+      .word-row { flex-wrap: wrap; gap: 4px; }
+      .word-row .col-action { flex: 0 0 auto; }
+      .tabs { padding: 0 8px; }
+      .tab-content { padding: 0 8px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>艾宾浩斯背单词</h1>
+  <p>遵循遗忘曲线规律 · 科学复习</p>
+</header>
+
+<!-- Stats -->
+<div class="stats-bar">
+  <div class="stat-card">
+    <div class="num" id="statTotal">0</div>
+    <div class="label">总单词</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" id="statDue">0</div>
+    <div class="label">待复习</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" id="statLearning">0</div>
+    <div class="label">学习中</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" id="statMastered">0</div>
+    <div class="label">年复习中</div>
+  </div>
+</div>
+
+<!-- File Bar -->
+<div class="file-bar">
+  <div class="file-status">
+    <span class="file-icon" id="fileIcon">💾</span>
+    <span class="file-text" id="fileText">正在连接...</span>
+  </div>
+  <div class="file-actions">
+    <button class="btn btn-sm btn-primary" onclick="saveToFile()">保存到文件</button>
+    <button class="btn btn-sm btn-outline" onclick="exportData()">导出备份</button>
+    <button class="btn btn-sm btn-outline" onclick="document.getElementById('importInput').click()">导入</button>
+    <input type="file" id="importInput" accept=".json" style="display:none" onchange="importData(event)">
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab-btn active" data-tab="review">复习</button>
+  <button class="tab-btn" data-tab="add">添加单词</button>
+  <button class="tab-btn" data-tab="bank">单词本</button>
+  <button class="tab-btn" data-tab="settings">设置</button>
+</div>
+
+<!-- Content -->
+<div class="tab-content">
+
+  <!-- Review -->
+  <div class="tab-pane active" id="pane-review">
+    <div id="reviewArea"></div>
+  </div>
+
+  <!-- Add -->
+  <div class="tab-pane" id="pane-add">
+    <div class="card">
+      <div class="form-group">
+        <label for="inputWord">英文单词</label>
+        <input type="text" id="inputWord" placeholder="例如：apple" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label for="inputDef">中文释义</label>
+        <input type="text" id="inputDef" placeholder="例如：苹果" autocomplete="off">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="addWord()">添加单词</button>
+    </div>
+    <div class="card">
+      <h3 style="font-size:14px;margin-bottom:8px;color:#666;">批量添加</h3>
+      <div class="form-group">
+        <label for="inputBatch">每行一个：单词,释义</label>
+        <textarea id="inputBatch" rows="5" style="width:100%;padding:10px 12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;resize:vertical;outline:none;font-family:inherit;" placeholder="apple,苹果&#10;banana,香蕉&#10;cat,猫"></textarea>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="addBatch()">批量添加</button>
+    </div>
+  </div>
+
+  <!-- Bank -->
+  <div class="tab-pane" id="pane-bank">
+    <div class="card">
+      <div class="filter-bar">
+        <button class="filter-btn active" data-filter="all">全部</button>
+        <button class="filter-btn" data-filter="learning">学习中</button>
+        <button class="filter-btn" data-filter="mastered">年复习中</button>
+      </div>
+      <div id="wordList"></div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="tab-pane" id="pane-settings">
+    <div class="card">
+      <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;">数据存储</h3>
+      <div style="background:#f6f8fa;border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;">
+        <div style="margin-bottom:4px;"><strong>模式：</strong><span id="modeDisplay">检测中...</span></div>
+        <div style="margin-bottom:4px;"><strong>单词数：</strong><span id="fileDetailCount">0</span></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="saveToFile()">保存到 vocabulary-data.json</button>
+        <button class="btn btn-warning" onclick="exportData()">导出备份</button>
+        <button class="btn btn-danger" onclick="document.getElementById('importInput').click()">导入恢复</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;">如何使用</h3>
+      <div style="font-size:13px;color:#666;line-height:1.8;">
+        <div style="background:#e8f4fd;border-radius:8px;padding:12px;margin-bottom:12px;">
+          <p style="font-weight:600;margin-bottom:4px;">方法一：双击「启动.bat」（推荐）</p>
+          <ol style="padding-left:20px;">
+            <li>在文件夹中找到并双击 <code>启动.bat</code></li>
+            <li>浏览器会自动打开，开始背单词吧！</li>
+            <li>数据会自动保存到 <code>vocabulary-data.json</code> 文件</li>
+          </ol>
+        </div>
+        <div style="background:#f6f8fa;border-radius:8px;padding:12px;margin-bottom:12px;">
+          <p style="font-weight:600;margin-bottom:4px;">方法二：直接双击 index.html</p>
+          <ol style="padding-left:20px;">
+            <li>在文件夹中找到并双击 <code>index.html</code></li>
+            <li>数据保存在浏览器中（关闭网页再打开，数据不会丢）</li>
+            <li>建议定期点击上面的「保存到文件」手动备份</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// 配置
+// ============================================================
+const STORAGE_KEY = 'ebbinghaus_words';
+const INTERVALS = [
+  20 * 60 * 1000,          // 第 1 次: 20 分钟
+  1 * 60 * 60 * 1000,      // 第 2 次: 1 小时
+  4 * 60 * 60 * 1000,      // 第 3 次: 4 小时
+  8 * 60 * 60 * 1000,      // 第 4 次: 8 小时
+  24 * 60 * 60 * 1000,     // 第 5 次: 1 天
+  3 * 24 * 60 * 60 * 1000, // 第 6 次: 3 天
+  7 * 24 * 60 * 60 * 1000, // 第 7 次: 7 天
+  14 * 24 * 60 * 60 * 1000,// 第 8 次: 14 天
+  30 * 24 * 60 * 60 * 1000,// 第 9 次: 1 个月
+  60 * 24 * 60 * 60 * 1000,// 第10次: 2 个月
+  120 * 24 * 60 * 60 * 1000,// 第11次: 4 个月
+  240 * 24 * 60 * 60 * 1000,// 第12次: 8 个月
+  365 * 24 * 60 * 60 * 1000,// 第13次: 1 年
+];
+const TOTAL_STAGES = INTERVALS.length;
+const YEARLY_INTERVAL = 365 * 24 * 60 * 60 * 1000; // 年复习间隔
+
+// ============================================================
+// 数据层：服务器 + localStorage 双写
+// ============================================================
+let useServer = false;
+
+// 页面加载时检测 server.py 是否在运行
+async function detectServer() {
+  const textEl = document.getElementById('fileText');
+  const iconEl = document.getElementById('fileIcon');
+  const modeEl = document.getElementById('modeDisplay');
+  const cntEl = document.getElementById('fileDetailCount');
+
+  try {
+    const res = await fetch('/api/words', { method: 'GET', cache: 'no-store' });
+    if (res.ok) {
+      useServer = true;
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      }
+      if (textEl) textEl.textContent = '已连接服务器, 数据自动保存到 vocabulary-data.json';
+      if (iconEl) iconEl.textContent = '\u{1F7E2}';
+      if (modeEl) { modeEl.textContent = '服务器模式 (自动读写 vocabulary-data.json)'; modeEl.style.color = '#52C41A'; }
+      return;
+    }
+  } catch (e) { /* 服务器未启动 */ }
+  useServer = false;
+  if (textEl) textEl.textContent = '浏览器模式（数据保存在浏览器中）';
+  if (iconEl) iconEl.textContent = '\u{1F7E1}';
+  if (modeEl) { modeEl.textContent = '浏览器模式（数据保存在浏览器中）'; modeEl.style.color = '#FAAD14'; }
+  if (cntEl) cntEl.textContent = loadWords().length;
+}
+
+function loadWords() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+// 保存到 localStorage + 后台同步到服务器文件
+function saveWords(words) {
+  const json = JSON.stringify(words);
+  localStorage.setItem(STORAGE_KEY, json);
+  if (useServer) {
+    fetch('/api/words', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: json,
+    }).catch(function() {});
+  }
+}
+
+// ============================================================
+// Toast
+// ============================================================
+var toastTimer = null;
+function showToast(msg) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function() { el.classList.remove('show'); }, 2000);
+}
+
+// ============================================================
+// 添加单词
+// ============================================================
+
+// 从免费词典 API 获取音标和音频 URL
+async function fetchPhonetic(word) {
+  try {
+    var res = await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(word));
+    if (res.ok) {
+      var data = await res.json();
+      if (data && data[0]) {
+        var phonetic = '';
+        var audioUrl = '';
+        // 优先用顶层的 phonetic 字段
+        if (data[0].phonetic) phonetic = data[0].phonetic;
+        // 从 phonetics 数组里获取音标和音频
+        if (data[0].phonetics) {
+          for (var i = 0; i < data[0].phonetics.length; i++) {
+            var p = data[0].phonetics[i];
+            if (!phonetic && p.text) phonetic = p.text;
+            if (!audioUrl && p.audio) audioUrl = p.audio;
+            if (phonetic && audioUrl) break;
+          }
+        }
+        return { phonetic: phonetic, audioUrl: audioUrl };
+      }
+    }
+  } catch (e) { /* 网络错误，静默处理 */ }
+  return { phonetic: '', audioUrl: '' };
+}
+
+async function addWord() {
+  var wordEl = document.getElementById('inputWord');
+  var defEl = document.getElementById('inputDef');
+  var word = wordEl.value.trim();
+  var def = defEl.value.trim();
+  if (!word || !def) { showToast('请填写单词和释义'); return; }
+  var words = loadWords();
+  if (words.some(function(w) { return w.word.toLowerCase() === word.toLowerCase(); })) {
+    showToast('该单词已存在');
+    return;
+  }
+  var btn = document.querySelector('#pane-add .btn-block');
+  var originalText = btn.textContent;
+  btn.textContent = '查询音标中...';
+  btn.disabled = true;
+
+  var now = new Date();
+  var result = await fetchPhonetic(word);
+  var phonetic = result.phonetic;
+  var audioUrl = result.audioUrl;
+  var newWord = {
+    id: Date.now() + Math.random(),
+    word: word,
+    definition: def,
+    phonetic: phonetic,
+    audioUrl: audioUrl,
+    stage: 0,
+    createdAt: now.toISOString(),
+    nextReviewAt: new Date(now.getTime() + INTERVALS[0]).toISOString(),
+    reviewedAt: [],
+    forgottenCount: 0,
+  };
+  words.push(newWord);
+  saveWords(words);
+  wordEl.value = '';
+  defEl.value = '';
+  wordEl.focus();
+  btn.textContent = originalText;
+  btn.disabled = false;
+  showToast(phonetic ? '添加成功  ' + phonetic : '添加成功（未找到音标）');
+  refreshAll();
+}
+
+async function addBatch() {
+  var text = document.getElementById('inputBatch').value.trim();
+  if (!text) { showToast('请填写要批量添加的内容'); return; }
+  var lines = text.split('\n').filter(function(l) { return l.trim(); });
+  var words = loadWords();
+  var added = 0;
+  var now = new Date();
+  // 批量添加时逐个查询音标（异步不阻塞）
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    var sep = line.indexOf(',') >= 0 ? ',' : '\t';
+    var parts = line.split(sep);
+    if (parts.length < 2) continue;
+    var w = parts[0].trim();
+    var d = parts.slice(1).join(sep).trim();
+    if (!w || !d) continue;
+    if (words.some(function(ww) { return ww.word.toLowerCase() === w.toLowerCase(); })) continue;
+    var result2 = await fetchPhonetic(w);
+    words.push({
+      id: Date.now() + Math.random(),
+      word: w,
+      definition: d,
+      phonetic: result2.phonetic,
+      audioUrl: result2.audioUrl,
+      stage: 0,
+      createdAt: now.toISOString(),
+      nextReviewAt: new Date(now.getTime() + INTERVALS[0]).toISOString(),
+      reviewedAt: [],
+      forgottenCount: 0,
+    });
+    added++;
+  }
+  if (added === 0) { showToast('没有新单词可添加'); return; }
+  saveWords(words);
+  document.getElementById('inputBatch').value = '';
+  showToast('成功添加 ' + added + ' 个单词');
+  refreshAll();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('inputWord').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      var defEl = document.getElementById('inputDef');
+      if (document.activeElement === document.getElementById('inputWord')) {
+        e.preventDefault();
+        defEl.focus();
+      }
+    }
+  });
+  document.getElementById('inputDef').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); addWord(); }
+  });
+});
+
+// ============================================================
+// 复习
+// ============================================================
+var currentReviewId = null;
+var answerRevealed = false;
+
+function renderReview() {
+  var area = document.getElementById('reviewArea');
+  var words = loadWords();
+  var now = new Date();
+  var dueWords = words.filter(function(w) {
+    return w.nextReviewAt && new Date(w.nextReviewAt) <= now;
+  });
+  dueWords.sort(function(a, b) { return new Date(a.nextReviewAt) - new Date(b.nextReviewAt); });
+
+  if (currentReviewId && !dueWords.some(function(w) { return w.id === currentReviewId; })) {
+    currentReviewId = null;
+    answerRevealed = false;
+  }
+
+  if (dueWords.length === 0) {
+    if (words.length === 0) {
+      area.innerHTML = '<div class="card review-empty"><div class="icon">\u{1F4DA}</div><p style="font-size:16px;font-weight:600;color:#333;">还没有单词</p><p style="font-size:13px;margin-top:4px;">前往添加单词开始吧</p></div>';
+    } else {
+      area.innerHTML = '<div class="card review-empty"><div class="icon">\u{1F389}</div><p style="font-size:16px;font-weight:600;color:#333;">全部复习完毕！</p><p style="font-size:13px;margin-top:4px;">太棒了，当前没有待复习的单词</p></div>';
+    }
+    return;
+  }
+
+  var reviewWord;
+  if (currentReviewId) { reviewWord = dueWords.find(function(w) { return w.id === currentReviewId; }); }
+  if (!reviewWord) { reviewWord = dueWords[0]; currentReviewId = reviewWord.id; answerRevealed = false; }
+
+  var stageLabel = reviewWord.stage >= TOTAL_STAGES
+    ? '第 ' + (reviewWord.stage + 1) + ' 次复习 · 年复习'
+    : '复习 ' + (reviewWord.stage + 1) + '/' + TOTAL_STAGES;
+  var overdueMs = now - new Date(reviewWord.nextReviewAt);
+  var overdueText = overdueMs > 0 ? formatDuration(overdueMs) + '前应复习' : '';
+
+  area.innerHTML =
+    '<div class="card review-card">' +
+      '<div class="word">' + escapeHtml(reviewWord.word) + '</div>' +
+      (reviewWord.phonetic || reviewWord.audioUrl ? '<div style="font-size:15px;color:#999;margin-bottom:6px;">' +
+        (reviewWord.phonetic ? escapeHtml(reviewWord.phonetic) : '') +
+        (reviewWord.audioUrl ? ' <span class="play-btn" onclick="playWordAudio(' + reviewWord.id + ')">🔊</span>' : '') +
+        '</div>' : '') +
+      '<div class="stage-badge">' + stageLabel + '</div>' +
+      (overdueText ? '<div style="font-size:12px;color:#FF4D4F;margin-bottom:8px;">' + overdueText + '</div>' : '') +
+      '<div class="definition" style="' + (answerRevealed ? '' : 'visibility:hidden;') + '">' + escapeHtml(reviewWord.definition) + '</div>' +
+      (!answerRevealed ? '<div class="hint">回想一下释义，然后点击下方按钮</div>' : '') +
+      '<div class="btn-group">' +
+        (!answerRevealed
+          ? '<button class="btn btn-primary" onclick="revealAnswer()">显示答案</button>'
+          : '<button class="btn btn-success" onclick="handleReview(true)">记住了</button><button class="btn btn-warning" onclick="handleReview(false)">忘记了</button>'
+        ) +
+      '</div>' +
+      (reviewWord.forgottenCount > 0 ? '<div style="font-size:11px;color:#bbb;margin-top:12px;">曾忘记 ' + reviewWord.forgottenCount + ' 次</div>' : '') +
+    '</div>' +
+    '<div class="card">' +
+      '<div style="font-size:13px;font-weight:600;color:#666;margin-bottom:8px;">其他待复习单词 (' + (dueWords.length - 1) + ')</div>' +
+      '<div class="review-list">' +
+        dueWords.filter(function(w) { return w.id !== currentReviewId; }).slice(0, 20).map(function(w) {
+          var overdue = now - new Date(w.nextReviewAt);
+          return '<div class="review-item" onclick="switchReviewWord(' + w.id + ')">' +
+            '<div class="word-info"><div class="word">' + escapeHtml(w.word) +
+            (w.phonetic || w.audioUrl ? ' <span style="font-size:11px;color:#999;">' +
+              (w.phonetic ? escapeHtml(w.phonetic) : '') +
+              (w.audioUrl ? ' <span class="play-btn" onclick="event.stopPropagation();playWordAudio(' + w.id + ')">🔊</span>' : '') +
+              '</span>' : '') + '</div>' +
+            '<div class="meta">' + (w.stage >= TOTAL_STAGES ? '年复习' : '复习 ' + (w.stage + 1) + '/' + TOTAL_STAGES) + ' - ' + formatShortDuration(overdue) + '</div></div>' +
+            '<div class="overdue">' + (overdue > 0 ? formatShortDuration(overdue) + '前' : '即将') + '</div></div>';
+        }).join('') +
+      '</div>' +
+    '</div>';
+}
+
+function switchReviewWord(id) { currentReviewId = id; answerRevealed = false; renderReview(); }
+function revealAnswer() { answerRevealed = true; renderReview(); }
+
+function handleReview(remembered) {
+  var words = loadWords();
+  var idx = words.findIndex(function(w) { return w.id === currentReviewId; });
+  if (idx === -1) return;
+  var word = words[idx];
+  var now = new Date();
+  word.reviewedAt.push(now.toISOString());
+
+  if (remembered) {
+    word.stage++;
+    if (word.stage >= TOTAL_STAGES) {
+      // 之后每年复习一次，永不停止
+      word.nextReviewAt = new Date(now.getTime() + YEARLY_INTERVAL).toISOString();
+      showToast('"' + word.word + '" 进入年复习（每年一次）');
+    } else {
+      word.nextReviewAt = new Date(now.getTime() + INTERVALS[word.stage]).toISOString();
+      showToast('"' + word.word + '" 进入第 ' + (word.stage + 1) + ' 次复习');
+    }
+  } else {
+    word.forgottenCount++;
+    word.stage = 0;
+    word.nextReviewAt = new Date(now.getTime() + INTERVALS[0]).toISOString();
+    showToast('"' + word.word + '" 已重置，重新开始');
+  }
+  saveWords(words);
+  currentReviewId = null;
+  answerRevealed = false;
+  refreshAll();
+}
+
+// ============================================================
+// 单词本
+// ============================================================
+var currentFilter = 'all';
+
+function renderBank() {
+  var words = loadWords();
+  var list = document.getElementById('wordList');
+  var filtered = words;
+  if (currentFilter === 'learning') { filtered = words.filter(function(w) { return w.stage < TOTAL_STAGES; }); }
+  else if (currentFilter === 'mastered') { filtered = words.filter(function(w) { return w.stage >= TOTAL_STAGES; }); }
+
+  filtered.sort(function(a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">\u{1F4D6}</div><p>' + (words.length === 0 ? '还没有单词，先去添加吧' : '没有匹配的单词') + '</p></div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(function(w) {
+    var isAnnual = w.stage >= TOTAL_STAGES;
+    var pct = isAnnual ? 100 : Math.min(100, Math.round((w.stage / TOTAL_STAGES) * 100));
+    var stageText = isAnnual ? '年复习 (' + (w.stage + 1) + '次)' : '复习 ' + (w.stage + 1) + '/' + TOTAL_STAGES;
+    var nextTime = w.nextReviewAt ? formatDateTime(w.nextReviewAt) : '--';
+    return '<div class="word-row">' +
+      '<div class="col-word">' + escapeHtml(w.word) +
+      (w.phonetic || w.audioUrl ? '<br><span style="font-size:11px;color:#999;">' +
+        (w.phonetic ? escapeHtml(w.phonetic) : '') +
+        (w.audioUrl ? ' <span class="play-btn" onclick="event.stopPropagation();playWordAudio(' + w.id + ')">🔊</span>' : '') +
+        '</span>' : '') + '</div>' +
+      '<div class="col-def">' + escapeHtml(w.definition) + '</div>' +
+      '<div class="col-stage"><div class="stage-bar"><div class="fill" style="width:' + pct + '%"></div></div>' +
+      '<div class="stage-label ' + (isAnnual ? 'stage-mastered' : '') + '">' + stageText + ' - 下次: ' + nextTime + '</div></div>' +
+      '<div class="col-action"><button class="btn-del" onclick="deleteWord(' + w.id + ')" title="删除">X</button></div></div>';
+  }).join('');
+}
+
+function deleteWord(id) {
+  if (!confirm('确定要删除这个单词吗？')) return;
+  var words = loadWords();
+  words = words.filter(function(w) { return w.id !== id; });
+  saveWords(words);
+  if (currentReviewId === id) { currentReviewId = null; answerRevealed = false; }
+  showToast('已删除');
+  refreshAll();
+}
+
+// ============================================================
+// 统计
+// ============================================================
+function renderStats() {
+  var words = loadWords();
+  var now = new Date();
+  var total = words.length;
+  var annual = words.filter(function(w) { return w.stage >= TOTAL_STAGES; }).length;
+  var learning = total - annual;
+  var due = words.filter(function(w) { return w.nextReviewAt && new Date(w.nextReviewAt) <= now; }).length;
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statDue').textContent = due;
+  document.getElementById('statLearning').textContent = learning;
+  document.getElementById('statMastered').textContent = annual;
+}
+
+// ============================================================
+// 导出 / 导入 / 保存到文件
+// ============================================================
+function saveToFile() {
+  var words = loadWords();
+  if (words.length === 0) { showToast('没有数据可保存'); return; }
+  var json = JSON.stringify(words, null, 2);
+  var blob = new Blob([json], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'vocabulary-data.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('已保存到 vocabulary-data.json');
+}
+
+function exportData() {
+  var words = loadWords();
+  if (words.length === 0) { showToast('没有数据可导出'); return; }
+  var json = JSON.stringify(words, null, 2);
+  var blob = new Blob([json], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'vocabulary-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('导出成功');
+}
+
+function importData(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var words = JSON.parse(e.target.result);
+      if (!Array.isArray(words)) throw new Error('格式错误');
+      for (var i = 0; i < words.length; i++) {
+        if (!words[i].word || words[i].stage === undefined) throw new Error('数据结构不完整');
+      }
+      if (!confirm('即将导入 ' + words.length + ' 个单词，这会覆盖当前所有数据，确定吗？')) return;
+      saveWords(words);
+      showToast('成功导入 ' + words.length + ' 个单词');
+      refreshAll();
+    } catch (err) {
+      showToast('文件格式错误，请选择有效的 JSON 文件');
+      console.error(err);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// ============================================================
+// UI 逻辑
+// ============================================================
+function setupTabs() {
+  document.querySelectorAll('.tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+      document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById('pane-' + btn.dataset.tab).classList.add('active');
+      refreshAll();
+    });
+  });
+}
+
+function setupFilters() {
+  document.querySelectorAll('.filter-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      currentFilter = btn.dataset.filter;
+      renderBank();
+    });
+  });
+}
+
+// ============================================================
+// 工具函数
+// ============================================================
+function playWordAudio(id) {
+  var words = loadWords();
+  var word = words.find(function(w) { return w.id === id; });
+  if (word && word.audioUrl) {
+    var audio = new Audio(word.audioUrl);
+    audio.play().catch(function(e) { console.warn('播放音频失败:', e); });
+  }
+}
+function escapeHtml(str) {
+  var div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function formatDuration(ms) {
+  var seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return seconds + '秒';
+  var minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return minutes + '分钟';
+  var hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours + '小时' + (minutes % 60) + '分钟';
+  var days = Math.floor(hours / 24);
+  return days + '天' + (hours % 24) + '小时';
+}
+
+function formatShortDuration(ms) {
+  var seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return seconds + '秒';
+  var minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return minutes + '分钟';
+  var hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours + '小时';
+  var days = Math.floor(hours / 24);
+  return days + '天';
+}
+
+function formatDateTime(isoStr) {
+  var d = new Date(isoStr);
+  return pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+}
+
+function refreshAll() {
+  renderStats();
+  renderReview();
+  renderBank();
+  var cntEl = document.getElementById('fileDetailCount');
+  if (cntEl) cntEl.textContent = loadWords().length;
+}
+
+setInterval(refreshAll, 60000);
+
+// ============================================================
+// 初始化
+// ============================================================
+document.addEventListener('DOMContentLoaded', function() {
+  setupTabs();
+  setupFilters();
+  // 先渲染界面（从 localStorage 加载）
+  refreshAll();
+  // 再检测服务器，如果有服务器数据则覆盖 localStorage
+  detectServer();
+});
+</script>
+</body>
+</html>

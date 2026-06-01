@@ -1,0 +1,9 @@
+# 用户词汇数据（每个人自己的数据，不提交）
+vocabulary-data.json
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 编辑器本地配置（如果需要完全隐藏可以取消下面这行的注释）
+# .vscode/settings.json
