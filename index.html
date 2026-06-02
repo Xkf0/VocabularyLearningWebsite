@@ -28,11 +28,11 @@
     /* Stats Bar */
     .stats-bar {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 8px;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
       margin: -32px auto 0;
       padding: 0 16px;
-      max-width: 800px;
+      max-width: 900px;
     }
     .stat-card {
       background: #fff;
@@ -325,6 +325,10 @@
     <div class="num" id="statSentenceCount">0</div>
     <div class="label">句子</div>
   </div>
+  <div class="stat-card">
+    <div class="num" id="statNextTime" style="font-size:16px;color:#e67e22;">--</div>
+    <div class="label">下次复习</div>
+  </div>
 </div>
 
 <!-- File Bar -->
@@ -504,6 +508,7 @@ async function detectServer() {
       if (textEl) textEl.textContent = '已连接服务器, 数据自动保存到 vocabulary-data.json';
       if (iconEl) iconEl.textContent = '\u{1F7E2}';
       if (modeEl) { modeEl.textContent = '服务器模式 (自动读写 vocabulary-data.json)'; modeEl.style.color = '#52C41A'; }
+      refreshAll();
       return;
     }
   } catch (e) { /* 服务器未启动 */ }
@@ -516,6 +521,7 @@ async function detectServer() {
     var s = loadSentences();
     cntEl.textContent = w.length + ' 个单词, ' + s.length + ' 个句子';
   }
+  refreshAll();
 }
 
 function loadWords() {
@@ -870,7 +876,18 @@ function renderReview() {
     if (totalItems === 0) {
       area.innerHTML = '<div class="card review-empty"><div class="icon">\u{1F4DA}</div><p style="font-size:16px;font-weight:600;color:#333;">还没有内容</p><p style="font-size:13px;margin-top:4px;">前往添加单词开始吧</p></div>';
     } else {
-      area.innerHTML = '<div class="card review-empty"><div class="icon">\u{1F389}</div><p style="font-size:16px;font-weight:600;color:#333;">全部复习完毕！</p><p style="font-size:13px;margin-top:4px;">太棒了，当前没有待复习的内容</p></div>';
+      var nextTime = findNextReviewTime(now);
+      var nextHtml = '';
+      if (nextTime) {
+        var diff = nextTime - now;
+        var inText = diff < 60000 ? '不到 1 分钟' : formatDuration(diff) + '后';
+        nextHtml = '<div style="margin-top:16px;padding:16px;background:#fff3e0;border-radius:10px;display:inline-block;">' +
+          '<div style="font-size:13px;color:#e67e22;">下一次复习时间</div>' +
+          '<div style="font-size:28px;font-weight:700;color:#e67e22;margin-top:4px;">' + formatTime(nextTime) + '</div>' +
+          '<div style="font-size:12px;color:#999;margin-top:4px;">约 ' + inText + '</div>' +
+          '</div>';
+      }
+      area.innerHTML = '<div class="card review-empty"><div class="icon">\u{1F389}</div><p style="font-size:16px;font-weight:600;color:#333;">全部复习完毕！</p><p style="font-size:13px;margin-top:4px;">太棒了，当前没有待复习的内容</p>' + nextHtml + '</div>';
     }
     return;
   }
@@ -1147,6 +1164,28 @@ function renderStats() {
   document.getElementById('statLearning').textContent = learning;
   document.getElementById('statMastered').textContent = annual;
   document.getElementById('statSentenceCount').textContent = sentences.length;
+
+  // 更新下次复习时间
+  var nextTime = findNextReviewTime(now);
+  var nextEl = document.getElementById('statNextTime');
+  if (nextTime) {
+    var diff = nextTime - now;
+    if (diff <= 0) {
+      nextEl.textContent = '现在!';
+      nextEl.style.color = '#FF4D4F';
+    } else if (diff < 3600000) {
+      nextEl.textContent = formatDuration(diff) + '后';
+      nextEl.style.fontSize = '16px';
+      nextEl.style.color = '#e67e22';
+    } else {
+      nextEl.textContent = formatTime(nextTime);
+      nextEl.style.fontSize = '18px';
+      nextEl.style.color = '#e67e22';
+    }
+  } else {
+    nextEl.textContent = '--';
+    nextEl.style.color = '#999';
+  }
 }
 
 // ============================================================
@@ -1287,8 +1326,47 @@ function formatShortDuration(ms) {
 }
 
 function formatDateTime(isoStr) {
+  var d = toBeijingTime(isoStr);
+  return pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate()) + ' ' + pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes());
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+}
+
+function findNextReviewTime(now) {
+  if (!now) now = new Date();
+  var words = loadWords();
+  var sentences = loadSentences();
+  var nearest = null;
+  words.concat(sentences).forEach(function(item) {
+    if (item.nextReviewAt) {
+      var t = new Date(item.nextReviewAt);
+      if (t > now && (nearest === null || t < nearest)) {
+        nearest = t;
+      }
+    }
+  });
+  // 如果所有项目都已过期（无未来复习），则取最近的一个过期时间作为后备
+  if (!nearest) {
+    words.concat(sentences).forEach(function(item) {
+      if (item.nextReviewAt) {
+        var t = new Date(item.nextReviewAt);
+        if (nearest === null || t > nearest) {
+          nearest = t;
+        }
+      }
+    });
+  }
+  return nearest;
+}
+
+function toBeijingTime(isoStr) {
   var d = new Date(isoStr);
-  return pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  // 加 8 小时转为北京时间
+  return new Date(d.getTime() + 8 * 60 * 60 * 1000);
+}
+
+function formatTime(isoStr) {
+  var d = toBeijingTime(isoStr);
+  return pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes());
   function pad(n) { return n < 10 ? '0' + n : '' + n; }
 }
 

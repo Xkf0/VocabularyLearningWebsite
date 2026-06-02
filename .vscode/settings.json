@@ -10,7 +10,7 @@
     "claudeCode.environmentVariables": [
         {
             "name": "ANTHROPIC_AUTH_TOKEN",
-            "value": "YOUR_API_KEY_HERE"
+            "value": "sk-05836d6cb8a44665892db760d1e4f051"
         },
         {
             "name": "ANTHROPIC_BASE_URL",
