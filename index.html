@@ -68,7 +68,7 @@
     /* Stats Bar */
     .stats-bar {
       display: grid;
-      grid-template-columns: repeat(6, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
       gap: 8px;
       margin: -24px auto 0;
       padding: 0 16px;
@@ -450,6 +450,10 @@
   <div class="stat-card">
     <div class="num" id="statNextTime" style="font-size:16px;color:#e67e22;">--</div>
     <div class="label">下次复习</div>
+  </div>
+  <div class="stat-card" style="cursor:pointer;" onclick="toggleSnooze()">
+    <div class="num" id="statAudioStatus" style="font-size:22px;line-height:1.2;" title="点击延时 5 分钟">🔔</div>
+    <div class="label">延时</div>
   </div>
 </div>
 
@@ -969,28 +973,170 @@ var currentReviewId = null;
 var currentReviewType = 'word'; // 'word' or 'sentence'
 var answerRevealed = false;
 var lastAlarmTime = 0;
+var snoozeUntil = 0; // 延时截止时间戳，0 表示未延时
 
-// 用 Web Audio API 生成提醒音（三声叮咚）
-function playReviewAlarm() {
+// ============================================================
+// 提醒系统：通知 + 音频 + 震动
+// ============================================================
+
+// --- 音频解锁系统 ---
+// Chrome 要求用户与页面交互后 AudioContext 才能输出声音。
+// 此系统持有一个永久 AudioContext，持续尝试唤醒它，
+// 一旦用户正常使用页面（点击、按键等），音频立即解锁。
+
+var alarmCtx = null;
+var audioUnlocked = false;
+
+(function initAlarmAudio() {
   try {
-    var ctx = new (window.AudioContext || window.webkitAudioContext)();
-    var now = ctx.currentTime;
-    // 三声渐强的叮咚：C5 → E5 → G5
-    var freqs = [523, 659, 784];
-    freqs.forEach(function(freq, i) {
-      var osc = ctx.createOscillator();
-      var gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0, now + i * 0.2);
-      gain.gain.linearRampToValueAtTime(0.15, now + i * 0.2 + 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.2 + 0.3);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now + i * 0.2);
-      osc.stop(now + i * 0.2 + 0.3);
+    alarmCtx = new (window.AudioContext || window.webkitAudioContext)();
+    setInterval(function() {
+      if (alarmCtx && alarmCtx.state === 'suspended') {
+        alarmCtx.resume().then(function() {
+          audioUnlocked = true;
+          updateSnoozeBtn();
+        }, function() {});
+      }
+    }, 200);
+  } catch(e) {}
+})();
+
+function onUserTap() {
+  if (!alarmCtx || audioUnlocked) return;
+  if (alarmCtx.state === 'suspended') {
+    alarmCtx.resume().then(function() {
+      audioUnlocked = true;
+      updateSnoozeBtn();
+    }, function() {});
+  }
+}
+document.addEventListener('click', onUserTap);
+document.addEventListener('keydown', onUserTap);
+document.addEventListener('touchstart', onUserTap);
+
+// --- 延时按钮（点击后 5 分钟内不提醒）---
+
+function toggleSnooze() {
+  if (snoozeUntil > Date.now()) {
+    // 正在延时中 → 取消延时
+    snoozeUntil = 0;
+    showToast('已取消延时，恢复提醒');
+  } else {
+    // 开启 5 分钟延时
+    snoozeUntil = Date.now() + 5 * 60 * 1000;
+    showToast('已延时 5 分钟，到时自动恢复提醒');
+  }
+  updateSnoozeBtn();
+}
+
+function updateSnoozeBtn() {
+  var el = document.getElementById('statAudioStatus');
+  if (!el) return;
+  var remaining = snoozeUntil - Date.now();
+  if (remaining > 0) {
+    // 延时中：显示倒计时
+    var secs = Math.ceil(remaining / 1000);
+    var m = Math.floor(secs / 60);
+    var s = secs % 60;
+    el.textContent = '\u23F0 ' + m + ':' + (s < 10 ? '0' : '') + s;
+    el.style.fontSize = '18px';
+    el.style.color = '#EF4444';
+    el.title = '点击取消延时';
+  } else {
+    snoozeUntil = 0; // 清理过期
+    // 正常状态：显示音频状态
+    el.textContent = audioUnlocked ? '\uD83D\uDD14' : '\uD83D\uDD14';
+    el.style.fontSize = '22px';
+    el.style.color = audioUnlocked ? '#22C55E' : '#94a3b8';
+    el.title = '点击延时 5 分钟';
+  }
+}
+
+// 每 5 秒刷新一次延时按钮的显示
+setInterval(updateSnoozeBtn, 5000);
+
+// --- 通知 ---
+
+function requestNotifyPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+function showDueNotification(dueCount) {
+  if (!('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+  try {
+    var n = new Notification('艾宾浩斯背单词', {
+      body: '有 ' + dueCount + ' 项内容需要复习！',
+      tag: 'ebbinghaus-due',
+      requireInteraction: true,
     });
-  } catch(e) { /* 浏览器不支持音频，静默忽略 */ }
+    n.onclick = function() {
+      window.focus();
+      this.close();
+    };
+  } catch(e) {}
+}
+
+// --- 播放闹铃音频 ---
+
+function playReviewAlarm() {
+  if (!alarmCtx || !audioUnlocked) return;
+  try {
+    var t = alarmCtx.currentTime + 0.1;
+    var ringCount = 4;
+    for (var r = 0; r < ringCount; r++) {
+      var start = t + r * 0.7;
+      [880, 1320].forEach(function(freq) {
+        var osc = alarmCtx.createOscillator();
+        var gain = alarmCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, start);
+        gain.gain.linearRampToValueAtTime(0.12, start + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.35);
+        osc.connect(gain);
+        gain.connect(alarmCtx.destination);
+        osc.start(start);
+        osc.stop(start + 0.4);
+      });
+    }
+  } catch(e) {}
+}
+
+// --- 快速闹铃检测器（每秒检测一次）---
+
+var alarmCheckerId = null;
+function startAlarmChecker() {
+  if (alarmCheckerId) return;
+  alarmCheckerId = setInterval(function() {
+    // 延时中不提醒
+    if (snoozeUntil > Date.now()) {
+      updateSnoozeBtn();
+      return;
+    }
+
+    var words = loadWords();
+    var sentences = loadSentences();
+    var now = new Date();
+
+    var dueCount = 0;
+    for (var i = 0; i < words.length; i++) {
+      if (words[i].nextReviewAt && new Date(words[i].nextReviewAt) <= now) dueCount++;
+    }
+    for (var i = 0; i < sentences.length; i++) {
+      if (sentences[i].nextReviewAt && new Date(sentences[i].nextReviewAt) <= now) dueCount++;
+    }
+
+    if (dueCount > 0 && Date.now() - lastAlarmTime > 10 * 1000) {
+      lastAlarmTime = Date.now();
+      playReviewAlarm();
+      showDueNotification(dueCount);
+      try { navigator.vibrate && navigator.vibrate([500, 200, 500, 200, 500]); } catch(e){}
+    }
+  }, 1000);
 }
 
 function renderReview() {
@@ -1010,12 +1156,6 @@ function renderReview() {
 
   var dueItems = dueWords.concat(dueSentences);
   dueItems.sort(function(a, b) { return new Date(a.nextReviewAt) - new Date(b.nextReviewAt); });
-
-  // 有待复习项且距离上次提醒超过 3 分钟时播放音效
-  if (dueItems.length > 0 && Date.now() - lastAlarmTime > 3 * 60 * 1000) {
-    lastAlarmTime = Date.now();
-    playReviewAlarm();
-  }
 
   if (currentReviewId && !dueItems.some(function(item) { return item.id === currentReviewId && item._type === currentReviewType; })) {
     currentReviewId = null;
@@ -1320,25 +1460,30 @@ function renderStats() {
   document.getElementById('statSentenceCount').textContent = sentences.length;
 
   // 更新下次复习时间
-  var nextTime = findNextReviewTime(now);
+  var dueTotal = dueWords + dueSentences;
   var nextEl = document.getElementById('statNextTime');
-  if (nextTime) {
-    var diff = nextTime - now;
-    if (diff <= 0) {
-      nextEl.textContent = '现在!';
-      nextEl.style.color = '#FF4D4F';
-    } else if (diff < 3600000) {
-      nextEl.textContent = formatDuration(diff) + '后';
-      nextEl.style.fontSize = '16px';
-      nextEl.style.color = '#e67e22';
-    } else {
-      nextEl.textContent = formatTime(nextTime);
-      nextEl.style.fontSize = '18px';
-      nextEl.style.color = '#e67e22';
-    }
+  if (dueTotal > 0) {
+    // 有单词待复习，显示"现在！"
+    nextEl.textContent = '现在!';
+    nextEl.style.fontSize = '22px';
+    nextEl.style.color = '#EF4444';
   } else {
-    nextEl.textContent = '--';
-    nextEl.style.color = '#999';
+    var nextTime = findNextReviewTime(now);
+    if (nextTime) {
+      var diff = nextTime - now;
+      if (diff < 3600000) {
+        nextEl.textContent = formatDuration(diff) + '后';
+        nextEl.style.fontSize = '16px';
+        nextEl.style.color = '#F97316';
+      } else {
+        nextEl.textContent = formatTime(nextTime);
+        nextEl.style.fontSize = '18px';
+        nextEl.style.color = '#F97316';
+      }
+    } else {
+      nextEl.textContent = '--';
+      nextEl.style.color = '#94a3b8';
+    }
   }
 }
 
@@ -1553,6 +1698,16 @@ document.addEventListener('DOMContentLoaded', function() {
   refreshAll();
   // 再检测服务器，如果有服务器数据则覆盖 localStorage
   detectServer();
+  // 请求通知权限（浏览器会显示一次性的权限询问弹窗）
+  requestNotifyPermission();
+  // 启动实时闹铃检测器（每秒检查是否有待复习内容）
+  startAlarmChecker();
+  // 切换回标签页时刷新并检查是否需要提醒
+  document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+      refreshAll();
+    }
+  });
 });
 </script>
 </body>
