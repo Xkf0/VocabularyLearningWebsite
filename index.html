@@ -846,6 +846,30 @@ document.addEventListener('DOMContentLoaded', function() {
 var currentReviewId = null;
 var currentReviewType = 'word'; // 'word' or 'sentence'
 var answerRevealed = false;
+var lastAlarmTime = 0;
+
+// 用 Web Audio API 生成提醒音（三声叮咚）
+function playReviewAlarm() {
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    var now = ctx.currentTime;
+    // 三声渐强的叮咚：C5 → E5 → G5
+    var freqs = [523, 659, 784];
+    freqs.forEach(function(freq, i) {
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, now + i * 0.2);
+      gain.gain.linearRampToValueAtTime(0.15, now + i * 0.2 + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.2 + 0.3);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + i * 0.2);
+      osc.stop(now + i * 0.2 + 0.3);
+    });
+  } catch(e) { /* 浏览器不支持音频，静默忽略 */ }
+}
 
 function renderReview() {
   var area = document.getElementById('reviewArea');
@@ -864,6 +888,12 @@ function renderReview() {
 
   var dueItems = dueWords.concat(dueSentences);
   dueItems.sort(function(a, b) { return new Date(a.nextReviewAt) - new Date(b.nextReviewAt); });
+
+  // 有待复习项且距离上次提醒超过 3 分钟时播放音效
+  if (dueItems.length > 0 && Date.now() - lastAlarmTime > 3 * 60 * 1000) {
+    lastAlarmTime = Date.now();
+    playReviewAlarm();
+  }
 
   if (currentReviewId && !dueItems.some(function(item) { return item.id === currentReviewId && item._type === currentReviewType; })) {
     currentReviewId = null;
@@ -1016,6 +1046,7 @@ function handleReview(remembered) {
   saveWords(words);
   currentReviewId = null;
   answerRevealed = false;
+  lastAlarmTime = Date.now(); // 正在复习，重置闹铃计时
   refreshAll();
 }
 
@@ -1045,6 +1076,7 @@ function handleSentenceReview(remembered) {
   saveSentences(sentences);
   currentReviewId = null;
   answerRevealed = false;
+  lastAlarmTime = Date.now(); // 正在复习，重置闹铃计时
   refreshAll();
 }
 
