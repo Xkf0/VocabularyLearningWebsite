@@ -452,7 +452,7 @@
     <div class="label">下次复习</div>
   </div>
   <div class="stat-card" style="cursor:pointer;" onclick="toggleSnooze()">
-    <div class="num" id="statAudioStatus" style="font-size:22px;line-height:1.2;" title="点击延时 5 分钟">🔔</div>
+    <div class="num" id="statAudioStatus" style="font-size:22px;line-height:1.2;" title="点击延时 10 分钟">🔔</div>
     <div class="label">延时</div>
   </div>
 </div>
@@ -1053,8 +1053,8 @@ function toggleSnooze() {
     showToast('已取消延时，恢复提醒');
   } else {
     // 开启 5 分钟延时
-    snoozeUntil = Date.now() + 5 * 60 * 1000;
-    showToast('已延时 5 分钟，到时自动恢复提醒');
+    snoozeUntil = Date.now() + 10 * 60 * 1000;
+    showToast('已延时 10 分钟，到时自动恢复提醒');
   }
   updateSnoozeBtn();
 }
