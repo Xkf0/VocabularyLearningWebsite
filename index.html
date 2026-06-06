@@ -872,8 +872,28 @@ async function addWord() {
   var def = defEl.value.trim();
   if (!word || !def) { showToast('请填写单词和释义'); return; }
   var words = loadWords();
-  if (words.some(function(w) { return w.word.toLowerCase() === word.toLowerCase(); })) {
-    showToast('该单词已存在');
+  var existing = words.find(function(w) { return w.word.toLowerCase() === word.toLowerCase(); });
+  if (existing) {
+    var stageText = existing.stage >= TOTAL_STAGES
+      ? '年复习 (第' + (existing.stage + 1) + '次)'
+      : '复习 ' + (existing.stage + 1) + '/' + TOTAL_STAGES;
+    var msg = '单词 "' + existing.word + '" 已存在：\n'
+      + '当前释义：' + existing.definition + '\n'
+      + '进度：' + stageText + '\n'
+      + (existing.phonetic ? '音标：' + existing.phonetic + '\n' : '')
+      + '\n是否将新释义 "' + def + '" 追加到已有释义中？';
+    if (confirm(msg)) {
+      existing.definition = existing.definition + '；' + def;
+      existing.stage = 0;
+      existing.nextReviewAt = new Date(Date.now() + INTERVALS[0]).toISOString();
+      existing.forgottenCount = 0;
+      saveWords(words);
+      wordEl.value = '';
+      defEl.value = '';
+      wordEl.focus();
+      showToast('已追加释义，并从 20 分钟后重新开始');
+      refreshAll();
+    }
     return;
   }
   var btn = document.querySelector('#pane-add .btn-block');
@@ -926,7 +946,17 @@ async function addBatch() {
     var w = parts[0].trim();
     var d = parts.slice(1).join(sep).trim();
     if (!w || !d) continue;
-    if (words.some(function(ww) { return ww.word.toLowerCase() === w.toLowerCase(); })) continue;
+    var existWord = words.find(function(ww) { return ww.word.toLowerCase() === w.toLowerCase(); });
+    if (existWord) {
+      // 重复单词：追加释义并重置记忆进度
+      if (existWord.definition.indexOf(d) === -1) {
+        existWord.definition = existWord.definition + '；' + d;
+      }
+      existWord.stage = 0;
+      existWord.nextReviewAt = new Date(Date.now() + INTERVALS[0]).toISOString();
+      existWord.forgottenCount = 0;
+      continue;
+    }
     var result2 = await fetchPhonetic(w);
     words.push({
       id: Date.now() + Math.random(),
