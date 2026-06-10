@@ -5,5 +5,5 @@ vocabulary-data.json
 __pycache__/
 *.pyc
 
-# 编辑器本地配置（如果需要完全隐藏可以取消下面这行的注释）
-# .vscode/settings.json
+# 编辑器本地配置（包含可能的密钥等敏感信息）
+.vscode/settings.json
