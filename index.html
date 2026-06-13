@@ -764,29 +764,6 @@
     <div id="reviewArea"></div>
   </div>
 
-  <!-- Add -->
-  <div class="tab-pane" id="pane-add">
-    <div class="card">
-      <div class="form-group">
-        <label for="inputWord">英文单词</label>
-        <input type="text" id="inputWord" placeholder="例如：apple" autocomplete="off">
-      </div>
-      <div class="form-group">
-        <label for="inputDef">中文释义</label>
-        <input type="text" id="inputDef" placeholder="例如：苹果" autocomplete="off">
-      </div>
-      <button class="btn btn-primary btn-block" onclick="addWord()">添加单词</button>
-    </div>
-    <div class="card">
-      <h3 style="font-size:14px;margin-bottom:8px;color:#666;">批量添加</h3>
-      <div class="form-group">
-        <label for="inputBatch">每行一个：单词,释义</label>
-        <textarea id="inputBatch" rows="5" style="width:100%;padding:10px 12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;resize:vertical;outline:none;font-family:inherit;" placeholder="apple,苹果&#10;banana,香蕉&#10;cat,猫"></textarea>
-      </div>
-      <button class="btn btn-primary btn-block" onclick="addBatch()">批量添加</button>
-    </div>
-  </div>
-
   <!-- Math -->
   <div class="tab-pane" id="pane-theorems">
     <div class="card">
@@ -904,8 +881,8 @@
         <label for="apiKeyInput">DeepSeek API Key</label>
         <input type="password" id="apiKeyInput" placeholder="sk-..." autocomplete="off" style="font-family:monospace;">
       </div>
-      <button class="btn btn-primary" onclick="saveApiKey()">保存 API Key</button>
-      <button class="btn btn-outline" onclick="document.getElementById('apiKeyInput').value='';localStorage.removeItem('ebbinghaus_api_key');showToast('已清除 API Key');" style="margin-left:8px;">清除</button>
+      <button id="apiKeyBtn" class="btn btn-primary" onclick="saveApiKey()">保存 API Key</button>
+      <button class="btn btn-outline" onclick="document.getElementById('apiKeyInput').value='';localStorage.removeItem('ebbinghaus_api_key');showToast('已清除 API Key');updateApiKeyUI();" style="margin-left:8px;">清除</button>
     </div>
     <div class="card">
       <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;">账户</h3>
@@ -983,6 +960,10 @@ async function verifyToken() {
       var data = await res.json();
       currentUser = data.username;
       localStorage.setItem('ebbinghaus_user', currentUser);
+      if (data.apiKey) {
+        localStorage.setItem('ebbinghaus_api_key', data.apiKey);
+        updateApiKeyUI();
+      }
       return true;
     }
   } catch (e) {}
@@ -1034,6 +1015,10 @@ async function handleLogin() {
     var data = await res.json();
     if (data.ok) {
       saveAuth(data.token, data.username);
+      if (data.apiKey) {
+        localStorage.setItem('ebbinghaus_api_key', data.apiKey);
+        updateApiKeyUI();
+      }
       hideLoginAndSync();
     } else {
       setLoginError(data.error || '登录失败');
@@ -1064,6 +1049,10 @@ async function handleRegister() {
     var data = await res.json();
     if (data.ok) {
       saveAuth(data.token, data.username);
+      if (data.apiKey) {
+        localStorage.setItem('ebbinghaus_api_key', data.apiKey);
+        updateApiKeyUI();
+      }
       hideLoginAndSync();
     } else {
       setLoginError(data.error || '注册失败');
@@ -1391,7 +1380,29 @@ function saveApiKey() {
   var key = document.getElementById('apiKeyInput').value.trim();
   if (!key) { showToast('请输入 API Key'); return; }
   localStorage.setItem('ebbinghaus_api_key', key);
+  // 如果已登录，同步到服务器
+  if (authToken) {
+    fetch('/api/auth/update-key', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ apiKey: key }),
+    }).catch(function() {});
+  }
+  updateApiKeyUI();
   showToast('API Key 已保存');
+}
+
+function updateApiKeyUI() {
+  var key = getApiKey();
+  var input = document.getElementById('apiKeyInput');
+  var btn = document.getElementById('apiKeyBtn');
+  if (key) {
+    input.value = key;
+    btn.textContent = '修改 API Key';
+  } else {
+    input.value = '';
+    btn.textContent = '保存 API Key';
+  }
 }
 
 function getApiKey() {
@@ -1576,7 +1587,7 @@ async function addWord() {
     }
     return;
   }
-  var btn = document.querySelector('#pane-add .btn-block');
+  var btn = document.querySelector('#pane-words .btn-block');
   var originalText = btn.textContent;
   btn.textContent = '查询音标中...';
   btn.disabled = true;
@@ -3188,11 +3199,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (e.key === 'Enter') { handleRegister(); }
   });
 
-  // 预填 API Key
-  var savedKey = getApiKey();
-  if (savedKey) {
-    document.getElementById('apiKeyInput').value = savedKey;
-  }
+  // 预填 API Key 并设置 UI 状态
+  updateApiKeyUI();
 
   // 先渲染界面（从 localStorage 加载）
   refreshAll();

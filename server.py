@@ -173,6 +173,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             users[username] = {
                 'password': _hash_password(password),
                 'token': token,
+                'api_key': '',
                 'created_at': datetime.now().isoformat(),
             }
             _save_users(users)
@@ -191,7 +192,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             else:
                 _save_json(_get_user_data_file(username), template)
 
-            self._send_json({'ok': True, 'token': token, 'username': username})
+            self._send_json({'ok': True, 'token': token, 'username': username, 'apiKey': ''})
+            return
 
         elif path == '/api/auth/login':
             username = body.get('username', '').strip()
@@ -215,14 +217,28 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 users[username]['token'] = token
                 _save_users(users)
 
-            self._send_json({'ok': True, 'token': token, 'username': username})
+            api_key = users[username].get('api_key', '') or ''
+            self._send_json({'ok': True, 'token': token, 'username': username, 'apiKey': api_key})
 
         elif path == '/api/auth/verify':
             username = self._get_token_user()
             if username:
-                self._send_json({'ok': True, 'username': username})
+                users = _load_users()
+                api_key = users[username].get('api_key', '') or ''
+                self._send_json({'ok': True, 'username': username, 'apiKey': api_key})
             else:
                 self._send_json({'ok': False, 'error': 'token 无效'}, 401)
+
+        elif path == '/api/auth/update-key':
+            username = self._get_token_user()
+            if not username:
+                self._send_json({'ok': False, 'error': '未登录'}, 401)
+                return
+            api_key = body.get('apiKey', '').strip()
+            users = _load_users()
+            users[username]['api_key'] = api_key
+            _save_users(users)
+            self._send_json({'ok': True})
 
         else:
             self._send_json({'ok': False, 'error': '未知路径'}, 404)
