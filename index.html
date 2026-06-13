@@ -3,7 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>艾宾浩斯背单词</title>
+  <title>艾宾浩斯记忆助手</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <meta name="mobile-web-app-capable" content="yes">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -374,6 +379,112 @@
     .sentence-item .sen-meta { font-size: 11px; color: #94a3b8; margin-top: 4px; }
     .review-list .review-item.sentence { border-left: 3px solid var(--orange); }
 
+    /* Math */
+    .math-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+      color: var(--success);
+      padding: 3px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      letter-spacing: 0.5px;
+    }
+    .math-item {
+      border-left: 3px solid var(--success);
+      padding: 12px 12px 12px 16px;
+      margin-bottom: 10px;
+      background: #f0fdf4;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    }
+    .math-item .math-title { font-weight: 600; font-size: 15px; color: #0f172a; }
+    .math-item .math-solution { font-size: 13px; color: #64748b; margin-top: 3px; white-space: pre-wrap; }
+    .math-item .math-meta { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+    .math-item .math-image {
+      max-width: 100%;
+      max-height: 200px;
+      margin-top: 8px;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+      display: block;
+    }
+    .review-card .math-title-card {
+      font-size: 28px;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 8px;
+      letter-spacing: 1px;
+    }
+    .review-card .math-solution-card {
+      font-size: 18px;
+      color: var(--success);
+      font-weight: 700;
+      margin: 20px 0;
+      min-height: 36px;
+      padding: 16px;
+      background: #f0fdf4;
+      border-radius: var(--radius-sm);
+      white-space: pre-wrap;
+      text-align: left;
+    }
+    .review-card .math-image-card {
+      max-width: 100%;
+      max-height: 300px;
+      margin: 12px auto;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      display: block;
+    }
+    .review-list .review-item.math { border-left: 3px solid var(--success); }
+    .review-item .prob-badge { display: inline-block; background:#fff7e6;color:var(--orange);padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;margin-bottom:4px; }
+    .math-images-preview {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .math-images-preview img {
+      max-width: 120px;
+      max-height: 120px;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+      object-fit: cover;
+    }
+    .math-img-upload-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 16px;
+      border: 2px dashed #e2e8f0;
+      border-radius: var(--radius-sm);
+      background: #f8fafc;
+      color: #64748b;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .math-img-upload-btn:hover { border-color: var(--primary); color: var(--primary); background: #f0f4ff; }
+    .math-img-item {
+      position: relative;
+      display: inline-block;
+    }
+    .math-img-item .img-del {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: none;
+      background: var(--danger);
+      color: #fff;
+      font-size: 12px;
+      line-height: 20px;
+      text-align: center;
+      cursor: pointer;
+    }
+
     /* Toast */
     .toast {
       position: fixed;
@@ -416,14 +527,161 @@
       .tab-content { padding: 0 8px; }
       .tab-btn { font-size: 13px; padding: 9px 6px; }
       header h1 { font-size: 22px; }
+      .review-card .math-title-card { font-size: 22px; }
+      .review-card .math-solution-card { font-size: 16px; }
     }
+
+    /* Login Overlay */
+    .login-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--bg);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.3s;
+    }
+    .login-overlay.hidden {
+      display: none;
+      opacity: 0;
+    }
+    .login-card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 40px 32px;
+      width: 340px;
+      max-width: 90vw;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .login-card h1 {
+      font-size: 32px;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 4px;
+    }
+    .login-card h1 span { color: var(--primary); }
+    .login-card .subtitle {
+      font-size: 14px;
+      color: #94a3b8;
+      margin-bottom: 28px;
+    }
+    .login-card .form-group {
+      margin-bottom: 16px;
+      text-align: left;
+    }
+    .login-card .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+    .login-card .form-group input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+      background: #f8fafc;
+    }
+    .login-card .form-group input:focus {
+      border-color: var(--primary-light);
+      background: #fff;
+    }
+    .login-card .btn-primary {
+      width: 100%;
+      padding: 12px;
+      margin-top: 4px;
+    }
+    .login-card .btn-link {
+      background: none;
+      border: none;
+      color: var(--primary);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 14px;
+      padding: 4px;
+    }
+    .login-card .btn-link:hover { text-decoration: underline; }
+    .login-card .login-error {
+      color: var(--danger);
+      font-size: 13px;
+      margin-bottom: 12px;
+      min-height: 20px;
+    }
+    .login-card .offline-hint {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 16px;
+      padding: 10px;
+      background: #f8fafc;
+      border-radius: 8px;
+    }
+    .logout-btn {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 12px;
+      cursor: pointer;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-left: 6px;
+    }
+    .logout-btn:hover { color: var(--danger); background: #fef2f2; }
   </style>
 </head>
 <body>
 
+<!-- Login Overlay -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <h1>艾宾浩斯<span>记忆助手</span></h1>
+    <p class="subtitle">登录以同步数据到服务器</p>
+    <div class="login-error" id="loginError"></div>
+
+    <!-- 登录表单 -->
+    <div id="loginForm">
+      <div class="form-group">
+        <label>用户名</label>
+        <input type="text" id="loginUsername" placeholder="输入用户名" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>密码</label>
+        <input type="password" id="loginPassword" placeholder="输入密码" autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary" onclick="handleLogin()" id="loginBtn">登录</button>
+      <div><button class="btn-link" onclick="showRegisterForm()">没有账号？点击注册</button></div>
+    </div>
+
+    <!-- 注册表单 -->
+    <div id="registerForm" style="display:none;">
+      <div class="form-group">
+        <label>用户名</label>
+        <input type="text" id="regUsername" placeholder="2-20 个字符" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label>密码</label>
+        <input type="password" id="regPassword" placeholder="至少 4 个字符" autocomplete="new-password">
+      </div>
+      <button class="btn btn-primary" onclick="handleRegister()" id="regBtn">注册</button>
+      <div><button class="btn-link" onclick="showLoginForm()">已有账号？返回登录</button></div>
+    </div>
+
+    <!-- 离线提示 -->
+    <div class="offline-hint" id="offlineHint" style="display:none;">
+      服务器未连接，当前为离线模式<br>数据保存在手机浏览器中
+    </div>
+  </div>
+</div>
+
 <header>
-  <h1>艾宾浩斯背单词</h1>
-  <p>遵循遗忘曲线规律 · 科学复习</p>
+  <h1>艾宾浩斯记忆助手</h1>
+  <p>遵循遗忘曲线规律 · 科学复习 · 定理记忆</p>
 </header>
 
 <!-- Stats -->
@@ -447,6 +705,22 @@
   <div class="stat-card">
     <div class="num" id="statSentenceCount">0</div>
     <div class="label">句子</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" id="statMathCount">0</div>
+    <div class="label">定理</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" id="statMathDue">0</div>
+    <div class="label">定理待复习</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" id="statProbCount">0</div>
+    <div class="label">题目</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" id="statProbDue">0</div>
+    <div class="label">题目待复习</div>
   </div>
   <div class="stat-card">
     <div class="num" id="statNextTime">--</div>
@@ -475,8 +749,9 @@
 <!-- Tabs -->
 <div class="tabs">
   <button class="tab-btn active" data-tab="review">复习</button>
-  <button class="tab-btn" data-tab="add">添加单词</button>
-  <button class="tab-btn" data-tab="bank">单词本</button>
+  <button class="tab-btn" data-tab="theorems">定理</button>
+  <button class="tab-btn" data-tab="problems">题目</button>
+  <button class="tab-btn" data-tab="words">单词</button>
   <button class="tab-btn" data-tab="settings">设置</button>
 </div>
 
@@ -511,8 +786,88 @@
     </div>
   </div>
 
-  <!-- Bank -->
-  <div class="tab-pane" id="pane-bank">
+  <!-- Math -->
+  <div class="tab-pane" id="pane-theorems">
+    <div class="card">
+      <div class="form-group">
+        <label for="inputMathTitle">定理名称</label>
+        <input type="text" id="inputMathTitle" placeholder="例如：勾股定理、牛顿第二定律" autocomplete="off">
+        <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="math-img-upload-btn" onclick="document.getElementById('mathTitleImageInput').click()">上传图片代替文字</button>
+          <input type="file" id="mathTitleImageInput" accept="image/*" style="display:none" onchange="handleMathTitleImageUpload(event)">
+          <span id="mathTitleImageStatus" style="font-size:12px;color:#94a3b8;"></span>
+        </div>
+        <div id="mathTitleImagePreview"></div>
+      </div>
+      <div class="form-group">
+        <label for="inputMathSolution">证明过程 / 思路</label>
+        <textarea id="inputMathSolution" rows="4" style="width:100%;padding:10px 12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;resize:vertical;outline:none;font-family:inherit;" placeholder="输入定理证明过程或思路..."></textarea>
+        <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="math-img-upload-btn" onclick="document.getElementById('mathSolutionImageInput').click()">上传图片代替文字</button>
+          <input type="file" id="mathSolutionImageInput" accept="image/*" multiple style="display:none" onchange="handleMathSolutionImageUpload(event)">
+          <span id="mathSolutionImagesStatus" style="font-size:12px;color:#94a3b8;"></span>
+        </div>
+        <div class="math-images-preview" id="mathSolutionImagesPreview"></div>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="addMathProblem()">添加定理</button>
+    </div>
+    <div class="card">
+      <h3 style="font-size:14px;font-weight:600;color:#666;margin-bottom:12px;">已保存的定理</h3>
+      <div id="mathProblemList"></div>
+    </div>
+  </div>
+
+  <!-- Problems -->
+  <div class="tab-pane" id="pane-problems">
+    <div class="card">
+      <div class="form-group">
+        <label for="inputProbQuestion">题目</label>
+        <textarea id="inputProbQuestion" rows="3" style="width:100%;padding:10px 12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;resize:vertical;outline:none;font-family:inherit;" placeholder="输入数学题目..."></textarea>
+        <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="math-img-upload-btn" onclick="document.getElementById('probQuestionImageInput').click()">上传图片代替文字</button>
+          <input type="file" id="probQuestionImageInput" accept="image/*" style="display:none" onchange="handleProbQuestionImageUpload(event)">
+          <span id="probQuestionImageStatus" style="font-size:12px;color:#94a3b8;"></span>
+        </div>
+        <div id="probQuestionImagePreview"></div>
+      </div>
+      <div class="form-group">
+        <label for="inputProbSolution">解题思路 / 答案</label>
+        <textarea id="inputProbSolution" rows="4" style="width:100%;padding:10px 12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;resize:vertical;outline:none;font-family:inherit;" placeholder="输入解题过程或思路..."></textarea>
+        <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="math-img-upload-btn" onclick="document.getElementById('probSolutionImageInput').click()">上传图片代替文字</button>
+          <input type="file" id="probSolutionImageInput" accept="image/*" multiple style="display:none" onchange="handleProbSolutionImageUpload(event)">
+          <span id="probSolutionImagesStatus" style="font-size:12px;color:#94a3b8;"></span>
+        </div>
+        <div class="math-images-preview" id="probSolutionImagesPreview"></div>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="addMathProblemItem()">添加题目</button>
+    </div>
+    <div class="card">
+      <h3 style="font-size:14px;font-weight:600;color:#666;margin-bottom:12px;">已保存的题目</h3>
+      <div id="problemList"></div>
+    </div>
+  </div>
+
+  <!-- Words (合并添加单词 + 单词本) -->
+  <div class="tab-pane" id="pane-words">
+    <div class="card">
+      <div class="form-group">
+        <label for="inputWord">单词</label>
+        <input type="text" id="inputWord" placeholder="例如：apple" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label for="inputDef">释义</label>
+        <input type="text" id="inputDef" placeholder="释义" autocomplete="off">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="addWord()">添加</button>
+    </div>
+    <div class="card">
+      <div class="form-group">
+        <label for="inputBatch">批量添加（每行一个：单词,释义）</label>
+        <textarea id="inputBatch" rows="4" style="width:100%;padding:10px 12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;resize:vertical;outline:none;font-family:inherit;" placeholder="apple,苹果&#10;banana,香蕉&#10;cat,猫"></textarea>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="addBatch()">批量添加</button>
+    </div>
     <div class="card">
       <div class="filter-bar">
         <button class="filter-btn active" data-filter="all">全部</button>
@@ -552,6 +907,14 @@
       <button class="btn btn-outline" onclick="document.getElementById('apiKeyInput').value='';localStorage.removeItem('ebbinghaus_api_key');showToast('已清除 API Key');" style="margin-left:8px;">清除</button>
     </div>
     <div class="card">
+      <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;">账户</h3>
+      <div style="background:#f6f8fa;border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;">
+        <div style="margin-bottom:4px;"><strong>当前用户：</strong><span id="currentUserDisplay">--</span></div>
+        <div style="margin-bottom:4px;"><strong>状态：</strong><span id="modeDisplay2">检测中...</span></div>
+      </div>
+      <button class="btn btn-danger" onclick="handleLogout()">退出登录</button>
+    </div>
+    <div class="card">
       <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;">如何使用</h3>
       <div style="font-size:13px;color:#666;line-height:1.8;">
         <div style="background:#e8f4fd;border-radius:8px;padding:12px;margin-bottom:12px;">
@@ -581,6 +944,219 @@
 
 <script>
 // ============================================================
+// Auth（登录认证）
+// ============================================================
+var authToken = localStorage.getItem('ebbinghaus_token') || '';
+var currentUser = localStorage.getItem('ebbinghaus_user') || '';
+var requireLogin = false; // 是否检测到服务器需要登录
+
+function getAuthHeaders() {
+  var h = { 'Content-Type': 'application/json' };
+  if (authToken) h['Authorization'] = 'Bearer ' + authToken;
+  return h;
+}
+
+function saveAuth(token, user) {
+  authToken = token;
+  currentUser = user;
+  localStorage.setItem('ebbinghaus_token', token);
+  localStorage.setItem('ebbinghaus_user', user);
+}
+
+function clearAuth() {
+  authToken = '';
+  currentUser = '';
+  localStorage.removeItem('ebbinghaus_token');
+  localStorage.removeItem('ebbinghaus_user');
+}
+
+// 验证当前 token 是否有效
+async function verifyToken() {
+  if (!authToken) return false;
+  try {
+    var res = await fetch('/api/auth/verify', {
+      headers: { 'Authorization': 'Bearer ' + authToken },
+      cache: 'no-store',
+    });
+    if (res.ok) {
+      var data = await res.json();
+      currentUser = data.username;
+      localStorage.setItem('ebbinghaus_user', currentUser);
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+function showLoginForm() {
+  document.getElementById('loginForm').style.display = 'block';
+  document.getElementById('registerForm').style.display = 'none';
+  document.getElementById('loginError').textContent = '';
+}
+
+function showRegisterForm() {
+  document.getElementById('loginForm').style.display = 'none';
+  document.getElementById('registerForm').style.display = 'block';
+  document.getElementById('loginError').textContent = '';
+}
+
+function setLoginError(msg) {
+  document.getElementById('loginError').textContent = msg;
+}
+
+function setLoginLoading(btnId, loading) {
+  var btn = document.getElementById(btnId);
+  if (loading) {
+    btn._text = btn.textContent;
+    btn.textContent = '处理中...';
+    btn.disabled = true;
+  } else {
+    btn.textContent = btn._text || btn.textContent;
+    btn.disabled = false;
+  }
+}
+
+async function handleLogin() {
+  var username = document.getElementById('loginUsername').value.trim();
+  var password = document.getElementById('loginPassword').value.trim();
+  if (!username || !password) { setLoginError('请填写用户名和密码'); return; }
+
+  setLoginLoading('loginBtn', true);
+  setLoginError('');
+
+  try {
+    var res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: username, password: password }),
+    });
+    var data = await res.json();
+    if (data.ok) {
+      saveAuth(data.token, data.username);
+      hideLoginAndSync();
+    } else {
+      setLoginError(data.error || '登录失败');
+    }
+  } catch (e) {
+    setLoginError('无法连接服务器');
+  }
+
+  setLoginLoading('loginBtn', false);
+}
+
+async function handleRegister() {
+  var username = document.getElementById('regUsername').value.trim();
+  var password = document.getElementById('regPassword').value.trim();
+  if (!username || !password) { setLoginError('请填写用户名和密码'); return; }
+  if (username.length < 2 || username.length > 20) { setLoginError('用户名长度 2-20 个字符'); return; }
+  if (password.length < 4) { setLoginError('密码至少 4 个字符'); return; }
+
+  setLoginLoading('regBtn', true);
+  setLoginError('');
+
+  try {
+    var res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: username, password: password }),
+    });
+    var data = await res.json();
+    if (data.ok) {
+      saveAuth(data.token, data.username);
+      hideLoginAndSync();
+    } else {
+      setLoginError(data.error || '注册失败');
+    }
+  } catch (e) {
+    setLoginError('无法连接服务器');
+  }
+
+  setLoginLoading('regBtn', false);
+}
+
+function handleLogout() {
+  if (!confirm('确定退出登录吗？')) return;
+  // 退出前尝试推送一次本地数据到服务器
+  if (useServer) {
+    syncToServer();
+  }
+  clearAuth();
+  // 清除本地单词数据，防止别人登录时混入
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(SENTENCE_KEY);
+  localStorage.removeItem(MATH_KEY);
+  localStorage.removeItem(PROBLEMS_KEY);
+  location.reload();
+}
+
+// 登录成功后：隐藏登录页，推本地数据，拉服务器数据
+async function hideLoginAndSync() {
+  document.getElementById('loginOverlay').classList.add('hidden');
+
+  // 先看服务器有没有这个用户的已有数据
+  var hasServerData = false;
+  try {
+    var checkRes = await fetch('/api/words', {
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+    if (checkRes.ok) {
+      var checkData = await checkRes.json();
+      var words = checkData.words || (Array.isArray(checkData) ? checkData : []);
+      var sentences = checkData.sentences || [];
+      var mathProblems = checkData.mathProblems || [];
+      var problems = checkData.problems || [];
+      if (words.length > 0 || sentences.length > 0 || mathProblems.length > 0 || problems.length > 0) {
+        hasServerData = true;
+        // 服务器有数据 → 直接覆盖本地（防止别人的数据混进来）
+        if (Array.isArray(checkData)) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(checkData));
+        } else if (checkData && checkData.words) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(checkData.words || []));
+          if (checkData.sentences) {
+            localStorage.setItem(SENTENCE_KEY, JSON.stringify(checkData.sentences));
+          }
+          if (checkData.mathProblems) {
+            localStorage.setItem(MATH_KEY, JSON.stringify(checkData.mathProblems));
+          }
+          if (checkData.problems) {
+            localStorage.setItem(PROBLEMS_KEY, JSON.stringify(checkData.problems));
+          }
+        }
+      }
+    }
+  } catch (e) {}
+
+  if (!hasServerData) {
+    // 首次登录（服务器没有该用户数据）→ 推本地数据上去
+    var localW = loadWords();
+    var localS = loadSentences();
+    var localM = loadMathProblems();
+    var localP = loadProblems();
+    if (localW.length > 0 || localS.length > 0 || localM.length > 0 || localP.length > 0) {
+      await fetch('/api/words', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ words: localW, sentences: localS, mathProblems: localM, problems: localP }),
+      }).catch(function() {});
+      // 推送后拉回来确认
+      await syncFromServer();
+    }
+  }
+
+  refreshAll();
+}
+
+// 显示登录页
+function showLoginOverlay(offline) {
+  document.getElementById('loginOverlay').classList.remove('hidden');
+  document.getElementById('offlineHint').style.display = offline ? 'block' : 'none';
+  document.getElementById('loginForm').style.display = offline ? 'none' : 'block';
+  document.getElementById('registerForm').style.display = 'none';
+  document.getElementById('loginError').textContent = '';
+}
+
+// ============================================================
 // 配置
 // ============================================================
 const STORAGE_KEY = 'ebbinghaus_words';
@@ -602,6 +1178,8 @@ const INTERVALS = [
 const TOTAL_STAGES = INTERVALS.length;
 const YEARLY_INTERVAL = 365 * 24 * 60 * 60 * 1000; // 年复习间隔
 const SENTENCE_KEY = 'ebbinghaus_sentences';
+const MATH_KEY = 'ebbinghaus_math';
+const PROBLEMS_KEY = 'ebbinghaus_problems';
 
 // ============================================================
 // 数据层：服务器 + localStorage 双写
@@ -615,40 +1193,100 @@ async function detectServer() {
   const modeEl = document.getElementById('modeDisplay');
   const cntEl = document.getElementById('fileDetailCount');
 
+  // 先检查服务器是否可达
+  var serverAlive = false;
   try {
-    const res = await fetch('/api/words', { method: 'GET', cache: 'no-store' });
-    if (res.ok) {
+    const pingRes = await fetch('/api/auth/verify', {
+      headers: { 'Authorization': 'Bearer ' + authToken },
+      cache: 'no-store',
+    });
+    serverAlive = true;
+
+    if (pingRes.ok) {
+      // 服务器可达且 token 有效
       useServer = true;
+      requireLogin = false;
+      document.getElementById('loginOverlay').classList.add('hidden');
+
+      // 直接从服务器拉取数据（服务器为权威来源）
+      // 本地更改通过 syncToServer() 在每次操作时实时推送到服务器
+      await syncFromServer();
+
+      if (textEl) textEl.textContent = '已连接服务器 · 用户: ' + currentUser;
+      if (iconEl) iconEl.textContent = '\u{1F7E2}';
+      if (modeEl) { modeEl.textContent = '服务器模式 (已登录: ' + currentUser + ')'; modeEl.style.color = '#52C41A'; }
+      var userEl = document.getElementById('currentUserDisplay');
+      if (userEl) userEl.textContent = currentUser;
+      var mode2El = document.getElementById('modeDisplay2');
+      if (mode2El) mode2El.textContent = '已连接服务器';
+      refreshAll();
+      return;
+    }
+
+    // 服务器可达但 token 无效 → 显示登录页
+    clearAuth();
+    if (textEl) textEl.textContent = '请登录';
+    if (iconEl) iconEl.textContent = '\u{1F534}';
+    if (modeEl) { modeEl.textContent = '需要登录'; modeEl.style.color = '#EF4444'; }
+    showLoginOverlay(false);
+    return;
+
+  } catch (e) { /* 服务器未启动 */ }
+
+  if (!serverAlive) {
+    // 服务器不可达 → 离线模式
+    useServer = false;
+    requireLogin = false;
+    document.getElementById('loginOverlay').classList.add('hidden');
+    if (textEl) textEl.textContent = authToken ? '离线模式（未连接服务器）' : '浏览器模式（数据保存在浏览器中）';
+    if (iconEl) iconEl.textContent = '\u{1F7E1}';
+    if (modeEl) { modeEl.textContent = authToken ? '离线模式（未连接服务器）' : '浏览器模式（数据保存在浏览器中）'; modeEl.style.color = '#FAAD14'; }
+    var mode2El = document.getElementById('modeDisplay2');
+    if (mode2El) mode2El.textContent = modeEl ? modeEl.textContent : '';
+    if (cntEl) {
+      var w = getActiveWords();
+      var s = getActiveSentences();
+      var m = getActiveMathProblems();
+      var p = getActiveProblems();
+      cntEl.textContent = w.length + ' 个单词, ' + s.length + ' 个句子, ' + m.length + ' 个定理, ' + p.length + ' 个题目';
+    }
+    refreshAll();
+  }
+}
+
+// 从服务器拉取数据覆盖本地
+async function syncFromServer() {
+  if (!authToken) return;
+  try {
+    const res = await fetch('/api/words', {
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+    if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) {
-        // 旧格式：纯单词数组
         if (data.length > 0) {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         }
       } else if (data && data.words) {
-        // 新格式：{words, sentences}
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data.words || []));
         if (data.sentences) {
           localStorage.setItem(SENTENCE_KEY, JSON.stringify(data.sentences));
         }
+        if (data.mathProblems) {
+          localStorage.setItem(MATH_KEY, JSON.stringify(data.mathProblems));
+        }
+        if (data.problems) {
+          localStorage.setItem(PROBLEMS_KEY, JSON.stringify(data.problems));
+        }
       }
-      if (textEl) textEl.textContent = '已连接服务器, 数据自动保存到 vocabulary-data.json';
-      if (iconEl) iconEl.textContent = '\u{1F7E2}';
-      if (modeEl) { modeEl.textContent = '服务器模式 (自动读写 vocabulary-data.json)'; modeEl.style.color = '#52C41A'; }
       refreshAll();
-      return;
+    } else if (res.status === 401) {
+      // token 无效，需要重新登录
+      clearAuth();
+      showLoginOverlay(false);
     }
-  } catch (e) { /* 服务器未启动 */ }
-  useServer = false;
-  if (textEl) textEl.textContent = '浏览器模式（数据保存在浏览器中）';
-  if (iconEl) iconEl.textContent = '\u{1F7E1}';
-  if (modeEl) { modeEl.textContent = '浏览器模式（数据保存在浏览器中）'; modeEl.style.color = '#FAAD14'; }
-  if (cntEl) {
-    var w = loadWords();
-    var s = loadSentences();
-    cntEl.textContent = w.length + ' 个单词, ' + s.length + ' 个句子';
-  }
-  refreshAll();
+  } catch (e) { /* 忽略 */ }
 }
 
 function loadWords() {
@@ -676,22 +1314,60 @@ function saveSentences(sentences) {
   syncToServer();
 }
 
-// 同时保存单词和句子（用于导入恢复等场景）
-function saveData(words, sentences) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
-  localStorage.setItem(SENTENCE_KEY, JSON.stringify(sentences));
+function loadMathProblems() {
+  try {
+    const raw = localStorage.getItem(MATH_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveMathProblems(problems) {
+  localStorage.setItem(MATH_KEY, JSON.stringify(problems));
   syncToServer();
 }
 
-// 以 {words, sentences} 格式同步到服务器
+function loadProblems() {
+  try {
+    const raw = localStorage.getItem(PROBLEMS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+// 获取未删除的活跃项目（用于界面展示）
+function getActiveWords() { return loadWords().filter(function(w) { return !w.deletedAt; }); }
+function getActiveSentences() { return loadSentences().filter(function(s) { return !s.deletedAt; }); }
+function getActiveMathProblems() { return loadMathProblems().filter(function(p) { return !p.deletedAt; }); }
+function getActiveProblems() { return loadProblems().filter(function(p) { return !p.deletedAt; }); }
+
+function saveProblems(problems) {
+  localStorage.setItem(PROBLEMS_KEY, JSON.stringify(problems));
+  syncToServer();
+}
+
+// 同时保存单词和句子（用于导入恢复等场景）
+function saveData(words, sentences, mathProblems, problems) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
+  localStorage.setItem(SENTENCE_KEY, JSON.stringify(sentences));
+  if (mathProblems !== undefined) {
+    localStorage.setItem(MATH_KEY, JSON.stringify(mathProblems));
+  }
+  if (problems !== undefined) {
+    localStorage.setItem(PROBLEMS_KEY, JSON.stringify(problems));
+  }
+  syncToServer();
+}
+
+// 以 {words, sentences, mathProblems, problems} 格式同步到服务器
 function syncToServer() {
   if (!useServer) return;
   var words = loadWords();
   var sentences = loadSentences();
+  var mathProblems = loadMathProblems();
+  var problems = loadProblems();
   fetch('/api/words', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ words: words, sentences: sentences }),
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ words: words, sentences: sentences, mathProblems: mathProblems, problems: problems }),
   }).catch(function() {});
 }
 
@@ -757,7 +1433,7 @@ async function triggerSentenceGeneration(allWords) {
   var apiKey = getApiKey();
   if (!apiKey) return;
 
-  var sentences = loadSentences();
+  var sentences = getActiveSentences();
   var count = allWords.length;
   var startIdx = Math.max(0, count - 10);
   var last10 = allWords.slice(startIdx, count);
@@ -783,6 +1459,7 @@ async function triggerSentenceGeneration(allWords) {
     chinese: result.chinese,
     stage: 0,
     createdAt: now.toISOString(),
+    lastModified: now.toISOString(),
     nextReviewAt: new Date(now.getTime() + INTERVALS[0]).toISOString(),
     reviewedAt: [],
     forgottenCount: 0,
@@ -798,14 +1475,14 @@ async function generateMissingSentences() {
   var apiKey = getApiKey();
   if (!apiKey) {
     // 还没配置 API Key，提示用户去设置页配置
-    if (loadWords().length >= 10) {
+    if (getActiveWords().length >= 10) {
       showToast('请在设置页配置 DeepSeek API Key 以启用 AI 造句');
     }
     return;
   }
 
-  var words = loadWords();
-  var sentences = loadSentences();
+  var words = getActiveWords();
+  var sentences = getActiveSentences();
   var groups = Math.floor(words.length / 10);
 
   for (var g = 1; g <= groups; g++) {
@@ -873,7 +1550,7 @@ async function addWord() {
   var def = defEl.value.trim();
   if (!word || !def) { showToast('请填写单词和释义'); return; }
   var words = loadWords();
-  var existing = words.find(function(w) { return w.word.toLowerCase() === word.toLowerCase(); });
+  var existing = getActiveWords().find(function(w) { return w.word.toLowerCase() === word.toLowerCase(); });
   if (existing) {
     var stageText = existing.stage >= TOTAL_STAGES
       ? '年复习 (第' + (existing.stage + 1) + '次)'
@@ -888,6 +1565,7 @@ async function addWord() {
       existing.stage = 0;
       existing.nextReviewAt = new Date(Date.now() + INTERVALS[0]).toISOString();
       existing.forgottenCount = 0;
+      existing.lastModified = new Date().toISOString();
       saveWords(words);
       wordEl.value = '';
       defEl.value = '';
@@ -914,6 +1592,7 @@ async function addWord() {
     audioUrl: audioUrl,
     stage: 0,
     createdAt: now.toISOString(),
+    lastModified: now.toISOString(),
     nextReviewAt: new Date(now.getTime() + INTERVALS[0]).toISOString(),
     reviewedAt: [],
     forgottenCount: 0,
@@ -982,6 +1661,413 @@ async function addBatch() {
   await generateMissingSentences();
 }
 
+// ============================================================
+// 数学定理
+// ============================================================
+var pendingMathTitleImage = null;
+var pendingMathSolutionImages = [];
+
+// --- 定理名称图片 ---
+function handleMathTitleImageUpload(event) {
+  var files = event.target.files;
+  if (!files || files.length === 0) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    pendingMathTitleImage = e.target.result;
+    renderMathTitlePreview();
+  };
+  reader.readAsDataURL(files[0]);
+  event.target.value = '';
+}
+
+function removeMathTitleImage() {
+  pendingMathTitleImage = null;
+  renderMathTitlePreview();
+}
+
+function renderMathTitlePreview() {
+  var container = document.getElementById('mathTitleImagePreview');
+  var status = document.getElementById('mathTitleImageStatus');
+  if (!container) return;
+  if (!pendingMathTitleImage) {
+    container.innerHTML = '';
+    if (status) status.textContent = '';
+    return;
+  }
+  container.innerHTML = '<div class="math-img-item" style="max-width:200px;">' +
+    '<img src="' + escapeHtml(pendingMathTitleImage) + '" alt="定理名称图片">' +
+    '<button class="img-del" onclick="removeMathTitleImage()">x</button></div>';
+  if (status) status.textContent = '已选择 1 张图片';
+}
+
+// --- 定理证明过程图片 ---
+function handleMathSolutionImageUpload(event) {
+  var files = event.target.files;
+  if (!files || files.length === 0) return;
+  for (var i = 0; i < files.length; i++) {
+    (function(file) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        pendingMathSolutionImages.push(e.target.result);
+        renderMathSolutionPreviews();
+      };
+      reader.readAsDataURL(file);
+    })(files[i]);
+  }
+  event.target.value = '';
+}
+
+function removeMathSolutionImage(index) {
+  pendingMathSolutionImages.splice(index, 1);
+  renderMathSolutionPreviews();
+}
+
+function renderMathSolutionPreviews() {
+  var container = document.getElementById('mathSolutionImagesPreview');
+  var status = document.getElementById('mathSolutionImagesStatus');
+  if (!container) return;
+  if (pendingMathSolutionImages.length === 0) {
+    container.innerHTML = '';
+    if (status) status.textContent = '';
+    return;
+  }
+  container.innerHTML = pendingMathSolutionImages.map(function(src, idx) {
+    return '<div class="math-img-item">' +
+      '<img src="' + escapeHtml(src) + '" alt="证明图片">' +
+      '<button class="img-del" onclick="removeMathSolutionImage(' + idx + ')">x</button></div>';
+  }).join('');
+  if (status) status.textContent = '已选择 ' + pendingMathSolutionImages.length + ' 张图片';
+}
+
+function addMathProblem() {
+  var titleEl = document.getElementById('inputMathTitle');
+  var solutionEl = document.getElementById('inputMathSolution');
+  var title = titleEl.value.trim();
+  var solutionText = solutionEl.value.trim();
+
+  if (!title && !pendingMathTitleImage) {
+    showToast('请填写定理名称或上传定理图片');
+    return;
+  }
+  if (!solutionText && pendingMathSolutionImages.length === 0) {
+    showToast('请填写证明思路或上传证明图片');
+    return;
+  }
+
+  var problems = loadMathProblems();
+  var existing = getActiveMathProblems().find(function(p) {
+    if (title) return p.title && p.title.toLowerCase() === title.toLowerCase();
+    return p.titleImage === pendingMathTitleImage;
+  });
+  if (existing) {
+    if (!confirm('定理 "' + (existing.title || '图片') + '" 已存在，是否覆盖？')) return;
+    existing.title = title;
+    existing.titleImage = pendingMathTitleImage;
+    existing.solutionText = solutionText;
+    existing.solutionImages = pendingMathSolutionImages.slice();
+    existing.stage = 0;
+    existing.nextReviewAt = new Date(Date.now() + INTERVALS[0]).toISOString();
+    existing.forgottenCount = 0;
+    existing.createdAt = new Date().toISOString();
+    existing.lastModified = new Date().toISOString();
+    saveMathProblems(problems);
+    clearMathForm();
+    showToast('已更新定理');
+    refreshAll();
+    return;
+  }
+
+  var now = new Date();
+  var problem = {
+    id: Date.now() + Math.random(),
+    title: title,
+    titleImage: pendingMathTitleImage,
+    solutionText: solutionText,
+    solutionImages: pendingMathSolutionImages.slice(),
+    stage: 0,
+    createdAt: now.toISOString(),
+    lastModified: now.toISOString(),
+    nextReviewAt: new Date(now.getTime() + INTERVALS[0]).toISOString(),
+    reviewedAt: [],
+    forgottenCount: 0,
+  };
+  problems.push(problem);
+  saveMathProblems(problems);
+
+  clearMathForm();
+  showToast('已添加定理：' + (title || '图片定理'));
+  refreshAll();
+}
+
+function clearMathForm() {
+  document.getElementById('inputMathTitle').value = '';
+  document.getElementById('inputMathSolution').value = '';
+  pendingMathTitleImage = null;
+  pendingMathSolutionImages = [];
+  renderMathTitlePreview();
+  renderMathSolutionPreviews();
+}
+
+function deleteMathProblem(id) {
+  if (!confirm('确定要删除这个定理吗？')) return;
+  var problems = loadMathProblems();
+  var p = problems.find(function(p) { return p.id === id; });
+  if (p) { p.deletedAt = new Date().toISOString(); p.lastModified = p.deletedAt; }
+  saveMathProblems(problems);
+  if (currentReviewId === id && currentReviewType === 'math') {
+    currentReviewId = null;
+    answerRevealed = false;
+  }
+  showToast('定理已删除');
+  refreshAll();
+}
+
+function renderMathProblemList() {
+  var container = document.getElementById('mathProblemList');
+  if (!container) return;
+  var problems = getActiveMathProblems();
+
+  if (problems.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">\u{1F4D0}</div><p>还没有定理，去添加吧</p></div>';
+    return;
+  }
+
+  var sorted = problems.slice().sort(function(a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
+  container.innerHTML = sorted.map(function(p) {
+    var stageText = p.stage >= TOTAL_STAGES
+      ? '年复习 (' + (p.stage + 1) + '次)'
+      : '复习 ' + (p.stage + 1) + '/' + TOTAL_STAGES;
+    var nextTime = p.nextReviewAt ? formatDateTime(p.nextReviewAt) : '--';
+    var titleHtml = p.title
+      ? '<div class="math-title">' + escapeHtml(p.title) + '</div>'
+      : (p.titleImage ? '<img src="' + escapeHtml(p.titleImage) + '" class="math-image" alt="定理图片">' : '');
+    var solHtml = p.solutionText
+      ? '<div class="math-solution">' + escapeHtml(p.solutionText) + '</div>'
+      : '';
+    var solImgHtml = '';
+    if (p.solutionImages && p.solutionImages.length > 0) {
+      solImgHtml = p.solutionImages.slice(0, 1).map(function(src) {
+        return '<img src="' + escapeHtml(src) + '" class="math-image" alt="证明图片">';
+      }).join('');
+      if (p.solutionImages.length > 1) {
+        solImgHtml += '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">共 ' + p.solutionImages.length + ' 张图片</div>';
+      }
+    }
+    // Support old data with 'images' field
+    if (!solImgHtml && p.images && p.images.length > 0) {
+      solImgHtml = p.images.slice(0, 1).map(function(src) {
+        return '<img src="' + escapeHtml(src) + '" class="math-image" alt="证明图片">';
+      }).join('');
+      if (p.images.length > 1) {
+        solImgHtml += '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">共 ' + p.images.length + ' 张图片</div>';
+      }
+    }
+    return '<div class="math-item">' +
+      titleHtml +
+      solHtml +
+      solImgHtml +
+      '<div class="math-meta">' + stageText + ' - 下次: ' + nextTime +
+      ' <button class="btn-del" onclick="deleteMathProblem(' + p.id + ')" title="删除">X</button></div>' +
+      '</div>';
+  }).join('');
+}
+
+// ============================================================
+// 数学题目
+// ============================================================
+var pendingProbQuestionImage = null;
+var pendingProbSolutionImages = [];
+
+// --- 题目图片 ---
+function handleProbQuestionImageUpload(event) {
+  var files = event.target.files;
+  if (!files || files.length === 0) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    pendingProbQuestionImage = e.target.result;
+    renderProbQuestionPreview();
+  };
+  reader.readAsDataURL(files[0]);
+  event.target.value = '';
+}
+
+function removeProbQuestionImage() {
+  pendingProbQuestionImage = null;
+  renderProbQuestionPreview();
+}
+
+function renderProbQuestionPreview() {
+  var container = document.getElementById('probQuestionImagePreview');
+  var status = document.getElementById('probQuestionImageStatus');
+  if (!container) return;
+  if (!pendingProbQuestionImage) {
+    container.innerHTML = '';
+    if (status) status.textContent = '';
+    return;
+  }
+  container.innerHTML = '<div class="math-img-item" style="max-width:200px;">' +
+    '<img src="' + escapeHtml(pendingProbQuestionImage) + '" alt="题目图片">' +
+    '<button class="img-del" onclick="removeProbQuestionImage()">x</button></div>';
+  if (status) status.textContent = '已选择 1 张图片';
+}
+
+// --- 解题思路图片 ---
+function handleProbSolutionImageUpload(event) {
+  var files = event.target.files;
+  if (!files || files.length === 0) return;
+  for (var i = 0; i < files.length; i++) {
+    (function(file) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        pendingProbSolutionImages.push(e.target.result);
+        renderProbSolutionPreviews();
+      };
+      reader.readAsDataURL(file);
+    })(files[i]);
+  }
+  event.target.value = '';
+}
+
+function removeProbSolutionImage(index) {
+  pendingProbSolutionImages.splice(index, 1);
+  renderProbSolutionPreviews();
+}
+
+function renderProbSolutionPreviews() {
+  var container = document.getElementById('probSolutionImagesPreview');
+  var status = document.getElementById('probSolutionImagesStatus');
+  if (!container) return;
+  if (pendingProbSolutionImages.length === 0) {
+    container.innerHTML = '';
+    if (status) status.textContent = '';
+    return;
+  }
+  container.innerHTML = pendingProbSolutionImages.map(function(src, idx) {
+    return '<div class="math-img-item">' +
+      '<img src="' + escapeHtml(src) + '" alt="解题图片">' +
+      '<button class="img-del" onclick="removeProbSolutionImage(' + idx + ')">x</button></div>';
+  }).join('');
+  if (status) status.textContent = '已选择 ' + pendingProbSolutionImages.length + ' 张图片';
+}
+
+function addMathProblemItem() {
+  var questionEl = document.getElementById('inputProbQuestion');
+  var solutionEl = document.getElementById('inputProbSolution');
+  var question = questionEl.value.trim();
+  var solutionText = solutionEl.value.trim();
+
+  if (!question && !pendingProbQuestionImage) {
+    showToast('请填写题目或上传题目图片');
+    return;
+  }
+  if (!solutionText && pendingProbSolutionImages.length === 0) {
+    showToast('请填写解题思路或上传解题图片');
+    return;
+  }
+
+  var problems = loadProblems();
+  var now = new Date();
+  var problem = {
+    id: Date.now() + Math.random(),
+    question: question,
+    questionImage: pendingProbQuestionImage,
+    solutionText: solutionText,
+    solutionImages: pendingProbSolutionImages.slice(),
+    practiceHistory: [],
+    stage: 0,
+    createdAt: now.toISOString(),
+    lastModified: now.toISOString(),
+    nextReviewAt: new Date(now.getTime() + INTERVALS[0]).toISOString(),
+    reviewedAt: [],
+    forgottenCount: 0,
+  };
+  problems.push(problem);
+  saveProblems(problems);
+
+  clearProbForm();
+  showToast('已添加题目');
+  refreshAll();
+}
+
+function clearProbForm() {
+  document.getElementById('inputProbQuestion').value = '';
+  document.getElementById('inputProbSolution').value = '';
+  pendingProbQuestionImage = null;
+  pendingProbSolutionImages = [];
+  renderProbQuestionPreview();
+  renderProbSolutionPreviews();
+}
+
+function deleteProblem(id) {
+  if (!confirm('确定要删除这个题目吗？')) return;
+  var problems = loadProblems();
+  var p = problems.find(function(p) { return p.id === id; });
+  if (p) { p.deletedAt = new Date().toISOString(); p.lastModified = p.deletedAt; }
+  saveProblems(problems);
+  if (currentReviewId === id && currentReviewType === 'problem') {
+    currentReviewId = null;
+    answerRevealed = false;
+  }
+  showToast('题目已删除');
+  refreshAll();
+}
+
+function renderProblemList() {
+  var container = document.getElementById('problemList');
+  if (!container) return;
+  var problems = getActiveProblems();
+
+  if (problems.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">\u{1F4DD}</div><p>还没有题目，去添加吧</p></div>';
+    return;
+  }
+
+  var sorted = problems.slice().sort(function(a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
+  container.innerHTML = sorted.map(function(p) {
+    var stageText = p.stage >= TOTAL_STAGES
+      ? '年复习 (' + (p.stage + 1) + '次)'
+      : '复习 ' + (p.stage + 1) + '/' + TOTAL_STAGES;
+    var nextTime = p.nextReviewAt ? formatDateTime(p.nextReviewAt) : '--';
+    var questionHtml = p.question
+      ? '<div class="math-title">' + escapeHtml(p.question) + '</div>'
+      : (p.questionImage ? '<img src="' + escapeHtml(p.questionImage) + '" class="math-image" alt="题目图片">' : '');
+    var solHtml = p.solutionText
+      ? '<div class="math-solution">' + escapeHtml(p.solutionText) + '</div>'
+      : '';
+    var solImgHtml = '';
+    if (p.solutionImages && p.solutionImages.length > 0) {
+      solImgHtml = p.solutionImages.slice(0, 1).map(function(src) {
+        return '<img src="' + escapeHtml(src) + '" class="math-image" alt="解题图片">';
+      }).join('');
+      if (p.solutionImages.length > 1) {
+        solImgHtml += '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">共 ' + p.solutionImages.length + ' 张图片</div>';
+      }
+    }
+    // Support old data with 'images' field
+    if (!solImgHtml && p.images && p.images.length > 0) {
+      solImgHtml = p.images.slice(0, 1).map(function(src) {
+        return '<img src="' + escapeHtml(src) + '" class="math-image" alt="解题图片">';
+      }).join('');
+      if (p.images.length > 1) {
+        solImgHtml += '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">共 ' + p.images.length + ' 张图片</div>';
+      }
+    }
+    var practiceStats = '';
+    if (p.practiceHistory && p.practiceHistory.length > 0) {
+      var total = p.practiceHistory.length;
+      var ok = p.practiceHistory.filter(function(h) { return h.correct; }).length;
+      practiceStats = ' <span style="color:#8b5cf6;font-size:11px;">练习' + total + '次 ✓' + ok + '</span>';
+    }
+    return '<div class="math-item">' +
+      questionHtml +
+      solHtml +
+      solImgHtml +
+      '<div class="math-meta">' + stageText + ' - 下次: ' + nextTime + practiceStats +
+      ' <button class="btn-del" onclick="deleteProblem(' + p.id + ')" title="删除">X</button></div>' +
+      '</div>';
+  }).join('');
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('inputWord').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') {
@@ -1005,6 +2091,12 @@ var currentReviewType = 'word'; // 'word' or 'sentence'
 var answerRevealed = false;
 var lastAlarmTime = 0;
 var snoozeUntil = 0; // 延时截止时间戳，0 表示未延时
+
+// 题目练习模式状态
+var practiceState = null; // null | 'upload' | 'method'
+var pendingPracticeImages = [];
+var practiceCorrect = null;
+var practiceProbId = null;
 
 // ============================================================
 // 提醒系统：通知 + 音频 + 震动
@@ -1099,7 +2191,7 @@ function showDueNotification(dueCount) {
   if (!('Notification' in window)) return;
   if (Notification.permission !== 'granted') return;
   try {
-    var n = new Notification('艾宾浩斯背单词', {
+    var n = new Notification('艾宾浩斯记忆助手', {
       body: '有 ' + dueCount + ' 项内容需要复习！',
       tag: 'ebbinghaus-due',
       requireInteraction: true,
@@ -1149,8 +2241,10 @@ function startAlarmChecker() {
       return;
     }
 
-    var words = loadWords();
-    var sentences = loadSentences();
+    var words = getActiveWords();
+    var sentences = getActiveSentences();
+    var mathProblems = getActiveMathProblems();
+    var problems = getActiveProblems();
     var now = new Date();
 
     var dueCount = 0;
@@ -1159,6 +2253,12 @@ function startAlarmChecker() {
     }
     for (var i = 0; i < sentences.length; i++) {
       if (sentences[i].nextReviewAt && new Date(sentences[i].nextReviewAt) <= now) dueCount++;
+    }
+    for (var i = 0; i < mathProblems.length; i++) {
+      if (mathProblems[i].nextReviewAt && new Date(mathProblems[i].nextReviewAt) <= now) dueCount++;
+    }
+    for (var i = 0; i < problems.length; i++) {
+      if (problems[i].nextReviewAt && new Date(problems[i].nextReviewAt) <= now) dueCount++;
     }
 
     if (dueCount > 0 && Date.now() - lastAlarmTime > 10 * 1000) {
@@ -1172,11 +2272,13 @@ function startAlarmChecker() {
 
 function renderReview() {
   var area = document.getElementById('reviewArea');
-  var words = loadWords();
-  var sentences = loadSentences();
+  var words = getActiveWords();
+  var sentences = getActiveSentences();
+  var mathProblems = getActiveMathProblems();
+  var problems = getActiveProblems();
   var now = new Date();
 
-  // 合并待复习的单词和句子
+  // 合并待复习的单词、句子、定理和题目
   var dueWords = words.filter(function(w) {
     return w.nextReviewAt && new Date(w.nextReviewAt) <= now;
   }).map(function(w) { w._type = 'word'; return w; });
@@ -1185,7 +2287,15 @@ function renderReview() {
     return s.nextReviewAt && new Date(s.nextReviewAt) <= now;
   }).map(function(s) { s._type = 'sentence'; return s; });
 
-  var dueItems = dueWords.concat(dueSentences);
+  var dueMath = mathProblems.filter(function(m) {
+    return m.nextReviewAt && new Date(m.nextReviewAt) <= now;
+  }).map(function(m) { m._type = 'math'; return m; });
+
+  var dueProblems = problems.filter(function(p) {
+    return p.nextReviewAt && new Date(p.nextReviewAt) <= now;
+  }).map(function(p) { p._type = 'problem'; return p; });
+
+  var dueItems = dueWords.concat(dueSentences).concat(dueMath).concat(dueProblems);
   dueItems.sort(function(a, b) { return new Date(a.nextReviewAt) - new Date(b.nextReviewAt); });
 
   if (currentReviewId && !dueItems.some(function(item) { return item.id === currentReviewId && item._type === currentReviewType; })) {
@@ -1193,11 +2303,11 @@ function renderReview() {
     answerRevealed = false;
   }
 
-  var totalItems = words.length + sentences.length;
+  var totalItems = words.length + sentences.length + mathProblems.length + problems.length;
 
   if (dueItems.length === 0) {
     if (totalItems === 0) {
-      area.innerHTML = '<div class="card review-empty"><div class="icon">\u{1F4DA}</div><p style="font-size:16px;font-weight:600;color:#333;">还没有内容</p><p style="font-size:13px;margin-top:4px;">前往添加单词开始吧</p></div>';
+      area.innerHTML = '<div class="card review-empty"><div class="icon">\u{1F4DA}</div><p style="font-size:16px;font-weight:600;color:#333;">还没有内容</p><p style="font-size:13px;margin-top:4px;">前往添加单词或定理开始吧</p></div>';
     } else {
       var nextTime = findNextReviewTime(now);
       var nextHtml = '';
@@ -1219,9 +2329,11 @@ function renderReview() {
   if (currentReviewId) { reviewItem = dueItems.find(function(item) { return item.id === currentReviewId && item._type === currentReviewType; }); }
   if (!reviewItem) { reviewItem = dueItems[0]; currentReviewId = reviewItem.id; currentReviewType = reviewItem._type; answerRevealed = false; }
 
-  var isSentence = reviewItem._type === 'sentence';
-
-  if (isSentence) {
+  if (reviewItem._type === 'problem') {
+    renderProblemReview(area, reviewItem, dueItems, now);
+  } else if (reviewItem._type === 'math') {
+    renderMathReview(area, reviewItem, dueItems, now);
+  } else if (reviewItem._type === 'sentence') {
     renderSentenceReview(area, reviewItem, dueItems, now);
   } else {
     renderWordReview(area, reviewItem, dueItems, now);
@@ -1283,6 +2395,153 @@ function renderSentenceReview(area, sentence, dueItems, now) {
     renderDueSidebar(dueItems, sentence.id, 'sentence', now);
 }
 
+function renderMathReview(area, problem, dueItems, now) {
+  var stageLabel = problem.stage >= TOTAL_STAGES
+    ? '第 ' + (problem.stage + 1) + ' 次复习 · 年复习'
+    : '复习 ' + (problem.stage + 1) + '/' + TOTAL_STAGES;
+  var overdueMs = now - new Date(problem.nextReviewAt);
+  var overdueText = overdueMs > 0 ? formatDuration(overdueMs) + '前应复习' : '';
+
+  var titleHtml = problem.title
+    ? '<div class="math-title-card">' + escapeHtml(problem.title) + '</div>'
+    : (problem.titleImage ? '<img src="' + escapeHtml(problem.titleImage) + '" class="math-image-card" alt="定理图片">' : '');
+
+  var solImgHtml = '';
+  if (problem.solutionImages && problem.solutionImages.length > 0) {
+    solImgHtml = problem.solutionImages.map(function(src) {
+      return '<img src="' + escapeHtml(src) + '" class="math-image-card" alt="证明图片">';
+    }).join('');
+  } else if (problem.images && problem.images.length > 0) {
+    solImgHtml = problem.images.map(function(src) {
+      return '<img src="' + escapeHtml(src) + '" class="math-image-card" alt="证明图片">';
+    }).join('');
+  }
+
+  area.innerHTML =
+    '<div class="card review-card">' +
+      '<div class="math-badge">\u{1F4D0} 定理</div>' +
+      titleHtml +
+      '<div class="stage-badge">' + stageLabel + '</div>' +
+      (overdueText ? '<div style="font-size:12px;color:#FF4D4F;margin-bottom:8px;">' + overdueText + '</div>' : '') +
+      (solImgHtml ? solImgHtml : '') +
+      '<div class="math-solution-card" style="' + (answerRevealed ? '' : 'color:transparent;background:none;') + '">' + escapeHtml(problem.solutionText) + '</div>' +
+      (!answerRevealed ? '<div class="hint">回想一下解题思路，然后点击下方按钮</div>' : '') +
+      '<div class="btn-group">' +
+        (!answerRevealed
+          ? '<button class="btn btn-primary" onclick="revealAnswer()">显示答案</button>'
+          : '<button class="btn btn-success" onclick="handleMathReview(true)">记住了</button><button class="btn btn-warning" onclick="handleMathReview(false)">忘记了</button>'
+        ) +
+      '</div>' +
+      (problem.forgottenCount > 0 ? '<div style="font-size:11px;color:#bbb;margin-top:12px;">曾忘记 ' + problem.forgottenCount + ' 次</div>' : '') +
+    '</div>' +
+    renderDueSidebar(dueItems, problem.id, 'math', now);
+}
+
+function renderProblemReview(area, prob, dueItems, now) {
+  var stageLabel = prob.stage >= TOTAL_STAGES
+    ? '第 ' + (prob.stage + 1) + ' 次复习 · 年复习'
+    : '复习 ' + (prob.stage + 1) + '/' + TOTAL_STAGES;
+  var overdueMs = now - new Date(prob.nextReviewAt);
+  var overdueText = overdueMs > 0 ? formatDuration(overdueMs) + '前应复习' : '';
+
+  var questionHtml = prob.question
+    ? '<div class="math-title-card" style="font-size:22px;">' + escapeHtml(prob.question) + '</div>'
+    : (prob.questionImage ? '<img src="' + escapeHtml(prob.questionImage) + '" class="math-image-card" alt="题目图片">' : '');
+
+  var solImgHtml = '';
+  if (prob.solutionImages && prob.solutionImages.length > 0) {
+    solImgHtml = prob.solutionImages.map(function(src) {
+      return '<img src="' + escapeHtml(src) + '" class="math-image-card" alt="解题图片">';
+    }).join('');
+  } else if (prob.images && prob.images.length > 0) {
+    solImgHtml = prob.images.map(function(src) {
+      return '<img src="' + escapeHtml(src) + '" class="math-image-card" alt="解题图片">';
+    }).join('');
+  }
+
+  var practiceCount = prob.practiceHistory ? prob.practiceHistory.length : 0;
+  var practiceCorrect = prob.practiceHistory ? prob.practiceHistory.filter(function(h) { return h.correct; }).length : 0;
+  var practiceHtml = practiceCount > 0
+    ? '<div style="font-size:11px;color:#8b5cf6;margin-bottom:8px;">已练习 ' + practiceCount + ' 次 ✓' + practiceCorrect + ' ✗' + (practiceCount - practiceCorrect) + '</div>'
+    : '';
+
+  // If in practice mode, show practice UI
+  if (practiceState && practiceProbId === prob.id) {
+    var practiceTitle = '<div style="font-size:14px;font-weight:600;color:#8b5cf6;margin:12px 0 8px 0;">📝 动手练习</div>';
+    var practiceHint = '<div style="font-size:12px;color:#666;margin-bottom:8px;">上传你的解题过程（可选），然后判断对错</div>';
+
+    // Uploaded images preview
+    var previewHtml = '';
+    if (pendingPracticeImages.length > 0) {
+      previewHtml = '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">' +
+        pendingPracticeImages.map(function(src, idx) {
+          return '<div class="math-img-item"><img src="' + escapeHtml(src) + '" style="max-height:120px;border-radius:6px;" alt="解题过程"><button class="img-del" onclick="removePracticeImage(' + idx + ')">x</button></div>';
+        }).join('') +
+        '</div>';
+    }
+
+    var uploadBtn = '<button type="button" class="math-img-upload-btn" onclick="document.getElementById(\'practiceImageInput\').click()">+ 添加解题图片</button>' +
+      '<input type="file" id="practiceImageInput" accept="image/*" multiple style="display:none" onchange="handlePracticeImageUpload(event)">';
+
+    // Judge buttons or method buttons
+    var actionHtml = '';
+    if (practiceState === 'upload') {
+      actionHtml = '<div class="btn-group" style="margin-top:8px;">' +
+        '<button class="btn btn-success" onclick="submitPracticeResult(true)">✓ 做对了</button>' +
+        '<button class="btn btn-warning" onclick="submitPracticeResult(false)">✗ 做错了</button>' +
+        '</div>';
+    } else if (practiceState === 'method') {
+      actionHtml = '<div style="font-size:13px;font-weight:600;color:#666;margin:8px 0;">你的解法和答案的方法是否一样？</div>' +
+        '<div class="btn-group">' +
+        '<button class="btn btn-success" onclick="submitPracticeMethod(true)">方法一样</button>' +
+        '<button class="btn btn-primary" onclick="submitPracticeMethod(false)">方法不一样</button>' +
+        '</div>';
+    }
+
+    area.innerHTML =
+      '<div class="card review-card">' +
+        '<div class="math-badge" style="background:linear-gradient(135deg,#fff7e6,#ffe4b3);color:var(--orange);">\u{1F4DD} 题目</div>' +
+        questionHtml +
+        '<div class="stage-badge">' + stageLabel + '</div>' +
+        (overdueText ? '<div style="font-size:12px;color:#FF4D4F;margin-bottom:8px;">' + overdueText + '</div>' : '') +
+        (solImgHtml ? solImgHtml : '') +
+        '<div class="math-solution-card">' + escapeHtml(prob.solutionText) + '</div>' +
+        practiceHtml +
+        practiceTitle +
+        practiceHint +
+        previewHtml +
+        uploadBtn +
+        actionHtml +
+        (prob.forgottenCount > 0 ? '<div style="font-size:11px;color:#bbb;margin-top:12px;">曾忘记 ' + prob.forgottenCount + ' 次</div>' : '') +
+      '</div>' +
+      renderDueSidebar(dueItems, prob.id, 'problem', now);
+    return;
+  }
+
+  // Normal review mode
+  area.innerHTML =
+    '<div class="card review-card">' +
+      '<div class="math-badge" style="background:linear-gradient(135deg,#fff7e6,#ffe4b3);color:var(--orange);">\u{1F4DD} 题目</div>' +
+      questionHtml +
+      '<div class="stage-badge">' + stageLabel + '</div>' +
+      (overdueText ? '<div style="font-size:12px;color:#FF4D4F;margin-bottom:8px;">' + overdueText + '</div>' : '') +
+      (solImgHtml ? solImgHtml : '') +
+      '<div class="math-solution-card" style="' + (answerRevealed ? '' : 'color:transparent;background:none;') + '">' + escapeHtml(prob.solutionText) + '</div>' +
+      (!answerRevealed ? '<div class="hint">回想一下解题思路，然后点击下方按钮</div>' : '') +
+      practiceHtml +
+      '<div class="btn-group">' +
+        (!answerRevealed
+          ? '<button class="btn btn-primary" onclick="revealAnswer()">显示答案</button>'
+          : '<button class="btn btn-success" onclick="handleProblemReview(true)">记住了</button>' +
+            '<button class="btn btn-warning" onclick="handleProblemReview(false)">忘记了</button>' +
+            '<button class="btn btn-primary" onclick="startPractice(' + prob.id + ')" style="background:#8b5cf6;">📝 动手做</button>'
+        ) +
+      '</div>' +
+      (prob.forgottenCount > 0 ? '<div style="font-size:11px;color:#bbb;margin-top:12px;">曾忘记 ' + prob.forgottenCount + ' 次</div>' : '') +
+    '</div>' +
+    renderDueSidebar(dueItems, prob.id, 'problem', now);
+}
+
 function renderDueSidebar(dueItems, currentId, currentType, now) {
   var others = dueItems.filter(function(item) { return !(item.id === currentId && item._type === currentType); });
   return '<div class="card">' +
@@ -1290,10 +2549,22 @@ function renderDueSidebar(dueItems, currentId, currentType, now) {
     '<div class="review-list">' +
       others.slice(0, 20).map(function(item) {
         var overdue = now - new Date(item.nextReviewAt);
-        if (item._type === 'sentence') {
+        if (item._type === 'math') {
+          var mathLabel = item.title || '[图片定理]';
+          return '<div class="review-item math" onclick="switchReviewWord(' + item.id + ', \'math\')">' +
+            '<div class="word-info"><div class="word">\u{1D4D0} ' + escapeHtml(mathLabel) + '</div>' +
+            '<div class="meta">' + (item.stage >= TOTAL_STAGES ? '年复习' : '复习 ' + (item.stage + 1) + '/' + TOTAL_STAGES) + '</div></div>' +
+            '<div class="overdue">' + (overdue > 0 ? formatShortDuration(overdue) + '前' : '即将') + '</div></div>';
+        } else if (item._type === 'sentence') {
           return '<div class="review-item sentence" onclick="switchReviewWord(' + item.id + ', \'sentence\')">' +
             '<div class="word-info"><div class="word">\u{1F4DD} ' + escapeHtml(item.english) + '</div>' +
             '<div class="meta">句子 ' + item.wordRange + ' - ' + (item.stage >= TOTAL_STAGES ? '年复习' : '复习 ' + (item.stage + 1) + '/' + TOTAL_STAGES) + '</div></div>' +
+            '<div class="overdue">' + (overdue > 0 ? formatShortDuration(overdue) + '前' : '即将') + '</div></div>';
+        } else if (item._type === 'problem') {
+          var probLabel = item.question || '[图片题目]';
+          return '<div class="review-item" onclick="switchReviewWord(' + item.id + ', \'problem\')">' +
+            '<div class="word-info"><div class="word">\u{1F4DD} ' + escapeHtml(probLabel) + '</div>' +
+            '<div class="meta">' + (item.stage >= TOTAL_STAGES ? '年复习' : '复习 ' + (item.stage + 1) + '/' + TOTAL_STAGES) + '</div></div>' +
             '<div class="overdue">' + (overdue > 0 ? formatShortDuration(overdue) + '前' : '即将') + '</div></div>';
         } else {
           return '<div class="review-item" onclick="switchReviewWord(' + item.id + ', \'word\')">' +
@@ -1310,8 +2581,93 @@ function renderDueSidebar(dueItems, currentId, currentType, now) {
   '</div>';
 }
 
-function switchReviewWord(id, type) { currentReviewId = id; currentReviewType = type || 'word'; answerRevealed = false; renderReview(); }
+function switchReviewWord(id, type) { resetPractice(); currentReviewId = id; currentReviewType = type || 'word'; answerRevealed = false; renderReview(); }
 function revealAnswer() { answerRevealed = true; renderReview(); }
+
+// --- 题目练习模式 ---
+function resetPractice() {
+  practiceState = null;
+  pendingPracticeImages = [];
+  practiceCorrect = null;
+  practiceProbId = null;
+}
+
+function startPractice(id) {
+  resetPractice();
+  practiceState = 'upload';
+  practiceProbId = id;
+  renderReview();
+}
+
+function handlePracticeImageUpload(event) {
+  var files = event.target.files;
+  if (!files || files.length === 0) return;
+  for (var i = 0; i < files.length; i++) {
+    (function(file) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        pendingPracticeImages.push(e.target.result);
+        renderReview();
+      };
+      reader.readAsDataURL(file);
+    })(files[i]);
+  }
+  event.target.value = '';
+}
+
+function removePracticeImage(index) {
+  pendingPracticeImages.splice(index, 1);
+  renderReview();
+}
+
+function submitPracticeResult(correct) {
+  practiceCorrect = correct;
+  if (correct) {
+    practiceState = 'method';
+    renderReview();
+  } else {
+    finishPractice();
+  }
+}
+
+function submitPracticeMethod(methodMatches) {
+  finishPractice(methodMatches);
+}
+
+function finishPractice(methodMatches) {
+  var allProblems = loadProblems();
+  var idx = allProblems.findIndex(function(p) { return p.id === practiceProbId; });
+  if (idx === -1) { resetPractice(); return; }
+  var problem = allProblems[idx];
+  var now = new Date();
+
+  if (!problem.practiceHistory) problem.practiceHistory = [];
+  problem.practiceHistory.push({
+    timestamp: now.toISOString(),
+    images: pendingPracticeImages.slice(),
+    correct: practiceCorrect,
+    methodMatches: practiceCorrect ? (methodMatches === true) : null,
+  });
+
+  // Always advance stage (count as remembered)
+  problem.reviewedAt.push(now.toISOString());
+  problem.stage++;
+  if (problem.stage >= TOTAL_STAGES) {
+    problem.nextReviewAt = new Date(now.getTime() + YEARLY_INTERVAL).toISOString();
+    showToast('题目练习完成，进入年复习');
+  } else {
+    problem.nextReviewAt = new Date(now.getTime() + INTERVALS[problem.stage]).toISOString();
+    showToast('题目练习完成，进入第 ' + (problem.stage + 1) + ' 次复习');
+  }
+
+  problem.lastModified = now.toISOString();
+  saveProblems(allProblems);
+  resetPractice();
+  currentReviewId = null;
+  answerRevealed = false;
+  lastAlarmTime = Date.now();
+  refreshAll();
+}
 
 function handleReview(remembered) {
   var words = loadWords();
@@ -1336,6 +2692,7 @@ function handleReview(remembered) {
     word.nextReviewAt = new Date(now.getTime() + INTERVALS[0]).toISOString();
     showToast('"' + word.word + '" 已重置，重新开始');
   }
+  word.lastModified = now.toISOString();
   saveWords(words);
   currentReviewId = null;
   answerRevealed = false;
@@ -1366,10 +2723,73 @@ function handleSentenceReview(remembered) {
     sentence.nextReviewAt = new Date(now.getTime() + INTERVALS[0]).toISOString();
     showToast('句子 ' + sentence.wordRange + ' 已重置，重新开始');
   }
+  sentence.lastModified = now.toISOString();
   saveSentences(sentences);
   currentReviewId = null;
   answerRevealed = false;
   lastAlarmTime = Date.now(); // 正在复习，重置闹铃计时
+  refreshAll();
+}
+
+function handleMathReview(remembered) {
+  var problems = loadMathProblems();
+  var idx = problems.findIndex(function(p) { return p.id === currentReviewId; });
+  if (idx === -1) return;
+  var problem = problems[idx];
+  var now = new Date();
+  problem.reviewedAt.push(now.toISOString());
+
+  if (remembered) {
+    problem.stage++;
+    if (problem.stage >= TOTAL_STAGES) {
+      problem.nextReviewAt = new Date(now.getTime() + YEARLY_INTERVAL).toISOString();
+      showToast('"' + problem.title + '" 进入年复习（每年一次）');
+    } else {
+      problem.nextReviewAt = new Date(now.getTime() + INTERVALS[problem.stage]).toISOString();
+      showToast('"' + problem.title + '" 进入第 ' + (problem.stage + 1) + ' 次复习');
+    }
+  } else {
+    problem.forgottenCount++;
+    problem.stage = 0;
+    problem.nextReviewAt = new Date(now.getTime() + INTERVALS[0]).toISOString();
+    showToast('"' + problem.title + '" 已重置，重新开始');
+  }
+  problem.lastModified = now.toISOString();
+  saveMathProblems(problems);
+  currentReviewId = null;
+  answerRevealed = false;
+  lastAlarmTime = Date.now();
+  refreshAll();
+}
+
+function handleProblemReview(remembered) {
+  var allProblems = loadProblems();
+  var idx = allProblems.findIndex(function(p) { return p.id === currentReviewId; });
+  if (idx === -1) return;
+  var problem = allProblems[idx];
+  var now = new Date();
+  problem.reviewedAt.push(now.toISOString());
+
+  if (remembered) {
+    problem.stage++;
+    if (problem.stage >= TOTAL_STAGES) {
+      problem.nextReviewAt = new Date(now.getTime() + YEARLY_INTERVAL).toISOString();
+      showToast('题目进入年复习（每年一次）');
+    } else {
+      problem.nextReviewAt = new Date(now.getTime() + INTERVALS[problem.stage]).toISOString();
+      showToast('题目进入第 ' + (problem.stage + 1) + ' 次复习');
+    }
+  } else {
+    problem.forgottenCount++;
+    problem.stage = 0;
+    problem.nextReviewAt = new Date(now.getTime() + INTERVALS[0]).toISOString();
+    showToast('题目已重置，重新开始');
+  }
+  problem.lastModified = now.toISOString();
+  saveProblems(allProblems);
+  currentReviewId = null;
+  answerRevealed = false;
+  lastAlarmTime = Date.now();
   refreshAll();
 }
 
@@ -1379,8 +2799,8 @@ function handleSentenceReview(remembered) {
 var currentFilter = 'all';
 
 function renderBank() {
-  var words = loadWords();
-  var sentences = loadSentences();
+  var words = getActiveWords();
+  var sentences = getActiveSentences();
   var list = document.getElementById('wordList');
   var senList = document.getElementById('sentenceList');
   var filtered = words;
@@ -1455,7 +2875,8 @@ function renderSentenceBank(senList, sentences) {
 function deleteWord(id) {
   if (!confirm('确定要删除这个单词吗？')) return;
   var words = loadWords();
-  words = words.filter(function(w) { return w.id !== id; });
+  var word = words.find(function(w) { return w.id === id; });
+  if (word) { word.deletedAt = new Date().toISOString(); word.lastModified = word.deletedAt; }
   saveWords(words);
   if (currentReviewId === id && currentReviewType === 'word') { currentReviewId = null; answerRevealed = false; }
   showToast('已删除');
@@ -1465,7 +2886,8 @@ function deleteWord(id) {
 function deleteSentence(id) {
   if (!confirm('确定要删除这个句子吗？')) return;
   var sentences = loadSentences();
-  sentences = sentences.filter(function(s) { return s.id !== id; });
+  var s = sentences.find(function(s) { return s.id === id; });
+  if (s) { s.deletedAt = new Date().toISOString(); s.lastModified = s.deletedAt; }
   saveSentences(sentences);
   if (currentReviewId === id && currentReviewType === 'sentence') { currentReviewId = null; answerRevealed = false; }
   showToast('句子已删除');
@@ -1476,22 +2898,30 @@ function deleteSentence(id) {
 // 统计
 // ============================================================
 function renderStats() {
-  var words = loadWords();
-  var sentences = loadSentences();
+  var words = getActiveWords();
+  var sentences = getActiveSentences();
+  var mathProblems = getActiveMathProblems();
   var now = new Date();
   var total = words.length;
   var annual = words.filter(function(w) { return w.stage >= TOTAL_STAGES; }).length;
   var learning = total - annual;
   var dueWords = words.filter(function(w) { return w.nextReviewAt && new Date(w.nextReviewAt) <= now; }).length;
   var dueSentences = sentences.filter(function(s) { return s.nextReviewAt && new Date(s.nextReviewAt) <= now; }).length;
+  var dueMath = mathProblems.filter(function(m) { return m.nextReviewAt && new Date(m.nextReviewAt) <= now; }).length;
   document.getElementById('statTotal').textContent = total;
-  document.getElementById('statDue').textContent = dueWords + dueSentences;
+  document.getElementById('statDue').textContent = dueWords + dueSentences + dueMath;
   document.getElementById('statLearning').textContent = learning;
   document.getElementById('statMastered').textContent = annual;
   document.getElementById('statSentenceCount').textContent = sentences.length;
+  var problems = getActiveProblems();
+  var dueProblems = problems.filter(function(p) { return p.nextReviewAt && new Date(p.nextReviewAt) <= now; }).length;
+  document.getElementById('statMathCount').textContent = mathProblems.length;
+  document.getElementById('statMathDue').textContent = dueMath;
+  document.getElementById('statProbCount').textContent = problems.length;
+  document.getElementById('statProbDue').textContent = dueProblems;
 
   // 更新下次复习时间
-  var dueTotal = dueWords + dueSentences;
+  var dueTotal = dueWords + dueSentences + dueMath + dueProblems;
   var nextEl = document.getElementById('statNextTime');
   if (dueTotal > 0) {
     // 有单词待复习，显示"现在！"
@@ -1522,10 +2952,12 @@ function renderStats() {
 // 导出 / 导入 / 保存到文件
 // ============================================================
 function saveToFile() {
-  var words = loadWords();
-  var sentences = loadSentences();
-  if (words.length === 0 && sentences.length === 0) { showToast('没有数据可保存'); return; }
-  var json = JSON.stringify({ words: words, sentences: sentences }, null, 2);
+  var words = getActiveWords();
+  var sentences = getActiveSentences();
+  var mathProblems = getActiveMathProblems();
+  var problems = getActiveProblems();
+  if (words.length === 0 && sentences.length === 0 && mathProblems.length === 0 && problems.length === 0) { showToast('没有数据可保存'); return; }
+  var json = JSON.stringify({ words: words, sentences: sentences, mathProblems: mathProblems, problems: problems }, null, 2);
   var blob = new Blob([json], { type: 'application/json' });
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
@@ -1537,10 +2969,12 @@ function saveToFile() {
 }
 
 function exportData() {
-  var words = loadWords();
-  var sentences = loadSentences();
-  if (words.length === 0 && sentences.length === 0) { showToast('没有数据可导出'); return; }
-  var json = JSON.stringify({ words: words, sentences: sentences }, null, 2);
+  var words = getActiveWords();
+  var sentences = getActiveSentences();
+  var mathProblems = getActiveMathProblems();
+  var problems = getActiveProblems();
+  if (words.length === 0 && sentences.length === 0 && mathProblems.length === 0 && problems.length === 0) { showToast('没有数据可导出'); return; }
+  var json = JSON.stringify({ words: words, sentences: sentences, mathProblems: mathProblems, problems: problems }, null, 2);
   var blob = new Blob([json], { type: 'application/json' });
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
@@ -1560,14 +2994,18 @@ function importData(event) {
       var data = JSON.parse(e.target.result);
       var words = [];
       var sentences = [];
+      var mathProblems = [];
+      var problems = [];
 
       if (Array.isArray(data)) {
         // 旧格式：纯单词数组
         words = data;
       } else if (data && data.words) {
-        // 新格式：{words, sentences}
+        // 新格式：{words, sentences, mathProblems, problems}
         words = data.words || [];
         sentences = data.sentences || [];
+        mathProblems = data.mathProblems || [];
+        problems = data.problems || [];
       } else {
         throw new Error('格式错误');
       }
@@ -1575,10 +3013,16 @@ function importData(event) {
       for (var i = 0; i < words.length; i++) {
         if (!words[i].word || words[i].stage === undefined) throw new Error('数据结构不完整');
       }
+      for (var i = 0; i < mathProblems.length; i++) {
+        if (!mathProblems[i].title || mathProblems[i].stage === undefined) throw new Error('数据结构不完整');
+      }
+      for (var i = 0; i < problems.length; i++) {
+        if (!problems[i].question || problems[i].stage === undefined) throw new Error('数据结构不完整');
+      }
 
-      if (!confirm('即将导入 ' + words.length + ' 个单词和 ' + sentences.length + ' 个句子，这会覆盖当前所有数据，确定吗？')) return;
-      saveData(words, sentences);
-      showToast('成功导入 ' + words.length + ' 个单词, ' + sentences.length + ' 个句子');
+      if (!confirm('即将导入 ' + words.length + ' 个单词, ' + sentences.length + ' 个句子, ' + mathProblems.length + ' 个定理, ' + problems.length + ' 个题目，这会覆盖当前所有数据，确定吗？')) return;
+      saveData(words, sentences, mathProblems, problems);
+      showToast('成功导入 ' + words.length + ' 个单词, ' + sentences.length + ' 个句子, ' + mathProblems.length + ' 个定理, ' + problems.length + ' 个题目');
       refreshAll();
       generateMissingSentences();
     } catch (err) {
@@ -1663,10 +3107,12 @@ function formatDateTime(isoStr) {
 
 function findNextReviewTime(now) {
   if (!now) now = new Date();
-  var words = loadWords();
-  var sentences = loadSentences();
+  var words = getActiveWords();
+  var sentences = getActiveSentences();
+  var mathProblems = getActiveMathProblems();
+  var problems = getActiveProblems();
   var nearest = null;
-  words.concat(sentences).forEach(function(item) {
+  words.concat(sentences).concat(mathProblems).concat(problems).forEach(function(item) {
     if (item.nextReviewAt) {
       var t = new Date(item.nextReviewAt);
       if (t > now && (nearest === null || t < nearest)) {
@@ -1676,7 +3122,7 @@ function findNextReviewTime(now) {
   });
   // 如果所有项目都已过期（无未来复习），则取最近的一个过期时间作为后备
   if (!nearest) {
-    words.concat(sentences).forEach(function(item) {
+    words.concat(sentences).concat(mathProblems).concat(problems).forEach(function(item) {
       if (item.nextReviewAt) {
         var t = new Date(item.nextReviewAt);
         if (nearest === null || t > nearest) {
@@ -1704,12 +3150,18 @@ function refreshAll() {
   renderStats();
   renderReview();
   renderBank();
+  renderMathProblemList();
+  renderProblemList();
   var cntEl = document.getElementById('fileDetailCount');
   if (cntEl) {
-    var words = loadWords();
-    var sentences = loadSentences();
-    cntEl.textContent = words.length + ' 个单词, ' + sentences.length + ' 个句子';
+    var words = getActiveWords();
+    var sentences = getActiveSentences();
+    var mathProblems = getActiveMathProblems();
+    var problems = getActiveProblems();
+    cntEl.textContent = words.length + ' 个单词, ' + sentences.length + ' 个句子, ' + mathProblems.length + ' 个定理, ' + problems.length + ' 个题目';
   }
+  var userEl = document.getElementById('currentUserDisplay');
+  if (userEl && currentUser) userEl.textContent = currentUser;
 }
 
 setInterval(refreshAll, 60000);
@@ -1720,23 +3172,85 @@ setInterval(refreshAll, 60000);
 document.addEventListener('DOMContentLoaded', function() {
   setupTabs();
   setupFilters();
+
+  // 登录表单回车提交
+  document.getElementById('loginUsername').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { document.getElementById('loginPassword').focus(); }
+  });
+  document.getElementById('loginPassword').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { handleLogin(); }
+  });
+  document.getElementById('regUsername').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { document.getElementById('regPassword').focus(); }
+  });
+  document.getElementById('regPassword').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { handleRegister(); }
+  });
+
   // 预填 API Key
   var savedKey = getApiKey();
   if (savedKey) {
     document.getElementById('apiKeyInput').value = savedKey;
   }
+
   // 先渲染界面（从 localStorage 加载）
   refreshAll();
-  // 再检测服务器，如果有服务器数据则覆盖 localStorage
-  detectServer();
+
+  // 尝试验证 token 并连接服务器
+  if (authToken) {
+    // 有 token → 尝试验证并登录
+    verifyToken().then(function(valid) {
+      if (valid) {
+        document.getElementById('loginOverlay').classList.add('hidden');
+        detectServer();
+      } else {
+        // token 无效，检查服务器是否可达
+        fetch('/api/auth/verify', { cache: 'no-store' }).then(function(r) {
+          // 服务器可达但没有有效 token → 显示登录页
+          showLoginOverlay(false);
+        }).catch(function() {
+          // 服务器不可达 → 离线模式
+          document.getElementById('loginOverlay').classList.add('hidden');
+          detectServer();
+        });
+      }
+    });
+  } else {
+    // 没有 token → 检查服务器是否可达
+    fetch('/api/auth/verify', { cache: 'no-store' }).then(function(r) {
+      // 服务器可达 → 显示登录页
+      showLoginOverlay(false);
+    }).catch(function() {
+      // 服务器不可达 → 离线模式
+      document.getElementById('loginOverlay').classList.add('hidden');
+      detectServer();
+    });
+  }
+
   // 请求通知权限（浏览器会显示一次性的权限询问弹窗）
   requestNotifyPermission();
   // 启动实时闹铃检测器（每秒检查是否有待复习内容）
   startAlarmChecker();
+
+  // 注册 Service Worker（PWA 离线支持）
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(function(err) {
+      console.warn('Service Worker 注册失败:', err);
+    });
+  }
+
+  // 网络恢复时自动重新连接服务器
+  window.addEventListener('online', function() {
+    showToast('网络已恢复，正在同步数据...');
+    detectServer();
+  });
+
   // 切换回标签页时刷新并检查是否需要提醒
   document.addEventListener('visibilitychange', function() {
     if (!document.hidden) {
       refreshAll();
+      // 切回页面时尝试重新连接服务器
+      detectServer();
     }
   });
 });
