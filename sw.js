@@ -1,14 +1,17 @@
-const CACHE_NAME = 'ebbinghaus-v3';
+const CACHE_NAME = 'ebbinghaus-v4';
 const STATIC_ASSETS = [
+  './',
   './manifest.json',
   './icon.svg'
 ];
 
-// 安装时缓存静态资源（不缓存 index.html，它始终从网络获取最新版）
+// 安装时缓存核心资源，包括 index.html（用于离线回退）
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(STATIC_ASSETS);
+      return cache.addAll(STATIC_ASSETS).catch(function(err) {
+        console.warn('预缓存失败（某些资源可能已被缓存）:', err);
+      });
     })
   );
   self.skipWaiting();
@@ -26,15 +29,7 @@ self.addEventListener('activate', event => {
         })
       );
     }).then(function() {
-      // 接管页面并刷新，确保最新版本生效
       return self.clients.claim();
-    }).then(function() {
-      // 刷新所有已打开的页面以加载最新代码
-      return self.clients.matchAll().then(function(clients) {
-        clients.forEach(function(client) {
-          client.navigate(client.url);
-        });
-      });
     })
   );
 });
