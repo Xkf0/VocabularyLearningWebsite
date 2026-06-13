@@ -1,0 +1,34 @@
+{
+  "words": [
+    {
+      "word": "A",
+      "definition": "a",
+      "stage": 0,
+      "createdAt": "2024-01-01T00:00:00",
+      "nextReviewAt": "2024-01-01T00:00:00",
+      "reviewedAt": [],
+      "forgottenCount": 0
+    },
+    {
+      "word": "B",
+      "definition": "b",
+      "stage": 0,
+      "createdAt": "2024-01-01T00:00:00",
+      "nextReviewAt": "2024-01-01T00:00:00",
+      "reviewedAt": [],
+      "forgottenCount": 0
+    },
+    {
+      "word": "C",
+      "definition": "c",
+      "stage": 0,
+      "createdAt": "2024-01-01T00:00:00",
+      "nextReviewAt": "2024-01-01T00:00:00",
+      "reviewedAt": [],
+      "forgottenCount": 0
+    }
+  ],
+  "sentences": [],
+  "mathProblems": [],
+  "problems": []
+}
