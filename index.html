@@ -682,6 +682,7 @@
 <header>
   <h1>艾宾浩斯记忆助手</h1>
   <p>遵循遗忘曲线规律 · 科学复习 · 定理记忆</p>
+  <div style="text-align:center;margin-top:4px;"><span style="display:inline-block;background:#ff6b6b;color:white;font-size:11px;padding:2px 10px;border-radius:10px;">v1.3-云同步测试</span></div>
 </header>
 
 <!-- Stats -->
@@ -1212,7 +1213,7 @@ async function detectServer() {
       // 本地更改通过 syncToServer() 在每次操作时实时推送到服务器
       await syncFromServer();
 
-      if (textEl) textEl.textContent = '已连接服务器 · 用户: ' + currentUser;
+      if (textEl) textEl.textContent = '已连接服务器 · 用户: ' + currentUser + ' ☁️云';
       if (iconEl) iconEl.textContent = '\u{1F7E2}';
       if (modeEl) { modeEl.textContent = '服务器模式 (已登录: ' + currentUser + ')'; modeEl.style.color = '#52C41A'; }
       var userEl = document.getElementById('currentUserDisplay');
