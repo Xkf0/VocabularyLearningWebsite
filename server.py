@@ -13,7 +13,7 @@ import sys
 import threading
 from datetime import datetime
 
-PORT = 3000
+PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 3000
 USERS_FILE = os.path.join(os.path.dirname(__file__), 'users.json')
 DATA_DIR = os.path.dirname(__file__)
 
@@ -63,12 +63,12 @@ def _get_user_data_file(username):
 
 
 def _read_user_data(username):
-    """读取某个用户的数据，返回 {words, sentences, mathProblems, problems, methods}"""
+    """读取某个用户的数据，返回 {words, sentences, mathProblems, problems, methods, avatar}"""
     path = _get_user_data_file(username)
     data = _load_json(path)
     if isinstance(data, list):
-        return {'words': data, 'sentences': [], 'methods': []}
-    return {'words': data.get('words', []), 'sentences': data.get('sentences', []), 'mathProblems': data.get('mathProblems', []), 'problems': data.get('problems', []), 'methods': data.get('methods', [])}
+        return {'words': data, 'sentences': [], 'methods': [], 'avatar': ''}
+    return {'words': data.get('words', []), 'sentences': data.get('sentences', []), 'mathProblems': data.get('mathProblems', []), 'problems': data.get('problems', []), 'methods': data.get('methods', []), 'avatar': data.get('avatar', '')}
 
 
 def _merge_items(existing_items, incoming_items, key_field, fallback_field=None):
@@ -133,6 +133,15 @@ def _merge_items(existing_items, incoming_items, key_field, fallback_field=None)
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
+
+    def end_headers(self):
+        # 禁止缓存 HTML/JS 文件，确保用户每次加载都获取最新版本
+        path = self.translate_path(self.path)
+        if path.endswith('.html') or path.endswith('sw.js') or os.path.isdir(path):
+            self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            self.send_header('Pragma', 'no-cache')
+            self.send_header('Expires', '0')
+        super().end_headers()
 
     def _send_json(self, data, status=200):
         self.send_response(status)
@@ -276,6 +285,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._send_json(data)
             return
 
+        # 诊断接口：测试 GET 是否通
+        if self.path == '/api/ping':
+            self._send_json({'ok': True, 'message': 'pong'})
+            return
+
         super().do_GET()
 
     def do_POST(self):
@@ -302,7 +316,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                         merged_math = _merge_items(existing['mathProblems'], incoming.get('mathProblems', []), 'indexTitle', 'title')
                         merged_problems = _merge_items(existing['problems'], incoming.get('problems', []), 'indexTitle', 'question')
                         merged_methods = _merge_items(existing.get('methods', []), incoming.get('methods', []), 'id')
-                        result = {'words': merged_words, 'sentences': merged_sentences, 'mathProblems': merged_math, 'problems': merged_problems, 'methods': merged_methods}
+                        merged_avatar = incoming.get('avatar', existing.get('avatar', ''))
+                        result = {'words': merged_words, 'sentences': merged_sentences, 'mathProblems': merged_math, 'problems': merged_problems, 'methods': merged_methods, 'avatar': merged_avatar}
                         count = len(merged_words) + len(merged_sentences) + len(merged_math) + len(merged_problems) + len(merged_methods)
                     elif isinstance(incoming, list):
                         merged_words = _merge_items(existing['words'], incoming, 'word')

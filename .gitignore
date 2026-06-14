@@ -10,6 +10,7 @@ vocabulary-data-*.json
 # ====================================
 sync_server.bat
 sync_test.ps1
+deploy.md
 
 # ====================================
 # Python 缓存
