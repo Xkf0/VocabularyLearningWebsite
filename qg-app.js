@@ -39,9 +39,13 @@ QG.loadRecords = async function() {
       const res = await QG._authFetch('/api/question/records', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        const records = data.records || [];
-        localStorage.setItem(QG.STORAGE_KEY, JSON.stringify(records));
-        return records;
+        const serverRecords = data.records || [];
+        // 只有服务器返回非空数据时才覆盖 localStorage，
+        // 避免服务器文件不存在时返回 [] 清空本地记录
+        if (serverRecords.length > 0) {
+          localStorage.setItem(QG.STORAGE_KEY, JSON.stringify(serverRecords));
+        }
+        return serverRecords;
       }
     } catch (e) { /* 服务器不可用，走本地回退 */ }
   }

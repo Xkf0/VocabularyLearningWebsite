@@ -49,8 +49,13 @@ def _load_json(path):
 
 
 def _save_json(path, data):
-    with open(path, 'w', encoding='utf-8') as f:
+    """原子写入：先写临时文件再 rename，防止重启时写一半导致文件损坏"""
+    tmp = path + '.tmp'
+    with open(tmp, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
 
 
 def _hash_password(password):
@@ -79,62 +84,77 @@ def _read_user_data(username):
 
 
 def _merge_items(existing_items, incoming_items, key_field, fallback_field=None):
-    """合并两个对象列表。
+    """合并两个对象列表（双向合并）。
 
-    以 incoming 为基准（客户端始终发送全量数据），
-    同 key 时基于 lastModified 时间戳解决冲突：
-      - 保留 lastModified 更新的版本（操作时间更近的胜出）
-      - 如果 incoming 有 deletedAt 标记，但 existing 的 lastModified 更新，
-        说明另一设备在删除后修改了该项目 → 恢复 existing（清除 deletedAt）
-      - 对于没有 lastModified 的旧数据，回退到复习次数比较
-    不在 incoming 中的旧数据视为已删除，不再保留。
+    以 existing（服务端数据）为基准，保留所有 existing 条目。
+    incoming（客户端数据）中的匹配条目通过 lastModified 时间戳合并：
+      - 记录级合并：以 incoming 的字段覆盖 existing 的同名字段
+      - 服务端独有字段（如 practiceHistory）不会被 incoming 覆盖丢失
+      - 如果 incoming 有 deletedAt 标记且时间戳更新，则删除（删除操作胜出）
+      - 如果 existing 的 lastModified 更新，则保留 existing 的完整数据
+      - 不在 incoming 中的 existing 条目不会被删除（保护多设备数据）
     """
     result = {}
-    # 先把 incoming 全量放入 result
-    for item in incoming_items:
+    # 先把 existing（服务端数据）全量放入 result
+    for item in existing_items:
         k = str(item.get(key_field, '')).lower().strip()
         if not k and fallback_field:
             k = str(item.get(fallback_field, '')).lower().strip()
         if k:
-            result[k] = item
+            result[k] = dict(item)  # 深拷贝，避免修改原数据
 
-    # 对每个 incoming，处理冲突
+    # 用 incoming 覆盖 / 合并
     for item in incoming_items:
         k = str(item.get(key_field, '')).lower().strip()
         if not k and fallback_field:
             k = str(item.get(fallback_field, '')).lower().strip()
         if not k:
             continue
-        for existing in existing_items:
-            ek = str(existing.get(key_field, '')).lower().strip()
-            if not ek and fallback_field:
-                ek = str(existing.get(fallback_field, '')).lower().strip()
-            if ek == k:
-                incoming_ts = item.get('lastModified') or ''
-                existing_ts = existing.get('lastModified') or ''
 
-                if incoming_ts and existing_ts:
-                    # 基于时间戳比较
-                    if item.get('deletedAt'):
-                        # incoming 被删除，检查 existing 是否有更近期的修改
-                        if existing_ts > incoming_ts:
-                            # 另一台设备在删除之后复习/修改了该项目 → 恢复
-                            restored = dict(existing)
-                            restored.pop('deletedAt', None)
-                            result[k] = restored
-                        # 否则保留 deletedAt（删除确认，时间更近的操作胜出）
-                    elif existing_ts > incoming_ts:
-                        # existing 更新 → 保留 existing
+        if k in result:
+            existing = result[k]
+            incoming_ts = item.get('lastModified') or ''
+            existing_ts = existing.get('lastModified') or ''
+
+            if incoming_ts and existing_ts:
+                if item.get('deletedAt'):
+                    # incoming 标记为删除
+                    if existing_ts > incoming_ts:
+                        # 删除之后服务端还有更新 → 恢复（清除删除标记）
+                        existing.pop('deletedAt', None)
                         result[k] = existing
+                    else:
+                        # incoming 删除操作更新 → 确认删除
+                        result[k] = dict(item)
                 else:
-                    # 没有 lastModified（旧数据兼容），使用原有的复习次数比较
-                    existing_len = len(existing.get('reviewedAt', []))
-                    incoming_len = len(item.get('reviewedAt', []))
-                    existing_stage = existing.get('stage', 0)
-                    incoming_stage = item.get('stage', 0)
-                    if existing_len > incoming_len or (existing_len == incoming_len and existing_stage > incoming_stage):
-                        result[k] = existing
-                break
+                    # 都不是删除状态：字段级合并
+                    merged = dict(existing)
+                    for key, val in item.items():
+                        if val is not None and val != '':
+                            merged[key] = val
+                    # lastModified 取较新的
+                    if incoming_ts >= existing_ts:
+                        merged['lastModified'] = incoming_ts
+                    result[k] = merged
+            else:
+                # 没有 lastModified（旧数据兼容）
+                existing_len = len(existing.get('reviewedAt', []))
+                incoming_len = len(item.get('reviewedAt', []))
+                existing_stage = existing.get('stage', 0)
+                incoming_stage = item.get('stage', 0)
+                if incoming_len > existing_len or (incoming_len == existing_len and incoming_stage > existing_stage):
+                    # incoming 复习次数更多 → 用 incoming
+                    result[k] = dict(item)
+                else:
+                    # existing 复习次数更多或相等 → 保留 existing，叠加 incoming 的字段
+                    merged = dict(existing)
+                    for key, val in item.items():
+                        if val is not None and val != '':
+                            merged[key] = val
+                    result[k] = merged
+        else:
+            # incoming 中的新条目
+            result[k] = dict(item)
 
     return list(result.values())
 

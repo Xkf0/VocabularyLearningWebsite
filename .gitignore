@@ -4,11 +4,13 @@
 users.json
 vocabulary-data.json
 vocabulary-data-*.json
+stats-data-*.json
 
 # ====================================
 # 服务器同步脚本（含服务器 IP）
 # ====================================
 sync_server.bat
+backup_server.bat
 sync_test.ps1
 deploy.md
 
@@ -32,6 +34,9 @@ __pycache__/
 .claude/
 
 # ====================================
+# 本地备份目录
+backup/
+
 # 打包临时文件
 # ====================================
 *.tar

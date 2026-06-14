@@ -1030,6 +1030,26 @@
     .item-editor-card textarea { min-height: 80px; resize: vertical; }
     .item-editor-actions { display: flex; gap: 8px; margin-top: 16px; }
     .item-editor-actions .btn { flex: 1; }
+    .item-editor-img-placeholder { font-size: 12px; color: #94a3b8; padding: 8px 0; }
+    .item-editor-images { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+    .item-editor-images .math-img-item img { max-width: 120px; max-height: 120px; border-radius: 6px; border: 1px solid #e2e8f0; object-fit: cover; cursor: pointer; }
+    .item-editor-images .math-img-item { position: relative; display: inline-block; }
+    .item-editor-images .img-del {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #ff4d4f;
+      color: #fff;
+      border: none;
+      font-size: 12px;
+      line-height: 20px;
+      text-align: center;
+      cursor: pointer;
+      padding: 0;
+    }
 
     .review-edit-btn {
       background: none;
@@ -1881,7 +1901,7 @@ async function switchToUser(username, token) {
   if (!confirm('切换到用户「' + username + '」？\n当前数据会先保存到服务器。')) return;
   // 先推送当前数据
   if (useServer && authToken) {
-    syncToServer();
+    await syncToServer();
   }
   // 清除当前数据
   clearAuth();
@@ -1903,10 +1923,10 @@ async function switchToUser(username, token) {
       var data = await res.json();
       if (data && data.words) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data.words || []));
-        if (data.sentences) localStorage.setItem(SENTENCE_KEY, JSON.stringify(data.sentences));
-        if (data.mathProblems) localStorage.setItem(MATH_KEY, JSON.stringify(data.mathProblems));
-        if (data.problems) localStorage.setItem(PROBLEMS_KEY, JSON.stringify(data.problems));
-        if (data.methods) localStorage.setItem(METHODS_KEY, JSON.stringify(data.methods));
+        if (Array.isArray(data.sentences) && data.sentences.length > 0) localStorage.setItem(SENTENCE_KEY, JSON.stringify(data.sentences));
+        if (Array.isArray(data.mathProblems) && data.mathProblems.length > 0) localStorage.setItem(MATH_KEY, JSON.stringify(data.mathProblems));
+        if (Array.isArray(data.problems) && data.problems.length > 0) localStorage.setItem(PROBLEMS_KEY, JSON.stringify(data.problems));
+        if (Array.isArray(data.methods) && data.methods.length > 0) localStorage.setItem(METHODS_KEY, JSON.stringify(data.methods));
         if (data.avatar) localStorage.setItem(getAvatarKey(), data.avatar);
         // 头像下载后更新 saved users 列表中的头像
         saveUserToSaved(username, token);
@@ -2204,7 +2224,7 @@ async function handleLogin() {
 
   // 如果已登录其他用户，先保存数据再切换
   if (authToken && currentUser && username !== currentUser) {
-    if (useServer) syncToServer();
+    if (useServer) await syncToServer();
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(SENTENCE_KEY);
     localStorage.removeItem(MATH_KEY);
@@ -2248,7 +2268,7 @@ async function handleRegister() {
 
   // 如果已登录其他用户，先保存数据再切换
   if (authToken && currentUser && username !== currentUser) {
-    if (useServer) syncToServer();
+    if (useServer) await syncToServer();
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(SENTENCE_KEY);
     localStorage.removeItem(MATH_KEY);
@@ -2280,11 +2300,11 @@ async function handleRegister() {
   setLoginLoading('regBtn', false);
 }
 
-function handleLogout() {
+async function handleLogout() {
   if (!confirm('确定退出登录吗？')) return;
   // 退出前尝试推送一次本地数据到服务器
   if (useServer) {
-    syncToServer();
+    await syncToServer();
   }
   clearAuth();
   // 清除本地单词数据，防止别人登录时混入
@@ -2296,64 +2316,42 @@ function handleLogout() {
   location.reload();
 }
 
-// 登录成功后：隐藏登录页，推本地数据，拉服务器数据
+// 登录成功后：隐藏登录页，从服务器拉取数据覆盖本地（pull-dominant）
 async function hideLoginAndSync() {
   document.getElementById('loginOverlay').classList.add('hidden');
 
-  // 先看服务器有没有这个用户的已有数据
-  var hasServerData = false;
+  // 从服务器拉取该用户数据 → 覆盖本地（本地始终是服务器的副本/备份）
   try {
-    var checkRes = await fetchWithTimeout('/api/words', {
+    var res = await fetchWithTimeout('/api/words', {
       headers: getAuthHeaders(),
       cache: 'no-store',
     });
-    if (checkRes.ok) {
-      var checkData = await checkRes.json();
-      var words = checkData.words || (Array.isArray(checkData) ? checkData : []);
-      var sentences = checkData.sentences || [];
-      var mathProblems = checkData.mathProblems || [];
-      var problems = checkData.problems || [];
-      if (words.length > 0 || sentences.length > 0 || mathProblems.length > 0 || problems.length > 0) {
-        hasServerData = true;
-        // 服务器有数据 → 直接覆盖本地（防止别人的数据混进来）
-        if (Array.isArray(checkData)) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(checkData));
-        } else if (checkData && checkData.words) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(checkData.words || []));
-          if (checkData.sentences) {
-            localStorage.setItem(SENTENCE_KEY, JSON.stringify(checkData.sentences));
-          }
-          if (checkData.mathProblems) {
-            localStorage.setItem(MATH_KEY, JSON.stringify(checkData.mathProblems));
-          }
-          if (checkData.problems) {
-            localStorage.setItem(PROBLEMS_KEY, JSON.stringify(checkData.problems));
-          }
-          if (checkData.avatar) {
-            localStorage.setItem(getAvatarKey(), checkData.avatar);
-          }
+    if (res.ok) {
+      var data = await res.json();
+      if (Array.isArray(data)) {
+        if (data.length > 0) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+      } else if (data && data.words) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data.words || []));
+        if (Array.isArray(data.sentences) && data.sentences.length > 0) {
+          localStorage.setItem(SENTENCE_KEY, JSON.stringify(data.sentences));
+        }
+        if (Array.isArray(data.mathProblems) && data.mathProblems.length > 0) {
+          localStorage.setItem(MATH_KEY, JSON.stringify(data.mathProblems));
+        }
+        if (Array.isArray(data.problems) && data.problems.length > 0) {
+          localStorage.setItem(PROBLEMS_KEY, JSON.stringify(data.problems));
+        }
+        if (Array.isArray(data.methods) && data.methods.length > 0) {
+          localStorage.setItem(METHODS_KEY, JSON.stringify(data.methods));
+        }
+        if (data.avatar) {
+          localStorage.setItem(getAvatarKey(), data.avatar);
         }
       }
     }
   } catch (e) {}
-
-  if (!hasServerData) {
-    // 首次登录（服务器没有该用户数据）→ 推本地数据上去
-    var localW = loadWords();
-    var localS = loadSentences();
-    var localM = loadMathProblems();
-    var localP = loadProblems();
-    var localAvatar = localStorage.getItem(getAvatarKey()) || '';
-    if (localW.length > 0 || localS.length > 0 || localM.length > 0 || localP.length > 0 || localAvatar) {
-      await fetchWithTimeout('/api/words', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ words: localW, sentences: localS, mathProblems: localM, problems: localP, avatar: localAvatar }),
-      }).catch(function() {});
-      // 推送后拉回来确认
-      await syncFromServer();
-    }
-  }
 
   updateAvatarDisplay();
   refreshAll();
@@ -2518,16 +2516,16 @@ async function syncFromServer() {
         }
       } else if (data && data.words) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data.words || []));
-        if (data.sentences) {
+        if (Array.isArray(data.sentences) && data.sentences.length > 0) {
           localStorage.setItem(SENTENCE_KEY, JSON.stringify(data.sentences));
         }
-        if (data.mathProblems) {
+        if (Array.isArray(data.mathProblems) && data.mathProblems.length > 0) {
           localStorage.setItem(MATH_KEY, JSON.stringify(data.mathProblems));
         }
-        if (data.problems) {
+        if (Array.isArray(data.problems) && data.problems.length > 0) {
           localStorage.setItem(PROBLEMS_KEY, JSON.stringify(data.problems));
         }
-        if (data.methods) {
+        if (Array.isArray(data.methods) && data.methods.length > 0) {
           localStorage.setItem(METHODS_KEY, JSON.stringify(data.methods));
         }
         if (data.avatar) {
@@ -2550,7 +2548,7 @@ function loadWords() {
   } catch { return []; }
 }
 
-// 保存到 localStorage + 后台同步到服务器文件
+// 保存到 localStorage，不再自动推送（手动推送通过 forceSyncToServer）
 function saveWords(words) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
   syncToServer();
@@ -2734,18 +2732,18 @@ function saveData(words, sentences, mathProblems, problems, methods) {
 
 // 以 {words, sentences, mathProblems, problems, methods} 格式同步到服务器
 function syncToServer() {
-  if (!useServer) return;
+  if (!useServer) return Promise.resolve();
   var words = loadWords();
   var sentences = loadSentences();
   var mathProblems = loadMathProblems();
   var problems = loadProblems();
   var methods = loadMethods();
   var avatar = localStorage.getItem(getAvatarKey()) || '';
-  fetch('/api/words', {
+  return fetch('/api/words', {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify({ words: words, sentences: sentences, mathProblems: mathProblems, problems: problems, methods: methods, avatar: avatar }),
-  }).catch(function() {});
+  }).catch(function() {});  // 静默处理网络错误，不阻塞调用方
 }
 
 // 手动推送本地数据到服务器（覆盖服务器数据）
@@ -3069,17 +3067,26 @@ var ITEM_EDITOR_FIELDS = {
     { key: 'category', label: '分类', type: 'text' },
     { key: 'indexTitle', label: '编号', type: 'text' },
     { key: 'title', label: '标题', type: 'text' },
-    { key: 'solutionText', label: '内容/证明', type: 'textarea' }
+    { key: 'titleImage', label: '标题图片', type: 'image', single: true },
+    { key: 'solutionText', label: '内容/证明', type: 'textarea' },
+    { key: 'solutionImages', label: '证明图片', type: 'image' },
+    { key: 'references', label: '引用来源', type: 'references' },
+    { key: 'images', label: '', type: 'hidden' }
   ],
   problem: [
     { key: 'category', label: '分类', type: 'text' },
     { key: 'indexTitle', label: '编号', type: 'text' },
     { key: 'question', label: '题目', type: 'textarea' },
-    { key: 'solutionText', label: '解答', type: 'textarea' }
+    { key: 'questionImage', label: '题目图片', type: 'image', single: true },
+    { key: 'solutionText', label: '解答', type: 'textarea' },
+    { key: 'solutionImages', label: '解答图片', type: 'image' },
+    { key: 'references', label: '引用来源', type: 'references' },
+    { key: 'images', label: '', type: 'hidden' }
   ],
   method: [
     { key: 'name', label: '方法名', type: 'text' },
-    { key: 'description', label: '描述', type: 'textarea' }
+    { key: 'description', label: '描述', type: 'textarea' },
+    { key: 'references', label: '引用来源', type: 'references' }
   ]
 };
 
@@ -3113,10 +3120,17 @@ var ITEM_SAVE_FUNCS = {
 
 var _editingItemType = null;
 var _editingItemId = null;
+var _pendingItemImages = {};  // 编辑器内临时追踪图片变化
+var _activeImageFieldKey = '';  // 当前激活的图片字段（用于 Ctrl+V 粘贴）
+var _pendingItemRefs = [];      // 编辑器内临时追踪引用变化
+var _editorRefCallback = null;  // 引用选择器确认后的回调
 
 function openItemEditor(type, id) {
   _editingItemType = type;
   _editingItemId = id;
+  _pendingItemImages = {};
+  _activeImageFieldKey = '';
+  _pendingItemRefs = [];
   var items = ITEM_LOAD_FUNCS[type]();
   var item = items.find(function(x) { return x.id === id; });
   if (!item) { showToast('找不到该项目'); return; }
@@ -3128,8 +3142,55 @@ function openItemEditor(type, id) {
   var idStr = item.indexTitle || item.word || item.name || ('#' + id);
   document.getElementById('itemEditorTitle').textContent = '编辑' + label + ': ' + idStr;
 
+  // 重新初始化引用（item 已找到后）
+  _pendingItemRefs = (item.references || []).map(function(r) { return { type: r.type, id: r.id, label: r.label }; });
+
   var html = '';
   fields.forEach(function(f) {
+    // 隐藏字段不渲染
+    if (f.type === 'hidden') return;
+
+    if (f.type === 'image') {
+      // 初始化暂存值
+      if (f.single) {
+        _pendingItemImages[f.key] = item[f.key] || null;
+      } else {
+        _pendingItemImages[f.key] = (item[f.key] || []).slice();
+        // 兼容旧数据：如果 solutionImages 为空但有 legacy images 字段
+        if (_pendingItemImages[f.key].length === 0 && item.images && item.images.length > 0) {
+          _pendingItemImages[f.key] = item.images.slice();
+        }
+      }
+      html += '<div class="field-group">' +
+        '<div class="field-label">' + f.label + '</div>' +
+        '<div class="item-editor-images" data-key="' + f.key + '" data-single="' + (f.single ? '1' : '0') + '">' +
+        _renderImageFieldContent(f.key, f.single) +
+        '</div>' +
+        '<div style="margin-top:6px;">' +
+        '<button type="button" class="math-img-upload-btn" onclick="triggerItemImageUpload(\'' + f.key + '\',' + (f.single ? 'true' : 'false') + ')">📷 上传' + (f.single ? '图片' : '图片（可多选）') + '</button>' +
+        '</div></div>';
+      return;
+    }
+
+    if (f.type === 'references') {
+      var refs = _pendingItemRefs || [];
+      html += '<div class="field-group"><div class="field-label">' + f.label + '</div>' +
+        '<div class="ref-area" style="margin-top:0;">' +
+        '<div id="editorRefTags">';
+      refs.forEach(function(ref, ri) {
+        var typeLabel = getTypeLabel(ref.type);
+        html += '<span class="ref-tag">[' + typeLabel + '] ' + escapeHtml(ref.label) +
+          ' <span class="ref-del" onclick="removeEditorRef(' + ri + ')">x</span></span>';
+      });
+      if (!refs || refs.length === 0) {
+        html += '<div class="item-editor-img-placeholder">暂无引用</div>';
+      }
+      html += '</div>' +
+        '<button type="button" class="math-img-upload-btn" onclick="openEditorRefPicker()" style="margin-top:6px;">+ 添加引用</button>' +
+        '</div></div>';
+      return;
+    }
+
     var val = item[f.key] || '';
     if (f.type === 'textarea') {
       html += '<div class="field-group"><div class="field-label">' + f.label + '</div><textarea data-key="' + f.key + '">' + escapeHtml(val) + '</textarea></div>';
@@ -3139,11 +3200,153 @@ function openItemEditor(type, id) {
   });
   document.getElementById('itemEditorFields').innerHTML = html;
   document.getElementById('itemEditorOverlay').classList.remove('hidden');
+
+  // 添加粘贴事件监听（Ctrl+V 粘贴图片）
+  var fieldsContainer = document.getElementById('itemEditorFields');
+  fieldsContainer._pasteHandler = function(e) {
+    var items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        e.preventDefault();
+        if (!_activeImageFieldKey) {
+          showToast('请先点击一个图片上传按钮，再粘贴图片');
+          return;
+        }
+        var file = items[i].getAsFile();
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+          compressImageDataUrl(ev.target.result, 800, function(compressed) {
+            var key = _activeImageFieldKey;
+            var fieldDef = fields.find(function(fdef) { return fdef.key === key; });
+            if (fieldDef && fieldDef.single) {
+              _pendingItemImages[key] = compressed;
+            } else {
+              if (!Array.isArray(_pendingItemImages[key])) _pendingItemImages[key] = [];
+              _pendingItemImages[key].push(compressed);
+            }
+            _refreshImageField(key);
+            showToast('已粘贴图片');
+          });
+        };
+        reader.readAsDataURL(file);
+        break;
+      }
+    }
+  };
+  fieldsContainer.addEventListener('paste', fieldsContainer._pasteHandler);
+}
+
+function _renderImageFieldContent(key, single) {
+  var data = _pendingItemImages[key];
+  if (single) {
+    if (!data) return '<div class="item-editor-img-placeholder">暂无图片</div>';
+    return '<div class="math-img-item"><img src="' + escapeHtml(data) + '" onclick="openImagePreview(this.src)">' +
+      '<button class="img-del" onclick="removeItemImage(\'' + key + '\',0)">x</button></div>';
+  } else {
+    if (!data || data.length === 0) return '<div class="item-editor-img-placeholder">暂无图片</div>';
+    var htmls = data.map(function(src, idx) {
+      return '<div class="math-img-item"><img src="' + escapeHtml(src) + '" onclick="openImagePreview(this.src)">' +
+        '<button class="img-del" onclick="removeItemImage(\'' + key + '\',' + idx + ')">x</button></div>';
+    });
+    return htmls.join('');
+  }
+}
+
+function _refreshImageField(key) {
+  var container = document.querySelector('.item-editor-images[data-key="' + key + '"]');
+  if (!container) return;
+  var single = container.getAttribute('data-single') === '1';
+  container.innerHTML = _renderImageFieldContent(key, single);
+}
+
+// 上传图片到编辑器中的某个图片字段
+function triggerItemImageUpload(key, single) {
+  _activeImageFieldKey = key;
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  if (!single) input.multiple = true;
+  input.style.display = 'none';
+  document.body.appendChild(input);
+  input.addEventListener('change', function(e) {
+    var files = e.target.files;
+    if (!files || files.length === 0) { document.body.removeChild(input); return; }
+    var processFile = function(file) {
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        compressImageDataUrl(ev.target.result, 800, function(compressed) {
+          if (single) {
+            _pendingItemImages[key] = compressed;
+          } else {
+            if (!Array.isArray(_pendingItemImages[key])) _pendingItemImages[key] = [];
+            _pendingItemImages[key].push(compressed);
+          }
+          _refreshImageField(key);
+        });
+      };
+      reader.readAsDataURL(file);
+    };
+    for (var i = 0; i < files.length; i++) { processFile(files[i]); }
+    document.body.removeChild(input);
+  });
+  input.click();
+}
+
+// 删除编辑器中的某张图片
+function removeItemImage(key, idx) {
+  var data = _pendingItemImages[key];
+  if (Array.isArray(data)) {
+    data.splice(idx, 1);
+    if (data.length === 0) _pendingItemImages[key] = [];
+  } else {
+    _pendingItemImages[key] = null;
+  }
+  _refreshImageField(key);
+}
+
+// 编辑器引用的辅助函数
+function renderEditorRefTags() {
+  var container = document.getElementById('editorRefTags');
+  if (!container) return;
+  var refs = _pendingItemRefs || [];
+  var parent = container.parentElement;
+  // 移除 "暂无引用" 占位
+  var placeholder = parent.querySelector('.item-editor-img-placeholder');
+  if (placeholder) placeholder.remove();
+  container.innerHTML = refs.map(function(ref, ri) {
+    var typeLabel = getTypeLabel(ref.type);
+    return '<span class="ref-tag">[' + typeLabel + '] ' + escapeHtml(ref.label) +
+      ' <span class="ref-del" onclick="removeEditorRef(' + ri + ')">x</span></span>';
+  }).join('');
+}
+
+function removeEditorRef(idx) {
+  _pendingItemRefs.splice(idx, 1);
+  renderEditorRefTags();
+}
+
+function openEditorRefPicker() {
+  // 为编辑器打开引用选择器
+  _editorRefCallback = function() {
+    renderEditorRefTags();
+  };
+  openReferencePicker('editor');
 }
 
 function closeItemEditor() {
   _editingItemType = null;
   _editingItemId = null;
+  _pendingItemImages = {};
+  _activeImageFieldKey = '';
+  _pendingItemRefs = [];
+  // 移除粘贴事件监听
+  var fieldsContainer = document.getElementById('itemEditorFields');
+  if (fieldsContainer._pasteHandler) {
+    fieldsContainer.removeEventListener('paste', fieldsContainer._pasteHandler);
+    delete fieldsContainer._pasteHandler;
+  }
   document.getElementById('itemEditorOverlay').classList.add('hidden');
 }
 
@@ -3157,10 +3360,12 @@ function confirmItemEditor() {
   var idx = items.findIndex(function(x) { return x.id === id; });
   if (idx === -1) { showToast('找不到该项目'); closeItemEditor(); return; }
 
-  // 从 DOM 读取各个字段的值
-  var fieldEls = document.querySelectorAll('#itemEditorFields [data-key]');
   var changed = false;
+
+  // 处理普通文本字段
+  var fieldEls = document.querySelectorAll('#itemEditorFields [data-key]');
   fieldEls.forEach(function(el) {
+    if (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA') return;
     var key = el.getAttribute('data-key');
     var val = el.value.trim();
     if (items[idx][key] !== val) {
@@ -3168,6 +3373,43 @@ function confirmItemEditor() {
       changed = true;
     }
   });
+
+  // 处理图片字段
+  Object.keys(_pendingItemImages).forEach(function(key) {
+    var val = _pendingItemImages[key];
+    var old = items[idx][key];
+    // 支持旧数据兼容：如果当前是数组且长度为0但之前有旧 images 字段，清理它
+    var isSame = (Array.isArray(val) && Array.isArray(old))
+      ? val.length === old.length && val.every(function(v, i) { return v === old[i]; })
+      : val === old;
+    if (!isSame) {
+      if (Array.isArray(val)) {
+        items[idx][key] = val.slice();
+      } else {
+        items[idx][key] = val;
+      }
+      changed = true;
+    }
+  });
+
+  // 清理 legacy images 字段（如果已迁移到 solutionImages）
+  if (type === 'math' || type === 'problem') {
+    if (items[idx].solutionImages && items[idx].solutionImages.length > 0 && items[idx].images) {
+      delete items[idx].images;
+    }
+  }
+
+  // 处理引用字段
+  if (type === 'math' || type === 'problem' || type === 'method') {
+    var oldRefs = items[idx].references || [];
+    var newRefs = _pendingItemRefs || [];
+    var refsChanged = oldRefs.length !== newRefs.length ||
+      oldRefs.some(function(r, ri) { return r.type !== newRefs[ri].type || r.id !== newRefs[ri].id; });
+    if (refsChanged) {
+      items[idx].references = newRefs.slice();
+      changed = true;
+    }
+  }
 
   if (changed) {
     items[idx].lastModified = new Date().toISOString();
@@ -4228,6 +4470,8 @@ function openReferencePicker(formType) {
     pendingPickerSelection = pendingMathReferences.map(function(r) { return { type: r.type, id: r.id, label: r.label }; });
   } else if (formType === 'method') {
     pendingPickerSelection = pendingMethodReferences.map(function(r) { return { type: r.type, id: r.id, label: r.label }; });
+  } else if (formType === 'editor') {
+    pendingPickerSelection = (_pendingItemRefs || []).map(function(r) { return { type: r.type, id: r.id, label: r.label }; });
   } else {
     pendingPickerSelection = pendingProbReferences.map(function(r) { return { type: r.type, id: r.id, label: r.label }; });
   }
@@ -4239,6 +4483,7 @@ function closeReferencePicker(ev) {
   document.getElementById('refPickerOverlay').style.display = 'none';
   pendingPickerCallback = null;
   pendingPickerSelection = [];
+  _editorRefCallback = null;
 }
 
 function renderPickerList() {
@@ -4346,6 +4591,9 @@ function confirmReferencePicker() {
   } else if (pendingPickerCallback === 'prob') {
     pendingProbReferences = pendingPickerSelection.slice();
     renderProbRefTags();
+  } else if (pendingPickerCallback === 'editor') {
+    _pendingItemRefs = pendingPickerSelection.slice();
+    if (_editorRefCallback) _editorRefCallback();
   }
   document.getElementById('refPickerOverlay').style.display = 'none';
   pendingPickerCallback = null;
@@ -5153,6 +5401,7 @@ function handleReview(remembered) {
     }
     word.lastModified = now.toISOString();
     saveWords(words);
+    syncToServer();
     currentReviewId = null;
     answerRevealed = false;
     lastAlarmTime = Date.now();
@@ -5222,6 +5471,7 @@ function doWordForget() {
   word.nextReviewAt = new Date(now.getTime() + INTERVALS[0]).toISOString();
   word.lastModified = now.toISOString();
   saveWords(words);
+  syncToServer();
   currentReviewId = null;
   answerRevealed = false;
   lastAlarmTime = Date.now();
@@ -5296,6 +5546,7 @@ function confirmConfuseBinding() {
 
   curWord.lastModified = new Date().toISOString();
   saveWords(words);
+  syncToServer();
   // 走忘记流程
   doWordForget();
   showToast('已绑定 ' + selectedIds.length + ' 个易混单词');
@@ -5382,6 +5633,7 @@ function handleSentenceReview(remembered) {
   }
   sentence.lastModified = now.toISOString();
   saveSentences(sentences);
+  syncToServer();
   currentReviewId = null;
   answerRevealed = false;
   lastAlarmTime = Date.now(); // 正在复习，重置闹铃计时
@@ -5414,6 +5666,7 @@ function handleMathReview(remembered) {
   }
   problem.lastModified = now.toISOString();
   saveMathProblems(problems);
+  syncToServer();
   currentReviewId = null;
   answerRevealed = false;
   lastAlarmTime = Date.now();
@@ -5446,6 +5699,7 @@ function handleProblemReview(remembered) {
   }
   problem.lastModified = now.toISOString();
   saveProblems(allProblems);
+  syncToServer();
   currentReviewId = null;
   answerRevealed = false;
   lastAlarmTime = Date.now();
@@ -5882,21 +6136,24 @@ document.addEventListener('DOMContentLoaded', function() {
   renderCategorySelects();
   renderCategoryManager();
 
-  // 先渲染界面（从 localStorage 加载）
-  refreshAll();
-
-  // 尝试验证 token 并连接服务器
+  // 先尝试从服务器拉取数据，再渲染界面
+  // 这样本地始终是服务器的最新副本，本地数据作为备份
   if (authToken) {
-    // 有 token → 尝试验证并登录
+    // 有 token → 验证并拉取服务器数据
     verifyToken().then(function(valid) {
       if (valid) {
-        // token 有效 → 直接同步数据，跳过重复验证
+        // token 有效 → 先拉服务器数据，覆盖本地
         document.getElementById('loginOverlay').classList.add('hidden');
         useServer = true;
         requireLogin = false;
-        syncFromServer().then(updateServerUI);
+        syncFromServer().then(function() {
+          refreshAll();
+          updateServerUI();
+        });
       } else {
-        // token 无效，检查服务器是否可达
+        // token 无效，用本地数据渲染
+        refreshAll();
+        // 检查服务器是否可达（可能只是 token 过期）
         fetchWithTimeout('/api/auth/verify', { cache: 'no-store' }).then(function(r) {
           showLoginOverlay(false);
         }).catch(function() {
@@ -5906,7 +6163,9 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   } else {
-    // 没有 token → 检查服务器是否可达
+    // 没有 token → 用本地数据渲染
+    refreshAll();
+    // 检查服务器是否可达
     fetchWithTimeout('/api/auth/verify', { cache: 'no-store' }).then(function(r) {
       showLoginOverlay(false);
     }).catch(function() {
