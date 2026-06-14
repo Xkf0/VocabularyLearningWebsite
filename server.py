@@ -10,11 +10,24 @@ import os
 import secrets
 import socket
 import sys
+import threading
 from datetime import datetime
 
 PORT = 3000
 USERS_FILE = os.path.join(os.path.dirname(__file__), 'users.json')
 DATA_DIR = os.path.dirname(__file__)
+
+# 线程锁，防止并发读写导致数据丢失
+_users_lock = threading.Lock()
+_data_locks = {}
+_data_locks_lock = threading.Lock()
+
+
+def _get_user_data_lock(username):
+    with _data_locks_lock:
+        if username not in _data_locks:
+            _data_locks[username] = threading.Lock()
+        return _data_locks[username]
 
 
 def _load_json(path):
@@ -50,12 +63,12 @@ def _get_user_data_file(username):
 
 
 def _read_user_data(username):
-    """读取某个用户的数据，返回 {words, sentences, mathProblems, problems}"""
+    """读取某个用户的数据，返回 {words, sentences, mathProblems, problems, methods}"""
     path = _get_user_data_file(username)
     data = _load_json(path)
     if isinstance(data, list):
-        return {'words': data, 'sentences': []}
-    return {'words': data.get('words', []), 'sentences': data.get('sentences', []), 'mathProblems': data.get('mathProblems', []), 'problems': data.get('problems', [])}
+        return {'words': data, 'sentences': [], 'methods': []}
+    return {'words': data.get('words', []), 'sentences': data.get('sentences', []), 'mathProblems': data.get('mathProblems', []), 'problems': data.get('problems', []), 'methods': data.get('methods', [])}
 
 
 def _merge_items(existing_items, incoming_items, key_field, fallback_field=None):
@@ -164,20 +177,22 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 self._send_json({'ok': False, 'error': '密码至少 4 个字符'}, 400)
                 return
 
-            users = _load_users()
-            if username in users:
-                self._send_json({'ok': False, 'error': '用户名已存在'}, 409)
-                return
+            with _users_lock:
+                users = _load_users()
+                if username in users:
+                    self._send_json({'ok': False, 'error': '用户名已存在'}, 409)
+                    return
 
-            token = secrets.token_hex(32)
-            users[username] = {
-                'password': _hash_password(password),
-                'token': token,
-                'api_key': '',
-                'created_at': datetime.now().isoformat(),
-            }
-            _save_users(users)
-            # 初始化用户数据文件（基于之前可能存在的公共数据）
+                token = secrets.token_hex(32)
+                users[username] = {
+                    'password': _hash_password(password),
+                    'token': token,
+                    'api_key': '',
+                    'created_at': datetime.now().isoformat(),
+                }
+                _save_users(users)
+
+            # 初始化用户数据文件（无需锁，首次创建不会有冲突）
             common_path = os.path.join(DATA_DIR, 'vocabulary-data.json')
             template = {'words': [], 'sentences': [], 'mathProblems': [], 'problems': []}
             if os.path.exists(common_path):
@@ -213,9 +228,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             # 复用已有 token，避免多设备登录互相踢下线
             token = users[username].get('token', '')
             if not token:
-                token = secrets.token_hex(32)
-                users[username]['token'] = token
-                _save_users(users)
+                with _users_lock:
+                    users = _load_users()
+                    token = secrets.token_hex(32)
+                    users[username]['token'] = token
+                    _save_users(users)
 
             api_key = users[username].get('api_key', '') or ''
             self._send_json({'ok': True, 'token': token, 'username': username, 'apiKey': api_key})
@@ -235,9 +252,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 self._send_json({'ok': False, 'error': '未登录'}, 401)
                 return
             api_key = body.get('apiKey', '').strip()
-            users = _load_users()
-            users[username]['api_key'] = api_key
-            _save_users(users)
+            with _users_lock:
+                users = _load_users()
+                users[username]['api_key'] = api_key
+                _save_users(users)
             self._send_json({'ok': True})
 
         else:
@@ -275,23 +293,25 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 body = self.rfile.read(length).decode('utf-8')
                 incoming = json.loads(body)
 
-                existing = _read_user_data(username)
+                with _get_user_data_lock(username):
+                    existing = _read_user_data(username)
 
-                if isinstance(incoming, dict) and 'words' in incoming:
-                    merged_words = _merge_items(existing['words'], incoming.get('words', []), 'word')
-                    merged_sentences = _merge_items(existing['sentences'], incoming.get('sentences', []), 'id')
-                    merged_math = _merge_items(existing['mathProblems'], incoming.get('mathProblems', []), 'title', 'titleImage')
-                    merged_problems = _merge_items(existing['problems'], incoming.get('problems', []), 'question', 'questionImage')
-                    result = {'words': merged_words, 'sentences': merged_sentences, 'mathProblems': merged_math, 'problems': merged_problems}
-                    count = len(merged_words) + len(merged_sentences) + len(merged_math) + len(merged_problems)
-                elif isinstance(incoming, list):
-                    merged_words = _merge_items(existing['words'], incoming, 'word')
-                    result = merged_words
-                    count = len(merged_words)
-                else:
-                    raise ValueError('无法识别的数据格式')
+                    if isinstance(incoming, dict) and 'words' in incoming:
+                        merged_words = _merge_items(existing['words'], incoming.get('words', []), 'word')
+                        merged_sentences = _merge_items(existing['sentences'], incoming.get('sentences', []), 'id')
+                        merged_math = _merge_items(existing['mathProblems'], incoming.get('mathProblems', []), 'indexTitle', 'title')
+                        merged_problems = _merge_items(existing['problems'], incoming.get('problems', []), 'indexTitle', 'question')
+                        merged_methods = _merge_items(existing.get('methods', []), incoming.get('methods', []), 'id')
+                        result = {'words': merged_words, 'sentences': merged_sentences, 'mathProblems': merged_math, 'problems': merged_problems, 'methods': merged_methods}
+                        count = len(merged_words) + len(merged_sentences) + len(merged_math) + len(merged_problems) + len(merged_methods)
+                    elif isinstance(incoming, list):
+                        merged_words = _merge_items(existing['words'], incoming, 'word')
+                        result = merged_words
+                        count = len(merged_words)
+                    else:
+                        raise ValueError('无法识别的数据格式')
 
-                _save_json(_get_user_data_file(username), result)
+                    _save_json(_get_user_data_file(username), result)
                 self._send_json({'ok': True, 'count': count, 'merged': True})
             except Exception as e:
                 self._send_json({'ok': False, 'error': str(e)}, 500)
