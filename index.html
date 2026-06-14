@@ -436,7 +436,9 @@
       border-radius: 6px;
       border: 1px solid #e2e8f0;
       display: block;
+      cursor: pointer;
     }
+    .math-item .math-image:hover { opacity: 0.85; }
     .review-card .math-title-card {
       font-size: 28px;
       font-weight: 800;
@@ -463,7 +465,10 @@
       border-radius: 8px;
       border: 1px solid #e2e8f0;
       display: block;
+      cursor: pointer;
+      transition: opacity 0.2s;
     }
+    .review-card .math-image-card:hover { opacity: 0.85; }
     .review-list .review-item.math { border-left: 3px solid var(--success); }
     .review-item .prob-badge { display: inline-block; background:#fff7e6;color:var(--orange);padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;margin-bottom:4px; }
     .math-images-preview {
@@ -541,6 +546,16 @@
     .method-item .method-title { font-weight: 600; font-size: 15px; color: #0f172a; }
     .method-item .method-desc { font-size: 13px; color: #64748b; margin-top: 3px; white-space: pre-wrap; }
     .method-item .method-meta { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+    .method-item .math-image {
+      max-width: 100%;
+      max-height: 200px;
+      margin-top: 8px;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+      display: block;
+      cursor: pointer;
+    }
+    .method-item .math-image:hover { opacity: 0.85; }
     .search-bar {
       display: flex;
       gap: 8px;
@@ -935,6 +950,87 @@
     .def-editor-card .editor-hint { font-size: 12px; color: #94a3b8; margin-top: 8px; margin-bottom: 14px; }
     .def-editor-actions { display: flex; gap: 8px; }
     .def-editor-actions .btn { flex: 1; }
+
+    /* Sentence Editor Modal */
+    .sen-editor-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .sen-editor-overlay.hidden { display: none; }
+    .sen-editor-card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 24px;
+      width: 90%;
+      max-width: 560px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    }
+    .sen-editor-card h3 { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+    .sen-editor-card .sen-editor-label { font-size: 13px; color: #94a3b8; margin-bottom: 14px; }
+    .sen-editor-card textarea {
+      width: 100%;
+      min-height: 60px;
+      margin-bottom: 10px;
+      padding: 10px 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 14px;
+      font-family: inherit;
+      resize: vertical;
+      box-sizing: border-box;
+      line-height: 1.5;
+    }
+    .sen-editor-card textarea:focus { border-color: var(--primary-light); }
+    .sen-editor-card .sen-editor-hint { font-size: 12px; color: #94a3b8; margin-top: 4px; margin-bottom: 14px; }
+    .sen-editor-actions { display: flex; gap: 8px; }
+    .sen-editor-actions .btn { flex: 1; }
+
+    /* Generic Item Editor Modal */
+    .item-editor-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .item-editor-overlay.hidden { display: none; }
+    .item-editor-card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 24px;
+      width: 90%;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    }
+    .item-editor-card h3 { font-size: 17px; font-weight: 700; margin-bottom: 14px; }
+    .item-editor-card .field-group { margin-bottom: 12px; }
+    .item-editor-card .field-label { font-size: 12px; color: #666; margin-bottom: 4px; font-weight: 600; }
+    .item-editor-card input, .item-editor-card textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      box-sizing: border-box;
+      line-height: 1.5;
+    }
+    .item-editor-card input:focus, .item-editor-card textarea:focus { border-color: var(--primary-light); outline: none; }
+    .item-editor-card textarea { min-height: 80px; resize: vertical; }
+    .item-editor-actions { display: flex; gap: 8px; margin-top: 16px; }
+    .item-editor-actions .btn { flex: 1; }
+
     .review-edit-btn {
       background: none;
       border: none;
@@ -1152,6 +1248,41 @@
     .confuse-picker-actions { display: flex; gap: 8px; }
     .confuse-picker-actions .btn { flex: 1; }
     .confuse-picker-actions .btn { flex: 1; }
+
+    /* Image Preview Overlay */
+    .img-preview-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 20000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: zoom-out;
+    }
+    .img-preview-overlay.hidden { display: none; }
+    .img-preview-overlay img {
+      max-width: 90vw;
+      max-height: 90vh;
+      border-radius: 8px;
+      box-shadow: 0 4px 32px rgba(0,0,0,0.5);
+      object-fit: contain;
+      cursor: default;
+    }
+    .img-preview-close {
+      position: fixed;
+      top: 20px;
+      right: 28px;
+      color: #fff;
+      font-size: 36px;
+      font-weight: 300;
+      cursor: pointer;
+      line-height: 1;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+      z-index: 20001;
+    }
+    .img-preview-close:hover { opacity: 1; }
 
     /* Mode Switcher */
     .mode-switcher {
@@ -1433,6 +1564,12 @@
       <div class="form-group">
         <label for="inputMethodDesc">描述 / 思路</label>
         <textarea id="inputMethodDesc" rows="4" style="width:100%;padding:10px 12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;resize:vertical;outline:none;font-family:inherit;" placeholder="描述这个方法的使用场景和思路..."></textarea>
+        <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="math-img-upload-btn" onclick="document.getElementById('methodImageInput').click()">添加图片</button>
+          <input type="file" id="methodImageInput" accept="image/*" multiple style="display:none" onchange="handleMethodImageUpload(event)">
+          <span id="methodImagesStatus" style="font-size:12px;color:#94a3b8;"></span>
+        </div>
+        <div class="math-images-preview" id="methodImagesPreview"></div>
       </div>
       <div class="ref-area" id="methodRefArea">
         <div class="ref-label">引用来源</div>
@@ -1608,6 +1745,35 @@
   </div>
 </div>
 
+<!-- Sentence Editor Modal -->
+<div class="sen-editor-overlay hidden" id="senEditorOverlay" onclick="if(event.target===this)closeSentenceEditor()">
+  <div class="sen-editor-card">
+    <h3 id="senEditorTitle">编辑句子</h3>
+    <div class="sen-editor-label" id="senEditorLabel"></div>
+    <div style="font-size:12px;color:#666;margin-bottom:4px;">英文：</div>
+    <textarea id="senEditorEnglish" placeholder="英文内容"></textarea>
+    <div style="font-size:12px;color:#666;margin-bottom:4px;">中文翻译：</div>
+    <textarea id="senEditorChinese" placeholder="中文翻译"></textarea>
+    <div class="sen-editor-hint">修改后会自动保存，复习进度不受影响</div>
+    <div class="sen-editor-actions">
+      <button class="btn btn-primary" onclick="confirmSentenceEditor()">保存</button>
+      <button class="btn btn-warning" onclick="closeSentenceEditor()">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- Generic Item Editor Modal -->
+<div class="item-editor-overlay hidden" id="itemEditorOverlay" onclick="if(event.target===this)closeItemEditor()">
+  <div class="item-editor-card">
+    <h3 id="itemEditorTitle">编辑</h3>
+    <div id="itemEditorFields"></div>
+    <div class="item-editor-actions">
+      <button class="btn btn-primary" onclick="confirmItemEditor()">保存</button>
+      <button class="btn btn-warning" onclick="closeItemEditor()">取消</button>
+    </div>
+  </div>
+</div>
+
 <!-- Confusion Picker -->
 <div class="confuse-picker-overlay hidden" id="confusePickerOverlay" onclick="if(event.target===this)closeConfusePicker()">
   <div class="confuse-picker-card">
@@ -1635,6 +1801,12 @@
       <button class="btn btn-warning" onclick="closeDefEditor()">取消</button>
     </div>
   </div>
+</div>
+
+<!-- Image Preview Overlay -->
+<div class="img-preview-overlay hidden" id="imgPreviewOverlay" onclick="closeImagePreview()">
+  <span class="img-preview-close" onclick="closeImagePreview()">&times;</span>
+  <img id="imgPreviewFull" src="" alt="预览图片">
 </div>
 
 <!-- Toast -->
@@ -2225,6 +2397,33 @@ const METHODS_KEY = 'ebbinghaus_methods';
 const SAVED_USERS_KEY = 'ebbinghaus_saved_users';
 
 // ============================================================
+// 图片预览（复习卡片点击放大）
+// ============================================================
+function openImagePreview(src) {
+  var overlay = document.getElementById('imgPreviewOverlay');
+  var img = document.getElementById('imgPreviewFull');
+  img.src = src;
+  overlay.classList.remove('hidden');
+}
+
+function closeImagePreview() {
+  var overlay = document.getElementById('imgPreviewOverlay');
+  overlay.classList.add('hidden');
+  var img = document.getElementById('imgPreviewFull');
+  img.src = '';
+}
+
+// Keyboard escape to close
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    var overlay = document.getElementById('imgPreviewOverlay');
+    if (overlay && !overlay.classList.contains('hidden')) {
+      closeImagePreview();
+    }
+  }
+});
+
+// ============================================================
 // 数据层：服务器 + localStorage 双写
 // ============================================================
 let useServer = false;
@@ -2724,9 +2923,10 @@ async function generateSentence(words) {
   if (!apiKey) return null;
 
   var wordList = words.map(function(w) { return w.word; }).join(', ');
-  var prompt = '用以下单词组成一个通顺地道的英文句子（难度适中），并给出中文翻译。\n'
+  var prompt = '用以下单词写一段通顺自然的英文（1-3句话），将这些单词自然地融入上下文中。\n'
+    + '注意：不要强行把所有单词塞进一句话，也不要为了让单词出现而编造不合逻辑的内容。\n'
     + '单词：' + wordList + '\n'
-    + '格式要求：先输出英文句子，然后换行，再输出中文翻译。不要包含其他内容。';
+    + '格式要求：先输出英文段落，然后换行输出"====="，再换行输出中文翻译。不要包含其他内容。';
 
   try {
     var res = await fetch('https://api.deepseek.com/v1/chat/completions', {
@@ -2752,10 +2952,10 @@ async function generateSentence(words) {
     var content = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
     if (!content) return null;
 
-    // 解析返回内容：第一行英文，其余中文
-    var lines = content.trim().split('\n').filter(function(l) { return l.trim(); });
-    var english = lines[0] ? lines[0].trim() : '';
-    var chinese = lines.slice(1).join('\n').trim();
+    // 解析返回内容：用 ===== 分隔英文和中文
+    var parts = content.split('=====');
+    var english = parts[0] ? parts[0].trim() : '';
+    var chinese = parts[1] ? parts[1].trim() : '';
 
     if (!english) return null;
     return { english: english, chinese: chinese || '' };
@@ -2763,6 +2963,226 @@ async function generateSentence(words) {
     console.warn('调用 DeepSeek API 失败:', e);
     return null;
   }
+}
+
+// 重新生成当前复习中的句子
+async function regenerateCurrentSentence() {
+  var sentences = loadSentences();
+  var idx = sentences.findIndex(function(s) { return s.id === currentReviewId; });
+  if (idx === -1) { showToast('找不到句子'); return; }
+  await _doRegenerateSentence(sentences, idx);
+}
+
+// 根据 ID 重新生成句子（从句子列表调用）
+async function regenerateSentenceById(id) {
+  var sentences = loadSentences();
+  var idx = sentences.findIndex(function(s) { return s.id === id; });
+  if (idx === -1) { showToast('找不到句子'); return; }
+  await _doRegenerateSentence(sentences, idx);
+}
+
+// 重新生成句子的内部实现
+async function _doRegenerateSentence(sentences, idx) {
+  var sentence = sentences[idx];
+  var words = loadWords();
+  var wordIds = sentence.wordIds || [];
+  // 用 wordIds 找到对应的单词对象（排除已删除的）
+  var matchedWords = wordIds.map(function(id) { return words.find(function(w) { return w.id === id; }); }).filter(function(w) { return w && !w.deletedAt; });
+  if (matchedWords.length === 0) {
+    showToast('句子关联的单词已不存在，无法重新生成');
+    return;
+  }
+
+  showToast('正在重新生成句子 ' + sentence.wordRange + '...');
+  var result = await generateSentence(matchedWords);
+  if (!result) {
+    showToast('重新生成失败，请检查 API Key');
+    return;
+  }
+
+  var now = new Date();
+  sentences[idx].english = result.english;
+  sentences[idx].chinese = result.chinese;
+  sentences[idx].lastModified = now.toISOString();
+  sentences[idx].nextReviewAt = new Date(now.getTime() + INTERVALS[0]).toISOString();
+  sentences[idx].stage = 0;
+  sentences[idx].forgottenCount = 0;
+  sentences[idx].reviewedAt = [];
+  saveSentences(sentences);
+  currentReviewId = null;
+  answerRevealed = false;
+  showToast('句子 ' + sentence.wordRange + ' 已重新生成');
+  refreshAll();
+}
+
+// ---- 句子编辑器 ----
+var _editingSentenceId = null;
+
+function openSentenceEditor(sentenceId) {
+  var sentences = loadSentences();
+  var s = sentences.find(function(x) { return x.id === sentenceId; });
+  if (!s) { showToast('找不到句子'); return; }
+  _editingSentenceId = sentenceId;
+  document.getElementById('senEditorTitle').textContent = '编辑句子 #' + s.wordRange;
+  document.getElementById('senEditorLabel').textContent = '句子范围: ' + s.wordRange;
+  document.getElementById('senEditorEnglish').value = s.english || '';
+  document.getElementById('senEditorChinese').value = s.chinese || '';
+  document.getElementById('senEditorOverlay').classList.remove('hidden');
+}
+
+function closeSentenceEditor() {
+  _editingSentenceId = null;
+  document.getElementById('senEditorOverlay').classList.add('hidden');
+}
+
+function confirmSentenceEditor() {
+  var id = _editingSentenceId;
+  if (!id) { closeSentenceEditor(); return; }
+  var english = document.getElementById('senEditorEnglish').value.trim();
+  var chinese = document.getElementById('senEditorChinese').value.trim();
+  if (!english) { showToast('英文内容不能为空'); return; }
+  var sentences = loadSentences();
+  var idx = sentences.findIndex(function(s) { return s.id === id; });
+  if (idx === -1) { showToast('找不到句子'); closeSentenceEditor(); return; }
+  var now = new Date();
+  sentences[idx].english = english;
+  sentences[idx].chinese = chinese;
+  sentences[idx].lastModified = now.toISOString();
+  saveSentences(sentences);
+  closeSentenceEditor();
+  showToast('句子已更新');
+  // 如果正在复习这个句子，刷新复习卡
+  if (currentReviewId === id && currentReviewType === 'sentence') {
+    answerRevealed = false;
+  }
+  refreshAll();
+}
+
+// ---- 通用内容编辑器（单词/定理/题目/方法） ----
+var ITEM_EDITOR_FIELDS = {
+  word: [
+    { key: 'word', label: '单词', type: 'text' },
+    { key: 'definition', label: '释义', type: 'textarea' },
+    { key: 'phonetic', label: '音标', type: 'text' }
+  ],
+  math: [
+    { key: 'category', label: '分类', type: 'text' },
+    { key: 'indexTitle', label: '编号', type: 'text' },
+    { key: 'title', label: '标题', type: 'text' },
+    { key: 'solutionText', label: '内容/证明', type: 'textarea' }
+  ],
+  problem: [
+    { key: 'category', label: '分类', type: 'text' },
+    { key: 'indexTitle', label: '编号', type: 'text' },
+    { key: 'question', label: '题目', type: 'textarea' },
+    { key: 'solutionText', label: '解答', type: 'textarea' }
+  ],
+  method: [
+    { key: 'name', label: '方法名', type: 'text' },
+    { key: 'description', label: '描述', type: 'textarea' }
+  ]
+};
+
+var ITEM_TYPE_LABELS = {
+  word: '单词',
+  math: '定理',
+  problem: '题目',
+  method: '方法'
+};
+
+var ITEM_TYPE_KEYS = {
+  word: 'ebbinghaus_words',
+  math: 'ebbinghaus_math',
+  problem: 'ebbinghaus_problems',
+  method: 'ebbinghaus_methods'
+};
+
+var ITEM_LOAD_FUNCS = {
+  word: loadWords,
+  math: loadMathProblems,
+  problem: loadProblems,
+  method: loadMethods
+};
+
+var ITEM_SAVE_FUNCS = {
+  word: saveWords,
+  math: saveMathProblems,
+  problem: saveProblems,
+  method: saveMethods
+};
+
+var _editingItemType = null;
+var _editingItemId = null;
+
+function openItemEditor(type, id) {
+  _editingItemType = type;
+  _editingItemId = id;
+  var items = ITEM_LOAD_FUNCS[type]();
+  var item = items.find(function(x) { return x.id === id; });
+  if (!item) { showToast('找不到该项目'); return; }
+
+  var fields = ITEM_EDITOR_FIELDS[type];
+  if (!fields) { showToast('不支持编辑的类型'); return; }
+
+  var label = ITEM_TYPE_LABELS[type] || type;
+  var idStr = item.indexTitle || item.word || item.name || ('#' + id);
+  document.getElementById('itemEditorTitle').textContent = '编辑' + label + ': ' + idStr;
+
+  var html = '';
+  fields.forEach(function(f) {
+    var val = item[f.key] || '';
+    if (f.type === 'textarea') {
+      html += '<div class="field-group"><div class="field-label">' + f.label + '</div><textarea data-key="' + f.key + '">' + escapeHtml(val) + '</textarea></div>';
+    } else {
+      html += '<div class="field-group"><div class="field-label">' + f.label + '</div><input data-key="' + f.key + '" value="' + escapeHtml(val) + '"></div>';
+    }
+  });
+  document.getElementById('itemEditorFields').innerHTML = html;
+  document.getElementById('itemEditorOverlay').classList.remove('hidden');
+}
+
+function closeItemEditor() {
+  _editingItemType = null;
+  _editingItemId = null;
+  document.getElementById('itemEditorOverlay').classList.add('hidden');
+}
+
+function confirmItemEditor() {
+  var type = _editingItemType;
+  var id = _editingItemId;
+  if (!type || !id) { closeItemEditor(); return; }
+
+  var fields = ITEM_EDITOR_FIELDS[type];
+  var items = ITEM_LOAD_FUNCS[type]();
+  var idx = items.findIndex(function(x) { return x.id === id; });
+  if (idx === -1) { showToast('找不到该项目'); closeItemEditor(); return; }
+
+  // 从 DOM 读取各个字段的值
+  var fieldEls = document.querySelectorAll('#itemEditorFields [data-key]');
+  var changed = false;
+  fieldEls.forEach(function(el) {
+    var key = el.getAttribute('data-key');
+    var val = el.value.trim();
+    if (items[idx][key] !== val) {
+      items[idx][key] = val;
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    items[idx].lastModified = new Date().toISOString();
+    ITEM_SAVE_FUNCS[type](items);
+    showToast('已更新' + (ITEM_TYPE_LABELS[type] || ''));
+    // 如果正在复习这个项目，刷新复习卡
+    if (currentReviewId === id) {
+      answerRevealed = false;
+    }
+  } else {
+    showToast('未做任何修改');
+  }
+
+  closeItemEditor();
+  refreshAll();
 }
 
 async function addWord() {
@@ -2884,6 +3304,62 @@ async function addBatch() {
 }
 
 // ============================================================
+// 剪贴板粘贴图片通用函数
+// ============================================================
+
+function handleImagePaste(event, addImageFn) {
+  var items = event.clipboardData && event.clipboardData.items;
+  if (!items) return;
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].type.indexOf('image') === 0) {
+      event.preventDefault();
+      var blob = items[i].getAsFile();
+      if (!blob) continue;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var img = new Image();
+        img.onload = function() {
+          var canvas = document.createElement('canvas');
+          var maxSize = 800;
+          var w = img.width, h = img.height;
+          if (w > maxSize || h > maxSize) {
+            var scale = Math.min(maxSize / w, maxSize / h);
+            w = Math.round(w * scale);
+            h = Math.round(h * scale);
+          }
+          canvas.width = w;
+          canvas.height = h;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          addImageFn(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(blob);
+    }
+  }
+}
+
+function compressImageDataUrl(dataUrl, maxSize, callback) {
+  var img = new Image();
+  img.onload = function() {
+    var canvas = document.createElement('canvas');
+    var w = img.width, h = img.height;
+    if (w > maxSize || h > maxSize) {
+      var scale = Math.min(maxSize / w, maxSize / h);
+      w = Math.round(w * scale);
+      h = Math.round(h * scale);
+    }
+    canvas.width = w;
+    canvas.height = h;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, w, h);
+    callback(canvas.toDataURL('image/jpeg', 0.85));
+  };
+  img.src = dataUrl;
+}
+
+// ============================================================
 // 数学定理
 // ============================================================
 var pendingMathTitleImage = null;
@@ -2896,8 +3372,10 @@ function handleMathTitleImageUpload(event) {
   if (!files || files.length === 0) return;
   var reader = new FileReader();
   reader.onload = function(e) {
-    pendingMathTitleImage = e.target.result;
-    renderMathTitlePreview();
+    compressImageDataUrl(e.target.result, 800, function(compressed) {
+      pendingMathTitleImage = compressed;
+      renderMathTitlePreview();
+    });
   };
   reader.readAsDataURL(files[0]);
   event.target.value = '';
@@ -2931,8 +3409,10 @@ function handleMathSolutionImageUpload(event) {
     (function(file) {
       var reader = new FileReader();
       reader.onload = function(e) {
-        pendingMathSolutionImages.push(e.target.result);
-        renderMathSolutionPreviews();
+        compressImageDataUrl(e.target.result, 800, function(compressed) {
+          pendingMathSolutionImages.push(compressed);
+          renderMathSolutionPreviews();
+        });
       };
       reader.readAsDataURL(file);
     })(files[i]);
@@ -3101,27 +3581,21 @@ function renderMathProblemList() {
       : '';
     var titleHtml = '';
     if (p.title) { titleHtml += '<div class="math-title">' + escapeHtml(p.title) + '</div>'; }
-    if (p.titleImage) { titleHtml += '<img src="' + escapeHtml(p.titleImage) + '" class="math-image" alt="定理图片">'; }
+    if (p.titleImage) { titleHtml += '<img src="' + escapeHtml(p.titleImage) + '" class="math-image" alt="定理图片" onclick="openImagePreview(this.src)">'; }
     var solHtml = p.solutionText
       ? '<div class="math-solution">' + escapeHtml(p.solutionText) + '</div>'
       : '';
     var solImgHtml = '';
     if (p.solutionImages && p.solutionImages.length > 0) {
-      solImgHtml = p.solutionImages.slice(0, 1).map(function(src) {
-        return '<img src="' + escapeHtml(src) + '" class="math-image" alt="证明图片">';
+      solImgHtml = p.solutionImages.map(function(src) {
+        return '<img src="' + escapeHtml(src) + '" class="math-image" alt="证明图片" onclick="openImagePreview(this.src)">';
       }).join('');
-      if (p.solutionImages.length > 1) {
-        solImgHtml += '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">共 ' + p.solutionImages.length + ' 张图片</div>';
-      }
     }
     // Support old data with 'images' field
     if (!solImgHtml && p.images && p.images.length > 0) {
-      solImgHtml = p.images.slice(0, 1).map(function(src) {
-        return '<img src="' + escapeHtml(src) + '" class="math-image" alt="证明图片">';
+      solImgHtml = p.images.map(function(src) {
+        return '<img src="' + escapeHtml(src) + '" class="math-image" alt="证明图片" onclick="openImagePreview(this.src)">';
       }).join('');
-      if (p.images.length > 1) {
-        solImgHtml += '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">共 ' + p.images.length + ' 张图片</div>';
-      }
     }
     // Build references HTML
     var refHtml = '';
@@ -3150,6 +3624,7 @@ function renderMathProblemList() {
       solImgHtml +
       refHtml +
       '<div class="math-meta">' + stageText + ' - 下次: ' + nextTime +
+      ' <button onclick="openItemEditor(\'math\',' + p.id + ')" title="编辑" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:14px;padding:2px 4px;">✏️</button>' +
       ' <button class="btn-del" onclick="deleteMathProblem(' + p.id + ')" title="删除">X</button></div>' +
       '</div>';
   }).join('');
@@ -3162,6 +3637,7 @@ var pendingProbQuestionImage = null;
 var pendingProbSolutionImages = [];
 var pendingProbReferences = [];
 var pendingMethodReferences = [];
+var pendingMethodImages = [];
 
 // --- 题目图片 ---
 function handleProbQuestionImageUpload(event) {
@@ -3169,8 +3645,10 @@ function handleProbQuestionImageUpload(event) {
   if (!files || files.length === 0) return;
   var reader = new FileReader();
   reader.onload = function(e) {
-    pendingProbQuestionImage = e.target.result;
-    renderProbQuestionPreview();
+    compressImageDataUrl(e.target.result, 800, function(compressed) {
+      pendingProbQuestionImage = compressed;
+      renderProbQuestionPreview();
+    });
   };
   reader.readAsDataURL(files[0]);
   event.target.value = '';
@@ -3204,8 +3682,10 @@ function handleProbSolutionImageUpload(event) {
     (function(file) {
       var reader = new FileReader();
       reader.onload = function(e) {
-        pendingProbSolutionImages.push(e.target.result);
-        renderProbSolutionPreviews();
+        compressImageDataUrl(e.target.result, 800, function(compressed) {
+          pendingProbSolutionImages.push(compressed);
+          renderProbSolutionPreviews();
+        });
       };
       reader.readAsDataURL(file);
     })(files[i]);
@@ -3233,6 +3713,47 @@ function renderProbSolutionPreviews() {
       '<button class="img-del" onclick="removeProbSolutionImage(' + idx + ')">x</button></div>';
   }).join('');
   if (status) status.textContent = '已选择 ' + pendingProbSolutionImages.length + ' 张图片';
+}
+
+// --- 方法图片 ---
+function handleMethodImageUpload(event) {
+  var files = event.target.files;
+  if (!files || files.length === 0) return;
+  for (var i = 0; i < files.length; i++) {
+    (function(file) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        compressImageDataUrl(e.target.result, 800, function(compressed) {
+          pendingMethodImages.push(compressed);
+          renderMethodImagePreviews();
+        });
+      };
+      reader.readAsDataURL(file);
+    })(files[i]);
+  }
+  event.target.value = '';
+}
+
+function removeMethodImage(index) {
+  pendingMethodImages.splice(index, 1);
+  renderMethodImagePreviews();
+}
+
+function renderMethodImagePreviews() {
+  var container = document.getElementById('methodImagesPreview');
+  var status = document.getElementById('methodImagesStatus');
+  if (!container) return;
+  if (pendingMethodImages.length === 0) {
+    container.innerHTML = '';
+    if (status) status.textContent = '';
+    return;
+  }
+  container.innerHTML = pendingMethodImages.map(function(src, idx) {
+    return '<div class="math-img-item">' +
+      '<img src="' + escapeHtml(src) + '" alt="方法图片">' +
+      '<button class="img-del" onclick="removeMethodImage(' + idx + ')">x</button></div>';
+  }).join('');
+  if (status) status.textContent = '已选择 ' + pendingMethodImages.length + ' 张图片';
 }
 
 function addMathProblemItem() {
@@ -3329,7 +3850,9 @@ function clearMethodForm() {
   document.getElementById('inputMethodName').value = '';
   document.getElementById('inputMethodDesc').value = '';
   pendingMethodReferences = [];
+  pendingMethodImages = [];
   renderMethodRefTags();
+  renderMethodImagePreviews();
 }
 
 function addMethod() {
@@ -3342,6 +3865,7 @@ function addMethod() {
     id: Date.now(),
     name: name,
     description: description,
+    images: pendingMethodImages.slice(),
     references: pendingMethodReferences.slice(),
     createdAt: now.toISOString(),
     lastModified: now.toISOString(),
@@ -3394,6 +3918,12 @@ function renderMethodList() {
     var descHtml = m.description
       ? '<div class="method-desc">' + escapeHtml(m.description) + '</div>'
       : '';
+    var imgHtml = '';
+    if (m.images && m.images.length > 0) {
+      imgHtml = m.images.map(function(src) {
+        return '<img src="' + escapeHtml(src) + '" class="math-image" alt="方法图片" onclick="openImagePreview(this.src)">';
+      }).join('');
+    }
     var refHtml = '';
     if (m.references && m.references.length > 0) {
       refHtml += '<div class="math-refs" style="font-size:12px;color:#6366f1;margin:6px 0 2px 0;">引用: ';
@@ -3412,8 +3942,10 @@ function renderMethodList() {
     return '<div class="method-item">' +
       '<div class="method-title">' + escapeHtml(m.name) + '</div>' +
       descHtml +
+      imgHtml +
       refHtml +
       '<div class="method-meta">' +
+      ' <button onclick="openItemEditor(\'method\',' + m.id + ')" title="编辑" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:14px;padding:2px 4px;">✏️</button>' +
       ' <button class="btn-del" onclick="deleteMethod(' + m.id + ')" title="删除">X</button></div>' +
       '</div>';
   }).join('');
@@ -3451,27 +3983,21 @@ function renderProblemList() {
       : '';
     var questionHtml = '';
     if (p.question) { questionHtml += '<div class="math-title">' + escapeHtml(p.question) + '</div>'; }
-    if (p.questionImage) { questionHtml += '<img src="' + escapeHtml(p.questionImage) + '" class="math-image" alt="题目图片">'; }
+    if (p.questionImage) { questionHtml += '<img src="' + escapeHtml(p.questionImage) + '" class="math-image" alt="题目图片" onclick="openImagePreview(this.src)">'; }
     var solHtml = p.solutionText
       ? '<div class="math-solution">' + escapeHtml(p.solutionText) + '</div>'
       : '';
     var solImgHtml = '';
     if (p.solutionImages && p.solutionImages.length > 0) {
-      solImgHtml = p.solutionImages.slice(0, 1).map(function(src) {
-        return '<img src="' + escapeHtml(src) + '" class="math-image" alt="解题图片">';
+      solImgHtml = p.solutionImages.map(function(src) {
+        return '<img src="' + escapeHtml(src) + '" class="math-image" alt="解题图片" onclick="openImagePreview(this.src)">';
       }).join('');
-      if (p.solutionImages.length > 1) {
-        solImgHtml += '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">共 ' + p.solutionImages.length + ' 张图片</div>';
-      }
     }
     // Support old data with 'images' field
     if (!solImgHtml && p.images && p.images.length > 0) {
-      solImgHtml = p.images.slice(0, 1).map(function(src) {
-        return '<img src="' + escapeHtml(src) + '" class="math-image" alt="解题图片">';
+      solImgHtml = p.images.map(function(src) {
+        return '<img src="' + escapeHtml(src) + '" class="math-image" alt="解题图片" onclick="openImagePreview(this.src)">';
       }).join('');
-      if (p.images.length > 1) {
-        solImgHtml += '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">共 ' + p.images.length + ' 张图片</div>';
-      }
     }
     var practiceStats = '';
     if (p.practiceHistory && p.practiceHistory.length > 0) {
@@ -3506,6 +4032,7 @@ function renderProblemList() {
       solImgHtml +
       refHtml +
       '<div class="math-meta">' + stageText + ' - 下次: ' + nextTime + practiceStats +
+      ' <button onclick="openItemEditor(\'problem\',' + p.id + ')" title="编辑" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:14px;padding:2px 4px;">✏️</button>' +
       ' <button class="btn-del" onclick="deleteProblem(' + p.id + ')" title="删除">X</button></div>' +
       '</div>';
   }).join('');
@@ -3523,6 +4050,48 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   document.getElementById('inputDef').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') { e.preventDefault(); addWord(); }
+  });
+
+  // --- 粘贴图片支持：定理 ---
+  document.getElementById('inputMathTitle').addEventListener('paste', function(e) {
+    handleImagePaste(e, function(dataUrl) {
+      pendingMathTitleImage = dataUrl;
+      renderMathTitlePreview();
+    });
+  });
+  document.getElementById('inputMathSolution').addEventListener('paste', function(e) {
+    handleImagePaste(e, function(dataUrl) {
+      pendingMathSolutionImages.push(dataUrl);
+      renderMathSolutionPreviews();
+    });
+  });
+
+  // --- 粘贴图片支持：题目 ---
+  document.getElementById('inputProbQuestion').addEventListener('paste', function(e) {
+    handleImagePaste(e, function(dataUrl) {
+      pendingProbQuestionImage = dataUrl;
+      renderProbQuestionPreview();
+    });
+  });
+  document.getElementById('inputProbSolution').addEventListener('paste', function(e) {
+    handleImagePaste(e, function(dataUrl) {
+      pendingProbSolutionImages.push(dataUrl);
+      renderProbSolutionPreviews();
+    });
+  });
+
+  // --- 粘贴图片支持：方法 ---
+  document.getElementById('inputMethodName').addEventListener('paste', function(e) {
+    handleImagePaste(e, function(dataUrl) {
+      pendingMethodImages.push(dataUrl);
+      renderMethodImagePreviews();
+    });
+  });
+  document.getElementById('inputMethodDesc').addEventListener('paste', function(e) {
+    handleImagePaste(e, function(dataUrl) {
+      pendingMethodImages.push(dataUrl);
+      renderMethodImagePreviews();
+    });
   });
 });
 
@@ -4054,6 +4623,7 @@ function renderWordReview(area, reviewWord, dueItems, now) {
     defHtml += '<div style="margin-top:4px;">';
     defHtml += '<button class="review-edit-btn" onclick="openDefEditor(\'edit\',' + reviewWord.id + ')" title="编辑释义">✏️ 编辑</button>';
     defHtml += '<button class="review-edit-btn" onclick="openDefEditor(\'add\',' + reviewWord.id + ')" title="添加额外释义" style="margin-left:4px;">➕ 添加释义</button>';
+    defHtml += '<button class="review-edit-btn" onclick="openItemEditor(\'word\',' + reviewWord.id + ')" title="编辑单词" style="margin-left:4px;">⚙️ 更多</button>';
     defHtml += '</div>';
     // History
     if (reviewWord.definitionHistory && reviewWord.definitionHistory.length > 0) {
@@ -4118,7 +4688,9 @@ function renderSentenceReview(area, sentence, dueItems, now) {
       '<div class="btn-group">' +
         (!answerRevealed
           ? '<button class="btn btn-primary" onclick="revealAnswer()">显示答案</button>'
-          : '<button class="btn btn-success" onclick="handleSentenceReview(true)">记住了</button><button class="btn btn-warning" onclick="handleSentenceReview(false)">忘记了</button>'
+          : '<button class="btn btn-success" onclick="handleSentenceReview(true)">记住了</button><button class="btn btn-warning" onclick="handleSentenceReview(false)">忘记了</button>' +
+            '<button onclick="openSentenceEditor(' + sentence.id + ')" title="编辑" style="margin-left:6px;background:#fff;color:#666;border:1px solid #ddd;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;">✏️ 编辑</button>' +
+            '<button onclick="regenerateCurrentSentence()" title="重新生成" style="margin-left:4px;background:#f0f0f0;color:#333;border:1px solid #ddd;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;">🔄 重新生成</button>'
         ) +
       '</div>' +
       (sentence.forgottenCount > 0 ? '<div style="font-size:11px;color:#bbb;margin-top:12px;">曾忘记 ' + sentence.forgottenCount + ' 次</div>' : '') +
@@ -4144,16 +4716,16 @@ function renderMathReview(area, problem, dueItems, now) {
 
   var titleHtml = '';
   if (problem.title) { titleHtml += '<div class="math-title-card">' + escapeHtml(problem.title) + '</div>'; }
-  if (problem.titleImage) { titleHtml += '<img src="' + escapeHtml(problem.titleImage) + '" class="math-image-card" alt="定理图片">'; }
+  if (problem.titleImage) { titleHtml += '<img src="' + escapeHtml(problem.titleImage) + '" class="math-image-card" alt="定理图片" onclick="openImagePreview(this.src)">'; }
 
   var solImgHtml = '';
   if (problem.solutionImages && problem.solutionImages.length > 0) {
     solImgHtml = problem.solutionImages.map(function(src) {
-      return '<img src="' + escapeHtml(src) + '" class="math-image-card" alt="证明图片">';
+      return '<img src="' + escapeHtml(src) + '" class="math-image-card" alt="证明图片" onclick="openImagePreview(this.src)">';
     }).join('');
   } else if (problem.images && problem.images.length > 0) {
     solImgHtml = problem.images.map(function(src) {
-      return '<img src="' + escapeHtml(src) + '" class="math-image-card" alt="证明图片">';
+      return '<img src="' + escapeHtml(src) + '" class="math-image-card" alt="证明图片" onclick="openImagePreview(this.src)">';
     }).join('');
   }
 
@@ -4185,13 +4757,14 @@ function renderMathReview(area, problem, dueItems, now) {
       '<div class="stage-badge">' + stageLabel + '</div>' +
       (overdueText ? '<div style="font-size:12px;color:#FF4D4F;margin-bottom:8px;">' + overdueText + '</div>' : '') +
       refReviewHtml +
-      (solImgHtml ? solImgHtml : '') +
+      (solImgHtml ? '<div style="' + (answerRevealed ? '' : 'visibility:hidden;max-height:0;overflow:hidden;') + '">' + solImgHtml + '</div>' : '') +
       '<div class="math-solution-card" style="' + (answerRevealed ? '' : 'color:transparent;background:none;') + '">' + escapeHtml(problem.solutionText) + '</div>' +
       (!answerRevealed ? '<div class="hint">回想一下解题思路，然后点击下方按钮</div>' : '') +
       '<div class="btn-group">' +
         (!answerRevealed
           ? '<button class="btn btn-primary" onclick="revealAnswer()">显示答案</button>'
-          : '<button class="btn btn-success" onclick="handleMathReview(true)">记住了</button><button class="btn btn-warning" onclick="handleMathReview(false)">忘记了</button>'
+          : '<button class="btn btn-success" onclick="handleMathReview(true)">记住了</button><button class="btn btn-warning" onclick="handleMathReview(false)">忘记了</button>' +
+            '<button onclick="openItemEditor(\'math\',' + problem.id + ')" title="编辑" style="margin-left:4px;background:#fff;color:#666;border:1px solid #ddd;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;">✏️ 编辑</button>'
         ) +
       '</div>' +
       (problem.forgottenCount > 0 ? '<div style="font-size:11px;color:#bbb;margin-top:12px;">曾忘记 ' + problem.forgottenCount + ' 次</div>' : '') +
@@ -4217,16 +4790,16 @@ function renderProblemReview(area, prob, dueItems, now) {
 
   var questionHtml = '';
   if (prob.question) { questionHtml += '<div class="math-title-card" style="font-size:22px;">' + escapeHtml(prob.question) + '</div>'; }
-  if (prob.questionImage) { questionHtml += '<img src="' + escapeHtml(prob.questionImage) + '" class="math-image-card" alt="题目图片">'; }
+  if (prob.questionImage) { questionHtml += '<img src="' + escapeHtml(prob.questionImage) + '" class="math-image-card" alt="题目图片" onclick="openImagePreview(this.src)">'; }
 
   var solImgHtml = '';
   if (prob.solutionImages && prob.solutionImages.length > 0) {
     solImgHtml = prob.solutionImages.map(function(src) {
-      return '<img src="' + escapeHtml(src) + '" class="math-image-card" alt="解题图片">';
+      return '<img src="' + escapeHtml(src) + '" class="math-image-card" alt="解题图片" onclick="openImagePreview(this.src)">';
     }).join('');
   } else if (prob.images && prob.images.length > 0) {
     solImgHtml = prob.images.map(function(src) {
-      return '<img src="' + escapeHtml(src) + '" class="math-image-card" alt="解题图片">';
+      return '<img src="' + escapeHtml(src) + '" class="math-image-card" alt="解题图片" onclick="openImagePreview(this.src)">';
     }).join('');
   }
 
@@ -4320,7 +4893,7 @@ function renderProblemReview(area, prob, dueItems, now) {
       '<div class="stage-badge">' + stageLabel + '</div>' +
       (overdueText ? '<div style="font-size:12px;color:#FF4D4F;margin-bottom:8px;">' + overdueText + '</div>' : '') +
       refReviewHtml +
-      (solImgHtml ? solImgHtml : '') +
+      (solImgHtml ? '<div style="' + (answerRevealed ? '' : 'visibility:hidden;max-height:0;overflow:hidden;') + '">' + solImgHtml + '</div>' : '') +
       '<div class="math-solution-card" style="' + (answerRevealed ? '' : 'color:transparent;background:none;') + '">' + escapeHtml(prob.solutionText) + '</div>' +
       (!answerRevealed ? '<div class="hint">回想一下解题思路，然后点击下方按钮</div>' : '') +
       practiceHtml +
@@ -4329,7 +4902,8 @@ function renderProblemReview(area, prob, dueItems, now) {
           ? '<button class="btn btn-primary" onclick="revealAnswer()">显示答案</button>'
           : '<button class="btn btn-success" onclick="handleProblemReview(true)">记住了</button>' +
             '<button class="btn btn-warning" onclick="handleProblemReview(false)">忘记了</button>' +
-            '<button class="btn btn-primary" onclick="startPractice(' + prob.id + ')" style="background:#8b5cf6;">📝 动手做</button>'
+            '<button class="btn btn-primary" onclick="startPractice(' + prob.id + ')" style="background:#8b5cf6;">📝 动手做</button>' +
+            '<button onclick="openItemEditor(\'problem\',' + prob.id + ')" title="编辑" style="margin-left:4px;background:#fff;color:#666;border:1px solid #ddd;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;">✏️ 编辑</button>'
         ) +
       '</div>' +
       (prob.forgottenCount > 0 ? '<div style="font-size:11px;color:#bbb;margin-top:12px;">曾忘记 ' + prob.forgottenCount + ' 次</div>' : '') +
@@ -4730,10 +5304,57 @@ function confirmConfuseBinding() {
 function getConfusedWords(word) {
   if (!word.confusedWith || word.confusedWith.length === 0) return [];
   var words = loadWords();
-  return word.confusedWith.map(function(c) {
-    var w = words.find(function(w2) { return w2.id === c.wordId; });
-    return w ? { word: w, count: c.count } : null;
-  }).filter(function(x) { return x && !x.word.deletedAt; });
+  var activeWords = words.filter(function(w) { return !w.deletedAt; });
+
+  // Build adjacency graph from ALL active words' confusedWith
+  var graph = {};
+  activeWords.forEach(function(w) { graph[w.id] = []; });
+  activeWords.forEach(function(w) {
+    if (w.confusedWith) {
+      w.confusedWith.forEach(function(c) {
+        if (graph[c.wordId]) {
+          if (graph[w.id].indexOf(c.wordId) === -1) graph[w.id].push(c.wordId);
+          if (graph[c.wordId].indexOf(w.id) === -1) graph[c.wordId].push(w.id);
+        }
+      });
+    }
+  });
+
+  // BFS from the current word to find connected component
+  var visited = {};
+  var queue = [word.id];
+  visited[word.id] = true;
+  while (queue.length > 0) {
+    var current = queue.shift();
+    var neighbors = graph[current] || [];
+    for (var i = 0; i < neighbors.length; i++) {
+      if (!visited[neighbors[i]]) {
+        visited[neighbors[i]] = true;
+        queue.push(neighbors[i]);
+      }
+    }
+  }
+
+  // Aggregate counts across all edges within the component
+  var countMap = {};
+  activeWords.forEach(function(w) {
+    if (w.confusedWith && visited[w.id]) {
+      w.confusedWith.forEach(function(c) {
+        if (visited[c.wordId] && c.wordId !== word.id) {
+          countMap[c.wordId] = (countMap[c.wordId] || 0) + c.count;
+        }
+      });
+    }
+  });
+
+  // Build result: all component words except the source
+  var result = [];
+  activeWords.forEach(function(w) {
+    if (w.id !== word.id && visited[w.id]) {
+      result.push({ word: w, count: countMap[w.id] || 0 });
+    }
+  });
+  return result;
 }
 
 function handleSentenceReview(remembered) {
@@ -4888,7 +5509,7 @@ function renderBank() {
       '<div class="col-def">' + escapeHtml(w.definition) + '</div>' +
       '<div class="col-stage"><div class="stage-bar"><div class="fill" style="width:' + pct + '%"></div></div>' +
       '<div class="stage-label ' + (isAnnual ? 'stage-mastered' : '') + '">' + stageText + ' - 下次: ' + nextTime + '</div></div>' +
-      '<div class="col-action"><button class="btn-del" onclick="deleteWord(' + w.id + ')" title="删除">X</button></div></div>';
+      '<div class="col-action"><button onclick="openItemEditor(\'word\',' + w.id + ')" title="编辑" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:14px;padding:2px 4px;">✏️</button><button class="btn-del" onclick="deleteWord(' + w.id + ')" title="删除">X</button></div></div>';
   }).join('');
 
   // 在单词列表下方显示句子列表
@@ -4914,7 +5535,9 @@ function renderSentenceBank(senList, sentences) {
         '<div class="sen-english">' + escapeHtml(s.english) + '</div>' +
         '<div class="sen-chinese">' + escapeHtml(s.chinese) + '</div>' +
         '<div class="sen-meta">句子 #' + s.wordRange + ' - ' + stageText + ' - 下次: ' + nextTime +
-        ' <button class="btn-del" onclick="deleteSentence(' + s.id + ')" title="删除" style="font-size:14px;">X</button></div>' +
+        ' <button class="btn-del" onclick="deleteSentence(' + s.id + ')" title="删除" style="font-size:14px;">X</button>' +
+        ' <button onclick="openSentenceEditor(' + s.id + ')" title="编辑" style="font-size:12px;background:#fff;color:#666;border:1px solid #ddd;border-radius:4px;padding:2px 8px;cursor:pointer;">✏️</button>' +
+        ' <button onclick="regenerateSentenceById(' + s.id + ')" title="重新生成" style="font-size:12px;background:#e8f4fd;color:#1976d2;border:1px solid #bbdefb;border-radius:4px;padding:2px 8px;cursor:pointer;">🔄</button></div>' +
         '</div>';
     }).join('');
   senList.style.display = 'block';
