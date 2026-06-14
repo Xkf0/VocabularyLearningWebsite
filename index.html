@@ -3,7 +3,35 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>艾宾浩斯记忆助手</title>
+  <script>
+    // === 紧急 Service Worker 清理机制 ===
+    // 如果页面加载异常（被旧 SW 劫持），访问 ?reset=1 会清除所有 SW 并刷新
+    (function() {
+      var params = new URLSearchParams(window.location.search);
+      if (params.has('reset') && 'serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          return Promise.all(regs.map(function(r) { return r.unregister(); }));
+        }).then(function() {
+          // 清除所有 SW 缓存
+          if ('caches' in window) {
+            caches.keys().then(function(names) {
+              return Promise.all(names.map(function(n) { return caches.delete(n); }));
+            });
+          }
+        }).then(function() {
+          // 去掉 reset 参数后重新加载
+          params.delete('reset');
+          var newUrl = window.location.pathname;
+          if (params.toString()) newUrl += '?' + params.toString();
+          window.location.replace(newUrl);
+        });
+      }
+    })();
+  </script>
   <link rel="manifest" href="manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -804,9 +832,330 @@
       margin-left: 6px;
     }
     .logout-btn:hover { color: var(--danger); background: #fef2f2; }
+
+    /* User Switcher */
+    .user-switcher-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 10001;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .user-switcher-overlay.hidden { display: none; }
+    .user-switcher-card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 28px 24px;
+      width: 340px;
+      max-width: 90vw;
+      max-height: 70vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    }
+    .user-switcher-card h2 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .saved-users-list {
+      flex: 1;
+      overflow-y: auto;
+      margin-bottom: 16px;
+    }
+    .saved-user-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      background: #f8fafc;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .saved-user-card:hover { background: #eef2ff; }
+    .saved-user-card.current { background: #e8f5e9; }
+    .saved-user-info { flex: 1; min-width: 0; }
+    .saved-user-name { font-size: 15px; font-weight: 600; color: #0f172a; }
+    .saved-user-hint { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+    .saved-user-remove {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+    .saved-user-remove:hover { color: var(--danger); background: #fef2f2; }
+    .user-switcher-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .user-switcher-actions .btn { flex: 1; }
+
+    /* Definition Editor Modal */
+    .def-editor-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 10002;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .def-editor-overlay.hidden { display: none; }
+    .def-editor-card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 24px;
+      width: 360px;
+      max-width: 90vw;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    }
+    .def-editor-card h3 { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+    .def-editor-card .word-label { font-size: 13px; color: #94a3b8; margin-bottom: 14px; }
+    .def-editor-card textarea {
+      width: 100%;
+      min-height: 80px;
+      padding: 12px;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 15px;
+      outline: none;
+      resize: vertical;
+      transition: border-color 0.2s;
+      box-sizing: border-box;
+    }
+    .def-editor-card textarea:focus { border-color: var(--primary-light); }
+    .def-editor-card .editor-hint { font-size: 12px; color: #94a3b8; margin-top: 8px; margin-bottom: 14px; }
+    .def-editor-actions { display: flex; gap: 8px; }
+    .def-editor-actions .btn { flex: 1; }
+    .review-edit-btn {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 12px;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      vertical-align: middle;
+    }
+    .review-edit-btn:hover { color: var(--primary); background: #eef2ff; }
+    .def-history-toggle {
+      font-size: 12px;
+      color: #94a3b8;
+      cursor: pointer;
+      margin-top: 8px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #f8fafc;
+      display: inline-block;
+    }
+    .def-history-toggle:hover { color: var(--primary); background: #eef2ff; }
+    .def-history-items {
+      margin-top: 6px;
+      text-align: left;
+      font-size: 13px;
+      border-top: 1px solid #f1f5f9;
+      padding-top: 8px;
+    }
+    .def-history-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 4px 0;
+      color: #64748b;
+      gap: 8px;
+    }
+    .def-history-item .h-text { flex: 1; }
+    .def-history-item .h-type-badge {
+      font-size: 10px;
+      background: #f1f5f9;
+      padding: 1px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+      color: #94a3b8;
+    }
+    .avatar-circle {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+      overflow: hidden;
+      background-size: cover;
+      background-position: center;
+      cursor: pointer;
+      position: relative;
+    }
+    .avatar-circle img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+    }
+    .avatar-circle .avatar-hint {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+      font-size: 9px;
+      text-align: center;
+      padding: 2px 0;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .avatar-circle:hover .avatar-hint { opacity: 1; }
+    .avatar-sm {
+      width: 32px;
+      height: 32px;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      color: #fff;
+      font-weight: 700;
+      flex-shrink: 0;
+      overflow: hidden;
+      background-size: cover;
+      background-position: center;
+      vertical-align: middle;
+    }
+    .avatar-lg {
+      width: 72px;
+      height: 72px;
+      font-size: 28px;
+    }
+    .settings-avatar-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .confuse-badge {
+      display: inline-block;
+      background: #fff3e0;
+      color: #e65100;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+    .confuse-items {
+      margin: 8px 0;
+      padding: 8px 10px;
+      background: #fff8f0;
+      border-radius: 8px;
+      border: 1px solid #ffe0b2;
+      text-align: left;
+      font-size: 14px;
+    }
+    .confuse-items .ci-title { font-size: 12px; color: #e65100; font-weight: 600; margin-bottom: 4px; }
+    .confuse-items .ci-word { padding: 3px 0; color: #333; }
+    .confuse-items .ci-word .ci-def { font-size: 12px; color: #888; }
+    .forget-choice-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.35);
+      z-index: 10003;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .forget-choice-overlay.hidden { display: none; }
+    .forget-choice-card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 28px 24px;
+      width: 300px;
+      max-width: 85vw;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    }
+    .forget-choice-card h3 { font-size: 17px; font-weight: 700; margin-bottom: 14px; color: #0f172a; }
+    .forget-choice-card .fc-btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      margin-bottom: 10px;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      background: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: left;
+    }
+    .forget-choice-card .fc-btn:hover { border-color: var(--primary); background: #f8faff; }
+    .forget-choice-card .fc-btn .fc-desc { font-size: 12px; font-weight: 400; color: #94a3b8; margin-top: 2px; }
+    .confuse-picker-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 10004;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .confuse-picker-overlay.hidden { display: none; }
+    .confuse-picker-card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 24px;
+      width: 380px;
+      max-width: 90vw;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    }
+    .confuse-picker-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 10px; }
+    .confuse-picker-search { margin-bottom: 10px; }
+    .confuse-picker-search input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 14px;
+      outline: none;
+      box-sizing: border-box;
+    }
+    .confuse-picker-search input:focus { border-color: var(--primary-light); }
+    .confuse-picker-list { flex: 1; overflow-y: auto; margin-bottom: 12px; }
+    .confuse-picker-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      gap: 10px;
+      transition: background 0.1s;
+    }
+    .confuse-picker-item:hover { background: #f1f5f9; }
+    .confuse-picker-item input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; flex-shrink: 0; }
+    .confuse-picker-item .cpi-word { font-weight: 600; font-size: 14px; }
+    .confuse-picker-item .cpi-def { font-size: 12px; color: #94a3b8; }
+    .confuse-picker-empty { text-align: center; padding: 24px; color: #94a3b8; font-size: 14px; }
+    .confuse-picker-actions { display: flex; gap: 8px; }
+    .confuse-picker-actions .btn { flex: 1; }
   </style>
 </head>
 <body>
+
+<input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="handleAvatarUpload(event)">
 
 <!-- Login Overlay -->
 <div class="login-overlay" id="loginOverlay">
@@ -841,6 +1190,12 @@
       </div>
       <button class="btn btn-primary" onclick="handleRegister()" id="regBtn">注册</button>
       <div><button class="btn-link" onclick="showLoginForm()">已有账号？返回登录</button></div>
+    </div>
+
+    <!-- 已保存用户快速登录 -->
+    <div id="savedUsersLoginArea" style="display:none;margin-top:16px;border-top:1px solid #e2e8f0;padding-top:14px;">
+      <div style="font-size:12px;color:#94a3b8;margin-bottom:8px;">历史用户</div>
+      <div id="savedUsersLoginList" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
     </div>
 
     <!-- 离线提示 -->
@@ -1124,11 +1479,21 @@
     </div>
     <div class="card">
       <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;">账户</h3>
-      <div style="background:#f6f8fa;border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;">
-        <div style="margin-bottom:4px;"><strong>当前用户：</strong><span id="currentUserDisplay">--</span></div>
-        <div style="margin-bottom:4px;"><strong>状态：</strong><span id="modeDisplay2">检测中...</span></div>
+      <div class="settings-avatar-row" id="settingsAvatarRow" style="display:none;">
+        <div class="avatar-circle avatar-lg" id="settingsAvatar" onclick="document.getElementById('avatarInput').click()" title="点击更换头像">
+          <div class="avatar-hint">更换</div>
+        </div>
+        <div style="font-size:13px;">
+          <div style="font-weight:600;font-size:15px;" id="currentUserDisplay">--</div>
+          <div style="color:#94a3b8;" id="modeDisplay2">检测中...</div>
+        </div>
       </div>
-      <button class="btn btn-danger" onclick="handleLogout()">退出登录</button>
+      <div style="background:#f6f8fa;border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;">
+        <div style="margin-bottom:4px;"><strong>当前用户：</strong><span id="currentUserDisplayOld">--</span></div>
+        <div style="margin-bottom:4px;"><strong>状态：</strong><span id="modeDisplay2Old">检测中...</span></div>
+      </div>
+      <button class="btn btn-outline" onclick="showUserSwitcher()">切换用户</button>
+      <button class="btn btn-danger" onclick="handleLogout()" style="margin-left:8px;">退出登录</button>
       <button class="btn btn-primary" onclick="forceSyncToServer()" style="margin-left:8px;">推送本地数据到服务器</button>
     </div>
     <div class="card">
@@ -1181,6 +1546,63 @@
   </div>
 </div>
 
+<!-- User Switcher -->
+<div class="user-switcher-overlay hidden" id="userSwitcherOverlay" onclick="if(event.target===this)closeUserSwitcher()">
+  <div class="user-switcher-card">
+    <h2>切换用户</h2>
+    <div class="saved-users-list" id="savedUsersList"></div>
+    <div class="user-switcher-actions">
+      <button class="btn btn-primary" onclick="closeUserSwitcher();showLoginOverlay(false);">登录其他账号</button>
+      <button class="btn btn-warning" onclick="closeUserSwitcher()">返回</button>
+    </div>
+  </div>
+</div>
+
+<!-- Forget Choice Overlay -->
+<div class="forget-choice-overlay hidden" id="forgetChoiceOverlay" onclick="if(event.target===this)hideForgetChoice()">
+  <div class="forget-choice-card">
+    <h3>为什么忘记了？</h3>
+    <button class="fc-btn" onclick="handleForgetChoice('forgot')">
+      <div>😵 没想起来</div>
+      <div class="fc-desc">单纯记不住，重置复习进度</div>
+    </button>
+    <button class="fc-btn" onclick="handleForgetChoice('confused')">
+      <div>🔀 弄混了</div>
+      <div class="fc-desc">和别的单词搞混了，绑定易混单词</div>
+    </button>
+    <div><button class="btn-link" onclick="hideForgetChoice()" style="font-size:13px;">取消</button></div>
+  </div>
+</div>
+
+<!-- Confusion Picker -->
+<div class="confuse-picker-overlay hidden" id="confusePickerOverlay" onclick="if(event.target===this)closeConfusePicker()">
+  <div class="confuse-picker-card">
+    <h3>选择你弄混的单词</h3>
+    <div class="confuse-picker-search">
+      <input type="text" id="confuseSearchInput" placeholder="搜索单词或释义..." oninput="renderConfusePickerList()">
+    </div>
+    <div class="confuse-picker-list" id="confusePickerList"></div>
+    <div class="confuse-picker-actions">
+      <button class="btn btn-primary" onclick="confirmConfuseBinding()">确定绑定</button>
+      <button class="btn btn-warning" onclick="skipConfuseBinding()">跳过</button>
+    </div>
+  </div>
+</div>
+
+<!-- Definition Editor Modal -->
+<div class="def-editor-overlay hidden" id="defEditorOverlay" onclick="if(event.target===this)closeDefEditor()">
+  <div class="def-editor-card">
+    <h3 id="defEditorTitle">编辑释义</h3>
+    <div class="word-label" id="defEditorWordLabel"></div>
+    <textarea id="defEditorTextarea" placeholder="输入释义"></textarea>
+    <div class="editor-hint" id="defEditorHint">修改后旧释义会自动保存到历史记录中</div>
+    <div class="def-editor-actions">
+      <button class="btn btn-primary" onclick="confirmDefEditor()" id="defEditorConfirmBtn">保存</button>
+      <button class="btn btn-warning" onclick="closeDefEditor()">取消</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
@@ -1203,20 +1625,293 @@ function saveAuth(token, user) {
   currentUser = user;
   localStorage.setItem('ebbinghaus_token', token);
   localStorage.setItem('ebbinghaus_user', user);
+  saveUserToSaved(user, token);
 }
 
 function clearAuth() {
+  var oldKey = getAvatarKey();
   authToken = '';
   currentUser = '';
   localStorage.removeItem('ebbinghaus_token');
   localStorage.removeItem('ebbinghaus_user');
+  localStorage.removeItem(oldKey);
 }
 
-// 验证当前 token 是否有效
+// ---- 保存用户（便于切换） ----
+
+function getSavedUsers() {
+  try {
+    return JSON.parse(localStorage.getItem(SAVED_USERS_KEY)) || [];
+  } catch (e) { return []; }
+}
+
+function saveUserToSaved(username, token) {
+  if (!username || !token) return;
+  var users = getSavedUsers();
+  var avatar = localStorage.getItem(getAvatarKey()) || '';
+  // 去重：如果已存在，更新 token 和 avatar
+  var found = false;
+  for (var i = 0; i < users.length; i++) {
+    if (users[i].username === username) {
+      users[i].token = token;
+      if (avatar) users[i].avatar = avatar;
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    users.push({ username: username, token: token, avatar: avatar });
+  }
+  localStorage.setItem(SAVED_USERS_KEY, JSON.stringify(users));
+}
+
+function removeSavedUser(username) {
+  var users = getSavedUsers().filter(function(u) { return u.username !== username; });
+  localStorage.setItem(SAVED_USERS_KEY, JSON.stringify(users));
+}
+
+// 切换到某个已保存的用户
+async function switchToUser(username, token) {
+  if (!confirm('切换到用户「' + username + '」？\n当前数据会先保存到服务器。')) return;
+  // 先推送当前数据
+  if (useServer && authToken) {
+    syncToServer();
+  }
+  // 清除当前数据
+  clearAuth();
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(SENTENCE_KEY);
+  localStorage.removeItem(MATH_KEY);
+  localStorage.removeItem(PROBLEMS_KEY);
+  localStorage.removeItem(METHODS_KEY);
+  // 设置新用户
+  saveAuth(token, username);
+  useServer = true;
+  // 从服务器拉数据
+  try {
+    var res = await fetchWithTimeout('/api/words', {
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+    if (res.ok) {
+      var data = await res.json();
+      if (data && data.words) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data.words || []));
+        if (data.sentences) localStorage.setItem(SENTENCE_KEY, JSON.stringify(data.sentences));
+        if (data.mathProblems) localStorage.setItem(MATH_KEY, JSON.stringify(data.mathProblems));
+        if (data.problems) localStorage.setItem(PROBLEMS_KEY, JSON.stringify(data.problems));
+        if (data.methods) localStorage.setItem(METHODS_KEY, JSON.stringify(data.methods));
+        if (data.avatar) localStorage.setItem(getAvatarKey(), data.avatar);
+      }
+    } else if (res.status === 401) {
+      // token 已过期，让用户重新输入密码
+      clearAuth();
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(SENTENCE_KEY);
+      localStorage.removeItem(MATH_KEY);
+      localStorage.removeItem(PROBLEMS_KEY);
+      localStorage.removeItem(METHODS_KEY);
+      document.getElementById('loginUsername').value = username;
+      document.getElementById('loginPassword').value = '';
+      showLoginOverlay(false);
+      setLoginError('登录已过期，请重新输入密码');
+      return;
+    }
+    document.getElementById('loginOverlay').classList.add('hidden');
+  } catch (e) {
+    showToast('无法从服务器拉取数据，请检查网络');
+  }
+  updateAvatarDisplay();
+  refreshAll();
+  showToast('已切换到用户: ' + username);
+}
+
+// 显示用户切换界面
+function showUserSwitcher() {
+  document.getElementById('userSwitcherOverlay').classList.remove('hidden');
+  renderUserSwitcher();
+}
+
+function closeUserSwitcher() {
+  document.getElementById('userSwitcherOverlay').classList.add('hidden');
+}
+
+function renderUserSwitcher() {
+  var savedUsers = getSavedUsers();
+  var list = document.getElementById('savedUsersList');
+  list.innerHTML = '';
+  if (savedUsers.length === 0) {
+    list.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:24px;font-size:14px;">暂无已保存的用户</div>';
+    return;
+  }
+  savedUsers.forEach(function(u) {
+    var isCurrent = (u.username === currentUser);
+    var avatarData = u.avatar || getDefaultAvatarSvg(u.username);
+    var avatarHtml = avatarData.startsWith('data:image/svg')
+      ? '<img src="' + avatarData + '" alt="" style="width:32px;height:32px;border-radius:50%;flex-shrink:0;">'
+      : '<div class="avatar-sm" style="background-image:url(' + avatarData + ');background-size:cover;"></div>';
+    var card = document.createElement('div');
+    card.className = 'saved-user-card' + (isCurrent ? ' current' : '');
+    card.innerHTML =
+      avatarHtml +
+      '<div class="saved-user-info" style="margin-left:10px;" onclick="switchToUser(\'' + u.username.replace(/'/g, "\\'") + '\',\'' + u.token.replace(/'/g, "\\'") + '\')">' +
+      '<div class="saved-user-name">' + escapeHtml(u.username) + (isCurrent ? ' <span style="color:#52C41A;font-size:12px;">当前</span>' : '') + '</div>' +
+      '<div class="saved-user-hint">' + (isCurrent ? '点击重新加载数据' : '点击切换到此用户') + '</div>' +
+      '</div>' +
+      '<button class="saved-user-remove" onclick="event.stopPropagation();removeSavedUserConfirm(\'' + u.username.replace(/'/g, "\\'") + '\')">✕</button>';
+    list.appendChild(card);
+  });
+}
+
+function removeSavedUserConfirm(username) {
+  if (username === currentUser) {
+    if (!confirm('「' + username + '」是当前用户，确定从已保存列表中移除吗？')) return;
+  } else {
+    if (!confirm('确定从已保存列表中移除「' + username + '」吗？')) return;
+  }
+  removeSavedUser(username);
+  renderUserSwitcher();
+}
+
+function renderSavedUsersLogin() {
+  var savedUsers = getSavedUsers();
+  var area = document.getElementById('savedUsersLoginArea');
+  var list = document.getElementById('savedUsersLoginList');
+  if (!savedUsers.length) { area.style.display = 'none'; return; }
+  area.style.display = 'block';
+  list.innerHTML = '';
+  savedUsers.forEach(function(u) {
+    var btn = document.createElement('button');
+    btn.className = 'btn btn-sm btn-outline';
+    btn.style.fontSize = '12px';
+    btn.style.padding = '4px 10px';
+    btn.style.display = 'inline-flex';
+    btn.style.alignItems = 'center';
+    btn.style.gap = '6px';
+    var avatarData = u.avatar || getDefaultAvatarSvg(u.username);
+    var imgHtml = avatarData.startsWith('data:image/svg')
+      ? '<img src="' + avatarData + '" alt="" style="width:18px;height:18px;border-radius:50%;">'
+      : '<span class="avatar-sm" style="width:18px;height:18px;font-size:9px;display:inline-flex;background-image:url(' + avatarData + ');background-size:cover;"></span>';
+    btn.innerHTML = imgHtml + escapeHtml(u.username);
+    btn.onclick = function() {
+      // 先验证 token 是否有效
+      fetch('/api/auth/verify', { headers: { 'Authorization': 'Bearer ' + u.token }, cache: 'no-store' })
+        .then(function(r) {
+          if (r.ok) {
+            switchToUser(u.username, u.token);
+          } else {
+            // token 失效，预填用户名到登录框
+            document.getElementById('loginUsername').value = u.username;
+            document.getElementById('loginPassword').value = '';
+            document.getElementById('loginPassword').focus();
+            setLoginError('登录已过期，请重新输入密码');
+          }
+        })
+        .catch(function() {
+          document.getElementById('loginUsername').value = u.username;
+          document.getElementById('loginPassword').focus();
+          setLoginError('服务器无法连接，请检查网络');
+        });
+    };
+    list.appendChild(btn);
+  });
+}
+
+// ---- 头像 ----
+
+var AVATAR_KEY = 'ebbinghaus_avatar';
+
+function getAvatarKey() {
+  return 'ebbinghaus_avatar_' + (currentUser || 'default');
+}
+
+function getAvatarColor(str) {
+  var colors = ['#4F46E5','#0891B2','#059669','#D97706','#DC2626','#7C3AED','#DB2777','#2563EB','#65A30D','#0D9488'];
+  var hash = 0;
+  for (var i = 0; i < str.length; i++) { hash = str.charCodeAt(i) + ((hash << 5) - hash); }
+  return colors[Math.abs(hash) % colors.length];
+}
+
+function getDefaultAvatarSvg(username) {
+  var char = username ? username.charAt(0).toUpperCase() : '?';
+  var color = getAvatarColor(username || '');
+  return 'data:image/svg+xml,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><circle cx="50" cy="50" r="50" fill="' + color + '"/><text x="50" y="50" text-anchor="middle" dominant-baseline="central" font-size="42" font-weight="700" fill="white" font-family="Arial,sans-serif">' + char + '</text></svg>'
+  );
+}
+
+function getAvatar(username) {
+  // 如果有自定义头像且是当前用户，返回自定义头像
+  var custom = localStorage.getItem(getAvatarKey());
+  if (custom && username === currentUser) return custom;
+  // 从 saved users 中查找
+  var users = getSavedUsers();
+  for (var i = 0; i < users.length; i++) {
+    if (users[i].username === username && users[i].avatar) {
+      return users[i].avatar;
+    }
+  }
+  return getDefaultAvatarSvg(username);
+}
+
+function setAvatar(dataUrl) {
+  localStorage.setItem(getAvatarKey(), dataUrl);
+  // 同步到 saved users
+  var users = getSavedUsers();
+  for (var i = 0; i < users.length; i++) {
+    if (users[i].username === currentUser) {
+      users[i].avatar = dataUrl;
+      break;
+    }
+  }
+  localStorage.setItem(SAVED_USERS_KEY, JSON.stringify(users));
+  updateAvatarDisplay();
+  syncToServer();
+}
+
+function handleAvatarUpload(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  // 压缩到 100x100
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      canvas.width = 100;
+      canvas.height = 100;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, 100, 100);
+      var dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      setAvatar(dataUrl);
+      showToast('头像已更新');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function updateAvatarDisplay() {
+  // Settings avatar
+  var el = document.getElementById('settingsAvatar');
+  if (!el) return;
+  if (currentUser) {
+    document.getElementById('settingsAvatarRow').style.display = 'flex';
+    var avatar = getAvatar(currentUser);
+    if (avatar.startsWith('data:image/svg')) {
+      el.innerHTML = '<img src="' + avatar + '" alt="avatar"><div class="avatar-hint">更换</div>';
+    } else {
+      el.style.backgroundImage = 'url(' + avatar + ')';
+      el.innerHTML = '<div class="avatar-hint">更换</div>';
+    }
+  }
+}
+
 async function verifyToken() {
   if (!authToken) return false;
   try {
-    var res = await fetch('/api/auth/verify', {
+    var res = await fetchWithTimeout('/api/auth/verify', {
       headers: { 'Authorization': 'Bearer ' + authToken },
       cache: 'no-store',
     });
@@ -1250,6 +1945,22 @@ function setLoginError(msg) {
   document.getElementById('loginError').textContent = msg;
 }
 
+// 带超时的 fetch，超时时间默认 15 秒
+function fetchWithTimeout(url, options, timeoutMs) {
+  timeoutMs = timeoutMs || 15000;
+  var controller = new AbortController();
+  var timer = setTimeout(function() { controller.abort(); }, timeoutMs);
+  options = options || {};
+  options.signal = controller.signal;
+  return fetch(url, options).then(function(r) {
+    clearTimeout(timer);
+    return r;
+  }, function(e) {
+    clearTimeout(timer);
+    throw e;
+  });
+}
+
 function setLoginLoading(btnId, loading) {
   var btn = document.getElementById(btnId);
   if (loading) {
@@ -1270,8 +1981,18 @@ async function handleLogin() {
   setLoginLoading('loginBtn', true);
   setLoginError('');
 
+  // 如果已登录其他用户，先保存数据再切换
+  if (authToken && currentUser && username !== currentUser) {
+    if (useServer) syncToServer();
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(SENTENCE_KEY);
+    localStorage.removeItem(MATH_KEY);
+    localStorage.removeItem(PROBLEMS_KEY);
+    localStorage.removeItem(METHODS_KEY);
+  }
+
   try {
-    var res = await fetch('/api/auth/login', {
+    var res = await fetchWithTimeout('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: username, password: password }),
@@ -1283,12 +2004,12 @@ async function handleLogin() {
         localStorage.setItem('ebbinghaus_api_key', data.apiKey);
         updateApiKeyUI();
       }
-      hideLoginAndSync();
+      await hideLoginAndSync();
     } else {
       setLoginError(data.error || '登录失败');
     }
   } catch (e) {
-    setLoginError('无法连接服务器');
+    setLoginError('无法连接服务器：' + (e.message || ''));
   }
 
   setLoginLoading('loginBtn', false);
@@ -1304,8 +2025,18 @@ async function handleRegister() {
   setLoginLoading('regBtn', true);
   setLoginError('');
 
+  // 如果已登录其他用户，先保存数据再切换
+  if (authToken && currentUser && username !== currentUser) {
+    if (useServer) syncToServer();
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(SENTENCE_KEY);
+    localStorage.removeItem(MATH_KEY);
+    localStorage.removeItem(PROBLEMS_KEY);
+    localStorage.removeItem(METHODS_KEY);
+  }
+
   try {
-    var res = await fetch('/api/auth/register', {
+    var res = await fetchWithTimeout('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: username, password: password }),
@@ -1317,7 +2048,7 @@ async function handleRegister() {
         localStorage.setItem('ebbinghaus_api_key', data.apiKey);
         updateApiKeyUI();
       }
-      hideLoginAndSync();
+      await hideLoginAndSync();
     } else {
       setLoginError(data.error || '注册失败');
     }
@@ -1340,6 +2071,7 @@ function handleLogout() {
   localStorage.removeItem(SENTENCE_KEY);
   localStorage.removeItem(MATH_KEY);
   localStorage.removeItem(PROBLEMS_KEY);
+  localStorage.removeItem(METHODS_KEY);
   location.reload();
 }
 
@@ -1350,7 +2082,7 @@ async function hideLoginAndSync() {
   // 先看服务器有没有这个用户的已有数据
   var hasServerData = false;
   try {
-    var checkRes = await fetch('/api/words', {
+    var checkRes = await fetchWithTimeout('/api/words', {
       headers: getAuthHeaders(),
       cache: 'no-store',
     });
@@ -1376,6 +2108,9 @@ async function hideLoginAndSync() {
           if (checkData.problems) {
             localStorage.setItem(PROBLEMS_KEY, JSON.stringify(checkData.problems));
           }
+          if (checkData.avatar) {
+            localStorage.setItem(getAvatarKey(), checkData.avatar);
+          }
         }
       }
     }
@@ -1387,17 +2122,19 @@ async function hideLoginAndSync() {
     var localS = loadSentences();
     var localM = loadMathProblems();
     var localP = loadProblems();
-    if (localW.length > 0 || localS.length > 0 || localM.length > 0 || localP.length > 0) {
-      await fetch('/api/words', {
+    var localAvatar = localStorage.getItem(getAvatarKey()) || '';
+    if (localW.length > 0 || localS.length > 0 || localM.length > 0 || localP.length > 0 || localAvatar) {
+      await fetchWithTimeout('/api/words', {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ words: localW, sentences: localS, mathProblems: localM, problems: localP }),
+        body: JSON.stringify({ words: localW, sentences: localS, mathProblems: localM, problems: localP, avatar: localAvatar }),
       }).catch(function() {});
       // 推送后拉回来确认
       await syncFromServer();
     }
   }
 
+  updateAvatarDisplay();
   refreshAll();
 }
 
@@ -1408,6 +2145,7 @@ function showLoginOverlay(offline) {
   document.getElementById('loginForm').style.display = offline ? 'none' : 'block';
   document.getElementById('registerForm').style.display = 'none';
   document.getElementById('loginError').textContent = '';
+  if (!offline) renderSavedUsersLogin();
 }
 
 // ============================================================
@@ -1435,6 +2173,7 @@ const SENTENCE_KEY = 'ebbinghaus_sentences';
 const MATH_KEY = 'ebbinghaus_math';
 const PROBLEMS_KEY = 'ebbinghaus_problems';
 const METHODS_KEY = 'ebbinghaus_methods';
+const SAVED_USERS_KEY = 'ebbinghaus_saved_users';
 
 // ============================================================
 // 数据层：服务器 + localStorage 双写
@@ -1451,7 +2190,7 @@ async function detectServer() {
   // 先检查服务器是否可达
   var serverAlive = false;
   try {
-    const pingRes = await fetch('/api/auth/verify', {
+    const pingRes = await fetchWithTimeout('/api/auth/verify', {
       headers: { 'Authorization': 'Bearer ' + authToken },
       cache: 'no-store',
     });
@@ -1474,6 +2213,7 @@ async function detectServer() {
       if (userEl) userEl.textContent = currentUser;
       var mode2El = document.getElementById('modeDisplay2');
       if (mode2El) mode2El.textContent = '已连接服务器';
+      updateAvatarDisplay();
       refreshAll();
       return;
     }
@@ -1513,7 +2253,7 @@ async function detectServer() {
 async function syncFromServer() {
   if (!authToken) return;
   try {
-    const res = await fetch('/api/words', {
+    const res = await fetchWithTimeout('/api/words', {
       headers: getAuthHeaders(),
       cache: 'no-store',
     });
@@ -1536,6 +2276,9 @@ async function syncFromServer() {
         }
         if (data.methods) {
           localStorage.setItem(METHODS_KEY, JSON.stringify(data.methods));
+        }
+        if (data.avatar) {
+          localStorage.setItem(getAvatarKey(), data.avatar);
         }
       }
       refreshAll();
@@ -1744,10 +2487,11 @@ function syncToServer() {
   var mathProblems = loadMathProblems();
   var problems = loadProblems();
   var methods = loadMethods();
+  var avatar = localStorage.getItem(getAvatarKey()) || '';
   fetch('/api/words', {
     method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify({ words: words, sentences: sentences, mathProblems: mathProblems, problems: problems, methods: methods }),
+    body: JSON.stringify({ words: words, sentences: sentences, mathProblems: mathProblems, problems: problems, methods: methods, avatar: avatar }),
   }).catch(function() {});
 }
 
@@ -1760,10 +2504,11 @@ function forceSyncToServer() {
   var mathProblems = loadMathProblems();
   var problems = loadProblems();
   var methods = loadMethods();
+  var avatar = localStorage.getItem(getAvatarKey()) || '';
   fetch('/api/words', {
     method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify({ words: words, sentences: sentences, mathProblems: mathProblems, problems: problems, methods: methods }),
+    body: JSON.stringify({ words: words, sentences: sentences, mathProblems: mathProblems, problems: problems, methods: methods, avatar: avatar }),
   }).then(function(res) {
     if (res.ok) showToast('已推送到服务器');
     else showToast('推送失败');
@@ -3248,6 +3993,28 @@ function renderWordReview(area, reviewWord, dueItems, now) {
   var overdueMs = now - new Date(reviewWord.nextReviewAt);
   var overdueText = overdueMs > 0 ? formatDuration(overdueMs) + '前应复习' : '';
 
+  // Build definition area
+  var defHtml = '';
+  if (answerRevealed) {
+    defHtml += '<div class="definition">' + escapeHtml(reviewWord.definition) + '</div>';
+    defHtml += '<div style="margin-top:4px;">';
+    defHtml += '<button class="review-edit-btn" onclick="openDefEditor(\'edit\',' + reviewWord.id + ')" title="编辑释义">✏️ 编辑</button>';
+    defHtml += '<button class="review-edit-btn" onclick="openDefEditor(\'add\',' + reviewWord.id + ')" title="添加额外释义" style="margin-left:4px;">➕ 添加释义</button>';
+    defHtml += '</div>';
+    // History
+    if (reviewWord.definitionHistory && reviewWord.definitionHistory.length > 0) {
+      defHtml += '<div class="def-history-toggle" onclick="toggleDefHistory(this)">📜 历史释义 (' + reviewWord.definitionHistory.length + ')</div>';
+      defHtml += '<div class="def-history-items" style="display:none;">';
+      reviewWord.definitionHistory.forEach(function(h) {
+        var typeLabel = h.type === 'original' ? '原始' : (h.type === 'edit' ? '修改' : '添加');
+        defHtml += '<div class="def-history-item"><span class="h-text">' + escapeHtml(h.text) + '</span><span class="h-type-badge">' + typeLabel + '</span></div>';
+      });
+      defHtml += '</div>';
+    }
+  } else {
+    defHtml += '<div class="definition" style="visibility:hidden;">' + escapeHtml(reviewWord.definition) + '</div>';
+  }
+
   area.innerHTML =
     '<div class="card review-card">' +
       '<div class="word">' + escapeHtml(reviewWord.word) + '</div>' +
@@ -3257,7 +4024,16 @@ function renderWordReview(area, reviewWord, dueItems, now) {
         '</div>' : '') +
       '<div class="stage-badge">' + stageLabel + '</div>' +
       (overdueText ? '<div style="font-size:12px;color:#FF4D4F;margin-bottom:8px;">' + overdueText + '</div>' : '') +
-      '<div class="definition" style="' + (answerRevealed ? '' : 'visibility:hidden;') + '">' + escapeHtml(reviewWord.definition) + '</div>' +
+      defHtml +
+      // Confused words display
+      (answerRevealed && reviewWord.confusedWith && reviewWord.confusedWith.length > 0 ? (function() {
+        var cw = getConfusedWords(reviewWord);
+        if (cw.length === 0) return '';
+        return '<div class="confuse-items">' +
+          '<div class="ci-title">🔀 易混单词 (' + cw.length + ')</div>' +
+          cw.map(function(c) { return '<div class="ci-word">' + escapeHtml(c.word.word) + ' <span class="ci-def">' + escapeHtml(c.word.definition) + '</span></div>'; }).join('') +
+          '</div>';
+      })() : '') +
       (!answerRevealed ? '<div class="hint">回想一下释义，然后点击下方按钮</div>' : '') +
       '<div class="btn-group">' +
         (!answerRevealed
@@ -3551,6 +4327,96 @@ function renderDueSidebar(dueItems, currentId, currentType, now) {
 function switchReviewWord(id, type) { resetPractice(); currentReviewId = id; currentReviewType = type || 'word'; answerRevealed = false; renderReview(); }
 function revealAnswer() { answerRevealed = true; renderReview(); }
 
+// --- 释义编辑（支持历史记录） ---
+
+function toggleDefHistory(el) {
+  var container = el.nextElementSibling;
+  if (container && container.classList.contains('def-history-items')) {
+    container.style.display = container.style.display === 'none' ? 'block' : 'none';
+    el.textContent = container.style.display === 'none'
+      ? '📜 历史释义 (' + (container.querySelectorAll('.def-history-item').length) + ')'
+      : '📜 收起历史';
+  }
+}
+
+var _editingWordId = null;
+var _editingMode = 'edit'; // 'edit' or 'add'
+
+function openDefEditor(mode, wordId) {
+  _editingMode = mode;
+  _editingWordId = wordId;
+  var words = loadWords();
+  var word = words.find(function(w) { return w.id === wordId; });
+  if (!word) { showToast('未找到该单词'); return; }
+
+  document.getElementById('defEditorWordLabel').textContent = '单词: ' + word.word;
+  var overlay = document.getElementById('defEditorOverlay');
+  var textarea = document.getElementById('defEditorTextarea');
+  var hint = document.getElementById('defEditorHint');
+  var title = document.getElementById('defEditorTitle');
+  var btn = document.getElementById('defEditorConfirmBtn');
+
+  if (mode === 'edit') {
+    title.textContent = '编辑释义';
+    textarea.value = word.definition;
+    hint.textContent = '修改后旧释义会自动保存到历史记录中，不影响当前复习进度';
+    btn.textContent = '保存修改';
+  } else {
+    title.textContent = '添加额外释义';
+    textarea.value = '';
+    textarea.placeholder = '输入额外的释义或含义';
+    hint.textContent = '添加的释义会保存到历史记录中，主释义保持不变';
+    btn.textContent = '添加';
+  }
+
+  overlay.classList.remove('hidden');
+  textarea.focus();
+}
+
+function closeDefEditor() {
+  document.getElementById('defEditorOverlay').classList.add('hidden');
+  _editingWordId = null;
+}
+
+function confirmDefEditor() {
+  var textarea = document.getElementById('defEditorTextarea');
+  var newText = textarea.value.trim();
+  if (!newText) { showToast('请输入释义'); return; }
+
+  var words = loadWords();
+  var word = words.find(function(w) { return w.id === _editingWordId; });
+  if (!word) { showToast('未找到该单词'); return; }
+
+  var now = new Date().toISOString();
+
+  if (_editingMode === 'edit') {
+    if (newText === word.definition) { closeDefEditor(); return; }
+    // Save old definition to history
+    if (!word.definitionHistory) word.definitionHistory = [];
+    word.definitionHistory.push({
+      text: word.definition,
+      timestamp: word.lastModified || now,
+      type: word.definitionHistory.length === 0 ? 'original' : 'edit'
+    });
+    word.definition = newText;
+    showToast('释义已更新，旧释义已保存到历史记录');
+  } else {
+    // Add mode: save the additional definition to history
+    if (!word.definitionHistory) word.definitionHistory = [];
+    word.definitionHistory.push({
+      text: newText,
+      timestamp: now,
+      type: 'addition'
+    });
+    showToast('已添加额外释义到历史记录');
+  }
+
+  word.lastModified = now;
+  saveWords(words);
+  closeDefEditor();
+  renderReview();
+}
+
 // --- 题目练习模式 ---
 function resetPractice() {
   practiceState = null;
@@ -3640,8 +4506,12 @@ function handleReview(remembered) {
   var words = loadWords();
   var idx = words.findIndex(function(w) { return w.id === currentReviewId; });
   if (idx === -1) return;
-  var word = words[idx];
+  if (currentReviewType !== 'word') {
+    handleNonWordReview(remembered, idx);
+    return;
+  }
   var now = new Date();
+  var word = words[idx];
   word.reviewedAt.push(now.toISOString());
 
   if (remembered) {
@@ -3653,18 +4523,163 @@ function handleReview(remembered) {
       word.nextReviewAt = new Date(now.getTime() + INTERVALS[word.stage]).toISOString();
       showToast('"' + word.word + '" 进入第 ' + (word.stage + 1) + ' 次复习');
     }
+    word.lastModified = now.toISOString();
+    saveWords(words);
+    currentReviewId = null;
+    answerRevealed = false;
+    lastAlarmTime = Date.now();
+    refreshAll();
   } else {
-    word.forgottenCount++;
-    word.stage = 0;
-    word.nextReviewAt = new Date(now.getTime() + INTERVALS[0]).toISOString();
-    showToast('"' + word.word + '" 已重置，重新开始');
+    // Show forget choice for words
+    document.getElementById('forgetChoiceOverlay').classList.remove('hidden');
   }
+}
+
+function handleNonWordReview(remembered, idx) {
+  // For non-word items, find item by ID in the correct array
+  var findById = function(arr) { return arr.findIndex(function(x) { return x.id === currentReviewId; }); };
+  var items, saveFn;
+  if (currentReviewType === 'sentence') { items = loadSentences(); saveFn = saveSentences; }
+  else if (currentReviewType === 'math') { items = loadMathProblems(); saveFn = saveMathProblems; }
+  else if (currentReviewType === 'problem') { items = loadProblems(); saveFn = saveProblems; }
+  else return;
+  var itemIdx = findById(items);
+  if (itemIdx === -1) return;
+  var item = items[itemIdx];
+  var now = new Date();
+  item.reviewedAt.push(now.toISOString());
+  if (remembered) {
+    item.stage++;
+    item.nextReviewAt = item.stage >= TOTAL_STAGES
+      ? new Date(now.getTime() + YEARLY_INTERVAL).toISOString()
+      : new Date(now.getTime() + INTERVALS[item.stage]).toISOString();
+  } else {
+    item.forgottenCount = (item.forgottenCount || 0) + 1;
+    item.stage = 0;
+    item.nextReviewAt = new Date(now.getTime() + INTERVALS[0]).toISOString();
+  }
+  item.lastModified = now.toISOString();
+  saveFn(items);
+  currentReviewId = null;
+  answerRevealed = false;
+  lastAlarmTime = Date.now();
+  refreshAll();
+}
+
+// ---- 易混单词 ----
+
+function hideForgetChoice() {
+  document.getElementById('forgetChoiceOverlay').classList.add('hidden');
+}
+
+function handleForgetChoice(choice) {
+  hideForgetChoice();
+  if (choice === 'confused') {
+    openConfusePicker();
+  } else {
+    // 没想起来 → 正常忘记流程
+    doWordForget();
+  }
+}
+
+function doWordForget() {
+  var words = loadWords();
+  var idx = words.findIndex(function(w) { return w.id === currentReviewId; });
+  if (idx === -1) return;
+  var word = words[idx];
+  var now = new Date();
+  word.reviewedAt.push(now.toISOString());
+  word.forgottenCount++;
+  word.stage = 0;
+  word.nextReviewAt = new Date(now.getTime() + INTERVALS[0]).toISOString();
   word.lastModified = now.toISOString();
   saveWords(words);
   currentReviewId = null;
   answerRevealed = false;
-  lastAlarmTime = Date.now(); // 正在复习，重置闹铃计时
+  lastAlarmTime = Date.now();
   refreshAll();
+  showToast('"' + word.word + '" 已重置，重新开始');
+}
+
+function openConfusePicker() {
+  document.getElementById('confusePickerOverlay').classList.remove('hidden');
+  document.getElementById('confuseSearchInput').value = '';
+  renderConfusePickerList();
+  setTimeout(function() { document.getElementById('confuseSearchInput').focus(); }, 100);
+}
+
+function closeConfusePicker() {
+  document.getElementById('confusePickerOverlay').classList.add('hidden');
+}
+
+function skipConfuseBinding() {
+  closeConfusePicker();
+  doWordForget();
+}
+
+function renderConfusePickerList() {
+  var query = document.getElementById('confuseSearchInput').value.trim().toLowerCase();
+  var allWords = getActiveWords().filter(function(w) { return w.id !== currentReviewId; });
+  if (query) {
+    allWords = allWords.filter(function(w) {
+      return w.word.toLowerCase().includes(query) || w.definition.toLowerCase().includes(query);
+    });
+  }
+  var list = document.getElementById('confusePickerList');
+  if (allWords.length === 0) {
+    list.innerHTML = '<div class="confuse-picker-empty">' + (query ? '未找到匹配的单词' : '没有其他单词') + '</div>';
+    return;
+  }
+  allWords.sort(function(a, b) { return a.word.localeCompare(b.word); });
+  list.innerHTML = allWords.map(function(w) {
+    return '<label class="confuse-picker-item">' +
+      '<input type="checkbox" value="' + w.id + '">' +
+      '<div><div class="cpi-word">' + escapeHtml(w.word) + '</div><div class="cpi-def">' + escapeHtml(w.definition) + '</div></div>' +
+      '</label>';
+  }).join('');
+}
+
+function confirmConfuseBinding() {
+  var checked = document.querySelectorAll('#confusePickerList input[type="checkbox"]:checked');
+  if (checked.length === 0) { showToast('请选择至少一个易混单词'); return; }
+  var selectedIds = [];
+  checked.forEach(function(cb) { selectedIds.push(parseFloat(cb.value)); });
+  closeConfusePicker();
+
+  // 获取当前单词
+  var words = loadWords();
+  var curIdx = words.findIndex(function(w) { return w.id === currentReviewId; });
+  if (curIdx === -1) { doWordForget(); return; }
+  var curWord = words[curIdx];
+  if (!curWord.confusedWith) curWord.confusedWith = [];
+
+  // 为当前单词添加/更新易混绑定
+  selectedIds.forEach(function(targetId) {
+    var existing = curWord.confusedWith.find(function(c) { return c.wordId === targetId; });
+    if (existing) { existing.count++; } else { curWord.confusedWith.push({ wordId: targetId, count: 1 }); }
+    // 反向绑定
+    var tIdx = words.findIndex(function(w) { return w.id === targetId; });
+    if (tIdx !== -1) {
+      if (!words[tIdx].confusedWith) words[tIdx].confusedWith = [];
+      var tExisting = words[tIdx].confusedWith.find(function(c) { return c.wordId === currentReviewId; });
+      if (tExisting) { tExisting.count++; } else { words[tIdx].confusedWith.push({ wordId: currentReviewId, count: 1 }); }
+    }
+  });
+
+  curWord.lastModified = new Date().toISOString();
+  saveWords(words);
+  // 走忘记流程
+  doWordForget();
+  showToast('已绑定 ' + selectedIds.length + ' 个易混单词');
+}
+
+function getConfusedWords(word) {
+  if (!word.confusedWith || word.confusedWith.length === 0) return [];
+  var words = loadWords();
+  return word.confusedWith.map(function(c) {
+    var w = words.find(function(w2) { return w2.id === c.wordId; });
+    return w ? { word: w, count: c.count } : null;
+  }).filter(function(x) { return x && !x.word.deletedAt; });
 }
 
 function handleSentenceReview(remembered) {
@@ -3811,6 +4826,7 @@ function renderBank() {
     var nextTime = w.nextReviewAt ? formatDateTime(w.nextReviewAt) : '--';
     return '<div class="word-row">' +
       '<div class="col-word">' + escapeHtml(w.word) +
+      (w.confusedWith && w.confusedWith.length > 0 ? ' <span style="font-size:10px;color:#e65100;background:#fff3e0;padding:1px 5px;border-radius:4px;font-weight:600;">易混' + w.confusedWith.length + '</span>' : '') +
       (w.phonetic || w.audioUrl ? '<br><span style="font-size:11px;color:#999;">' +
         (w.phonetic ? escapeHtml(w.phonetic) : '') +
         (w.audioUrl ? ' <span class="play-btn" onclick="event.stopPropagation();playWordAudio(' + w.id + ')">🔊</span>' : '') +
@@ -4152,8 +5168,11 @@ function refreshAll() {
     var methods = getActiveMethods();
     cntEl.textContent = words.length + ' 个单词, ' + sentences.length + ' 个句子, ' + mathProblems.length + ' 个定理, ' + problems.length + ' 个题目, ' + methods.length + ' 个方法';
   }
+  updateAvatarDisplay();
   var userEl = document.getElementById('currentUserDisplay');
   if (userEl && currentUser) userEl.textContent = currentUser;
+  var userElOld = document.getElementById('currentUserDisplayOld');
+  if (userElOld && currentUser) userElOld.textContent = currentUser;
 }
 
 setInterval(refreshAll, 60000);
@@ -4227,8 +5246,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // 注册 Service Worker（PWA 离线支持）
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(function(err) {
+    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(function(reg) {
+      // 检测到新版本时自动刷新页面
+      reg.addEventListener('updatefound', function() {
+        var newWorker = reg.installing;
+        newWorker.addEventListener('statechange', function() {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            newWorker.postMessage({ action: 'skipWaiting' });
+          }
+        });
+      });
+    }).catch(function(err) {
       console.warn('Service Worker 注册失败:', err);
+    });
+    // 新 Service Worker 激活后刷新页面
+    var refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function() {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
     });
   }
 

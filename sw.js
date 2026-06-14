@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ebbinghaus-v4';
+const CACHE_NAME = 'ebbinghaus-v5';
 const STATIC_ASSETS = [
   './',
   './manifest.json',
