@@ -1910,22 +1910,33 @@ function updateAvatarDisplay() {
 
 async function verifyToken() {
   if (!authToken) return false;
-  try {
-    var res = await fetchWithTimeout('/api/auth/verify', {
-      headers: { 'Authorization': 'Bearer ' + authToken },
-      cache: 'no-store',
-    });
-    if (res.ok) {
-      var data = await res.json();
-      currentUser = data.username;
-      localStorage.setItem('ebbinghaus_user', currentUser);
-      if (data.apiKey) {
-        localStorage.setItem('ebbinghaus_api_key', data.apiKey);
-        updateApiKeyUI();
+  // 网络波动时重试一次
+  for (var i = 0; i < 2; i++) {
+    try {
+      var res = await fetchWithTimeout('/api/auth/verify', {
+        headers: { 'Authorization': 'Bearer ' + authToken },
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        var data = await res.json();
+        currentUser = data.username;
+        localStorage.setItem('ebbinghaus_user', currentUser);
+        if (data.apiKey) {
+          localStorage.setItem('ebbinghaus_api_key', data.apiKey);
+          updateApiKeyUI();
+        }
+        return true;
       }
-      return true;
+      // 服务器明确返回非 200（如 401），token 确实无效，不用重试
+      return false;
+    } catch (e) {
+      // 网络错误，重试一次
+      if (i === 0) {
+        await new Promise(function(r) { setTimeout(r, 1000); });
+        continue;
+      }
     }
-  } catch (e) {}
+  }
   return false;
 }
 
@@ -1952,7 +1963,9 @@ function fetchWithTimeout(url, options, timeoutMs) {
   var timer = setTimeout(function() { controller.abort(); }, timeoutMs);
   options = options || {};
   options.signal = controller.signal;
-  return fetch(url, options).then(function(r) {
+  // 加时间戳防止中间代理或 Service Worker 缓存 API 响应
+  var separator = url.indexOf('?') > -1 ? '&' : '?_';
+  return fetch(url + separator + Date.now(), options).then(function(r) {
     clearTimeout(timer);
     return r;
   }, function(e) {
@@ -2202,19 +2215,8 @@ async function detectServer() {
       requireLogin = false;
       document.getElementById('loginOverlay').classList.add('hidden');
 
-      // 直接从服务器拉取数据（服务器为权威来源）
-      // 本地更改通过 syncToServer() 在每次操作时实时推送到服务器
       await syncFromServer();
-
-      if (textEl) textEl.textContent = '已连接服务器 · 用户: ' + currentUser + ' ☁️云';
-      if (iconEl) iconEl.textContent = '\u{1F7E2}';
-      if (modeEl) { modeEl.textContent = '服务器模式 (已登录: ' + currentUser + ')'; modeEl.style.color = '#52C41A'; }
-      var userEl = document.getElementById('currentUserDisplay');
-      if (userEl) userEl.textContent = currentUser;
-      var mode2El = document.getElementById('modeDisplay2');
-      if (mode2El) mode2El.textContent = '已连接服务器';
-      updateAvatarDisplay();
-      refreshAll();
+      updateServerUI();
       return;
     }
 
@@ -2247,6 +2249,22 @@ async function detectServer() {
     }
     refreshAll();
   }
+}
+
+// 服务器连接成功后更新 UI 状态
+function updateServerUI() {
+  const textEl = document.getElementById('fileText');
+  const iconEl = document.getElementById('fileIcon');
+  const modeEl = document.getElementById('modeDisplay');
+  if (textEl) textEl.textContent = '已连接服务器 · 用户: ' + currentUser + ' ☁️云';
+  if (iconEl) iconEl.textContent = '\u{1F7E2}';
+  if (modeEl) { modeEl.textContent = '服务器模式 (已登录: ' + currentUser + ')'; modeEl.style.color = '#52C41A'; }
+  var userEl = document.getElementById('currentUserDisplay');
+  if (userEl) userEl.textContent = currentUser;
+  var mode2El = document.getElementById('modeDisplay2');
+  if (mode2El) mode2El.textContent = '已连接服务器';
+  updateAvatarDisplay();
+  refreshAll();
 }
 
 // 从服务器拉取数据覆盖本地
@@ -5213,15 +5231,16 @@ document.addEventListener('DOMContentLoaded', function() {
     // 有 token → 尝试验证并登录
     verifyToken().then(function(valid) {
       if (valid) {
+        // token 有效 → 直接同步数据，跳过重复验证
         document.getElementById('loginOverlay').classList.add('hidden');
-        detectServer();
+        useServer = true;
+        requireLogin = false;
+        syncFromServer().then(updateServerUI);
       } else {
         // token 无效，检查服务器是否可达
-        fetch('/api/auth/verify', { cache: 'no-store' }).then(function(r) {
-          // 服务器可达但没有有效 token → 显示登录页
+        fetchWithTimeout('/api/auth/verify', { cache: 'no-store' }).then(function(r) {
           showLoginOverlay(false);
         }).catch(function() {
-          // 服务器不可达 → 离线模式
           document.getElementById('loginOverlay').classList.add('hidden');
           detectServer();
         });
@@ -5229,15 +5248,30 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   } else {
     // 没有 token → 检查服务器是否可达
-    fetch('/api/auth/verify', { cache: 'no-store' }).then(function(r) {
-      // 服务器可达 → 显示登录页
+    fetchWithTimeout('/api/auth/verify', { cache: 'no-store' }).then(function(r) {
       showLoginOverlay(false);
     }).catch(function() {
-      // 服务器不可达 → 离线模式
       document.getElementById('loginOverlay').classList.add('hidden');
       detectServer();
     });
   }
+
+  // 切回页面时检查登录状态（解决后台标签页登录完成后 UI 未更新）
+  document.addEventListener('visibilitychange', function() {
+    if (!document.hidden && authToken) {
+      var overlay = document.getElementById('loginOverlay');
+      if (overlay && !overlay.classList.contains('hidden')) {
+        verifyToken().then(function(valid) {
+          if (valid) {
+            overlay.classList.add('hidden');
+            useServer = true;
+            requireLogin = false;
+            syncFromServer().then(updateServerUI);
+          }
+        });
+      }
+    }
+  });
 
   // 请求通知权限（浏览器会显示一次性的权限询问弹窗）
   requestNotifyPermission();

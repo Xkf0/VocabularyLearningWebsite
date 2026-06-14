@@ -136,11 +136,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def end_headers(self):
         # 禁止缓存 HTML/JS 文件，确保用户每次加载都获取最新版本
-        path = self.translate_path(self.path)
-        if path.endswith('.html') or path.endswith('sw.js') or os.path.isdir(path):
-            self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
-            self.send_header('Pragma', 'no-cache')
-            self.send_header('Expires', '0')
+        # 注意：self.path 在 parse_request 失败时可能不存在
+        req_path = getattr(self, 'path', '/')
+        try:
+            path = self.translate_path(req_path)
+            if path.endswith('.html') or path.endswith('sw.js') or os.path.isdir(path):
+                self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+                self.send_header('Pragma', 'no-cache')
+                self.send_header('Expires', '0')
+        except Exception:
+            pass
         super().end_headers()
 
     def _send_json(self, data, status=200):
@@ -169,7 +174,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     # ---- 登录 / 注册 ----
 
     def do_AUTH(self):
-        path = self.path
+        path = self.path.split('?')[0]  # 去掉查询参数（时间戳等）
         length = int(self.headers.get('Content-Length', 0))
         body = json.loads(self.rfile.read(length).decode('utf-8')) if length else {}
 
@@ -273,10 +278,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     # ---- 单词数据 API（需要登录） ----
 
     def do_GET(self):
-        if self.path.startswith('/api/auth/'):
+        path = self.path.split('?')[0]  # 去掉查询参数（时间戳等）
+        if path.startswith('/api/auth/'):
             return self.do_AUTH()
 
-        if self.path == '/api/words' or self.path.startswith('/api/words?'):
+        if path == '/api/words':
             username = self._get_token_user()
             if not username:
                 self._send_json({'ok': False, 'error': '未登录'}, 401)
@@ -286,17 +292,18 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return
 
         # 诊断接口：测试 GET 是否通
-        if self.path == '/api/ping':
+        if path == '/api/ping':
             self._send_json({'ok': True, 'message': 'pong'})
             return
 
         super().do_GET()
 
     def do_POST(self):
-        if self.path.startswith('/api/auth/'):
+        path = self.path.split('?')[0]  # 去掉查询参数（时间戳等）
+        if path.startswith('/api/auth/'):
             return self.do_AUTH()
 
-        if self.path == '/api/words':
+        if path == '/api/words':
             username = self._get_token_user()
             if not username:
                 self._send_json({'ok': False, 'error': '未登录'}, 401)
