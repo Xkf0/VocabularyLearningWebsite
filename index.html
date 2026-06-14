@@ -1151,7 +1151,33 @@
     .confuse-picker-empty { text-align: center; padding: 24px; color: #94a3b8; font-size: 14px; }
     .confuse-picker-actions { display: flex; gap: 8px; }
     .confuse-picker-actions .btn { flex: 1; }
+    .confuse-picker-actions .btn { flex: 1; }
+
+    /* Mode Switcher */
+    .mode-switcher {
+      display: flex;
+      max-width: 600px;
+      margin: 16px auto 8px;
+      padding: 0 16px;
+      gap: 8px;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 10px 16px;
+      border: 2px solid #e2e8f0;
+      border-radius: var(--radius-sm);
+      background: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #64748b;
+      box-shadow: var(--card-shadow);
+    }
+    .mode-btn:hover { border-color: var(--primary-light); color: var(--primary); }
+    .mode-btn.active { border-color: var(--primary); color: var(--primary); background: #eff6ff; box-shadow: 0 2px 8px rgba(74,108,247,0.15); }
   </style>
+  <link rel="stylesheet" href="qg-styles.css">
 </head>
 <body>
 
@@ -1204,6 +1230,14 @@
     </div>
   </div>
 </div>
+
+<!-- Mode Switcher (在 reviewMode/practiceMode 之外，始终可见) -->
+<div class="mode-switcher">
+  <button class="mode-btn active" data-mode="review" onclick="switchMode('review')">📖 背诵模式</button>
+  <button class="mode-btn" data-mode="practice" onclick="switchMode('practice')">🧮 题目生成</button>
+</div>
+
+<div id="reviewMode">
 
 <header>
   <h1>艾宾浩斯记忆助手</h1>
@@ -1702,6 +1736,8 @@ async function switchToUser(username, token) {
         if (data.problems) localStorage.setItem(PROBLEMS_KEY, JSON.stringify(data.problems));
         if (data.methods) localStorage.setItem(METHODS_KEY, JSON.stringify(data.methods));
         if (data.avatar) localStorage.setItem(getAvatarKey(), data.avatar);
+        // 头像下载后更新 saved users 列表中的头像
+        saveUserToSaved(username, token);
       }
     } else if (res.status === 401) {
       // token 已过期，让用户重新输入密码
@@ -5317,6 +5353,140 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 });
+</script>
+</div>
+
+<!-- Practice Mode (AI 口算练习) -->
+<div id="practiceMode" style="display:none;">
+
+<header>
+  <h1>AI <span>口算练习</span></h1>
+  <p>由 AI 生成口算题 · 附带详细解答</p>
+</header>
+
+<!-- Stats -->
+<div class="qg-stats-bar">
+  <div class="qg-stat-card">
+    <div class="qg-num" id="qgStatToday">0</div>
+    <div class="qg-label">今日已做</div>
+  </div>
+  <div class="qg-stat-card">
+    <div class="qg-num qg-success" id="qgStatAccuracy">0%</div>
+    <div class="qg-label">正确率</div>
+  </div>
+  <div class="qg-stat-card">
+    <div class="qg-num qg-warning" id="qgStatStreak">0</div>
+    <div class="qg-label">连续正确</div>
+  </div>
+  <div class="qg-stat-card">
+    <div class="qg-num" id="qgStatSpeed">--</div>
+    <div class="qg-label">平均速度</div>
+  </div>
+</div>
+
+<div id="qgTypeStats" style="display:none;"></div>
+
+<!-- Tabs -->
+<div class="qg-tabs">
+  <button class="qg-tab-btn active" data-tab="practice">练习</button>
+  <button class="qg-tab-btn" data-tab="history">历史</button>
+  <button class="qg-tab-btn" data-tab="settings">设置</button>
+</div>
+
+<!-- Content -->
+<div class="qg-tab-content">
+
+  <!-- Practice -->
+  <div class="qg-tab-pane active" id="qgPane-practice">
+    <div id="qgPracticeArea"></div>
+  </div>
+
+  <!-- History -->
+  <div class="qg-tab-pane" id="qgPane-history">
+    <div class="qg-card">
+      <div id="qgHistoryHeader" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:4px;">
+        <h3 style="margin:0;">练习记录</h3>
+      </div>
+      <div id="qgHistoryList"></div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="qg-tab-pane" id="qgPane-settings">
+    <div class="qg-card">
+      <h3>AI 配置</h3>
+      <p style="font-size:13px;color:#64748b;">API Key 已在账户设置中配置，可在主站「设置」中修改。</p>
+    </div>
+
+    <div class="qg-card">
+      <h3>数据管理</h3>
+      <div class="qg-setting-row">
+        <div>
+          <div class="qg-label">清空练习记录</div>
+          <div class="qg-desc">删除所有历史题目和统计数据</div>
+        </div>
+        <button class="qg-btn qg-btn-sm qg-btn-danger" onclick="QG.clearHistory()">清空</button>
+      </div>
+      <div class="qg-setting-row">
+        <div>
+          <div class="qg-label">导出数据</div>
+          <div class="qg-desc">将练习记录导出为 JSON 文件</div>
+        </div>
+        <button class="qg-btn qg-btn-sm qg-btn-primary" onclick="QG.exportData()">导出</button>
+      </div>
+      <div class="qg-setting-row">
+        <div>
+          <div class="qg-label">导入数据</div>
+          <div class="qg-desc">从 JSON 文件恢复练习记录</div>
+        </div>
+        <button class="qg-btn qg-btn-sm qg-btn-outline" onclick="document.getElementById('qgImportInput').click()">导入</button>
+        <input type="file" id="qgImportInput" accept=".json" style="display:none" onchange="QG.importData(event)">
+      </div>
+    </div>
+
+    <div class="qg-card">
+      <h3>关于</h3>
+      <div style="font-size:13px;color:#64748b;line-height:2;">
+        <p>AI 口算练习 v1.0</p>
+        <p>由 AI 生成自定义口算题，附带详细解题步骤。</p>
+        <p>题目支持：整数、小数、分数、矩阵乘法、方程组、逆矩阵。</p>
+        <p>数据按用户隔离保存。</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="qg-toast" id="qgToast"></div>
+
+</div>
+
+<script src="qg-app.js"></script>
+<script>
+// ============================================================
+// 模式切换（背诵 / 题目生成）
+// ============================================================
+var currentMode = 'review';
+var _qgInitialized = false;
+
+function switchMode(mode) {
+  currentMode = mode;
+  document.getElementById('reviewMode').style.display = mode === 'review' ? '' : 'none';
+  document.getElementById('practiceMode').style.display = mode === 'practice' ? '' : 'none';
+  document.querySelectorAll('.mode-btn').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.mode === mode);
+  });
+  if (mode === 'practice') {
+    if (typeof QG !== 'undefined') {
+      if (!_qgInitialized) {
+        _qgInitialized = true;
+        QG.init();
+      } else {
+        QG.refreshAll();
+      }
+    }
+  }
+}
 </script>
 </body>
 </html>
