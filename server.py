@@ -180,18 +180,50 @@ def _load_user_stats(username):
 
 
 def _save_user_stats(username, data):
-    """保存某个用户的统计数据"""
-    path = _get_user_stats_file(username)
-    try:
-        with open(path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-    except IOError as e:
-        print(f'[Stats] 写入失败: {e}', file=sys.stderr)
+    """保存某个用户的统计数据（原子写入，避免崩溃时文件损坏）"""
+    with _get_user_data_lock(username):
+        path = _get_user_stats_file(username)
+        _save_json(path, data)
 
 
 # ---- Question Generator ----
 
 QUESTION_HISTORY_MAX = 500
+
+
+def _build_equation_text(matrix_a, vector_b, variables):
+    """从系数矩阵和常数项生成方程文本（用于替换 AI 可能错误的方程字符串）"""
+    equations = []
+    n = len(matrix_a)
+    for i in range(n):
+        terms = []
+        for j in range(n):
+            coef = matrix_a[i][j]
+            var = variables[j] if j < len(variables) else chr(ord('x') + j)
+            if coef == 0:
+                continue
+            if not terms:
+                # 第一个项
+                if coef == 1:
+                    terms.append(var)
+                elif coef == -1:
+                    terms.append('-' + var)
+                else:
+                    terms.append(str(coef) + var)
+            else:
+                if coef == 1:
+                    terms.append('+ ' + var)
+                elif coef == -1:
+                    terms.append('- ' + var)
+                elif coef > 0:
+                    terms.append('+ ' + str(coef) + var)
+                else:
+                    terms.append('- ' + str(abs(coef)) + var)
+        if not terms:
+            terms.append('0')
+        eq = ' '.join(terms) + ' = ' + str(vector_b[i])
+        equations.append(eq)
+    return equations
 
 
 def _answer_fingerprint(answer, qtype: str) -> str:
@@ -1153,7 +1185,7 @@ def generate_question(api_key: str, question_type: str = 'mixed') -> dict | None
             return {
                 'questionType': 'equation',
                 'question': '解下列线性方程组',
-                'equations': equations,
+                'equations': _build_equation_text(matrix_a, vector_b, variables),
                 'matrixA': matrix_a,
                 'vectorB': vector_b,
                 'variables': variables,
@@ -1754,7 +1786,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 if not body:
                     self._send_json({'error': '缺少数据'}, 400)
                     return
-                _save_user_stats(username, body)
+                # 合并写入：保留 records（由 /api/question/records 单独管理）
+                stats = _load_user_stats(username)
+                for k, v in body.items():
+                    if k != 'records':
+                        stats[k] = v
+                _save_user_stats(username, stats)
                 self._send_json({'ok': True})
 
             elif path == '/api/question/records':
