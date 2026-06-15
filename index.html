@@ -1400,7 +1400,7 @@
 
 <header>
   <h1>艾宾浩斯记忆助手</h1>
-  <p>遵循遗忘曲线规律 · 科学复习 · 定理记忆</p>
+  <p>遵循遗忘曲线规律 · 科学复习 · 知识点记忆</p>
   <div style="text-align:center;margin-top:4px;"><span style="display:inline-block;background:#ff6b6b;color:white;font-size:11px;padding:2px 10px;border-radius:10px;">v1.3-云同步测试</span></div>
 </header>
 
@@ -1428,11 +1428,11 @@
   </div>
   <div class="stat-card">
     <div class="num" id="statMathCount">0</div>
-    <div class="label">定理</div>
+    <div class="label">知识点</div>
   </div>
   <div class="stat-card">
     <div class="num" id="statMathDue">0</div>
-    <div class="label">定理待复习</div>
+    <div class="label">知识点待复习</div>
   </div>
   <div class="stat-card">
     <div class="num" id="statProbCount">0</div>
@@ -1473,7 +1473,7 @@
 <!-- Tabs -->
 <div class="tabs">
   <button class="tab-btn active" data-tab="review">复习</button>
-  <button class="tab-btn" data-tab="theorems">定理</button>
+  <button class="tab-btn" data-tab="theorems">知识点</button>
   <button class="tab-btn" data-tab="problems">题目</button>
   <button class="tab-btn" data-tab="methods">方法</button>
   <button class="tab-btn" data-tab="words">单词</button>
@@ -1492,7 +1492,7 @@
   <div class="tab-pane" id="pane-theorems">
     <div class="card">
       <div class="form-group">
-        <label for="inputMathTitle">定理名称</label>
+        <label for="inputMathTitle">知识点名称</label>
         <input type="text" id="inputMathTitle" placeholder="例如：勾股定理、牛顿第二定律" autocomplete="off">
         <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <button type="button" class="math-img-upload-btn" onclick="document.getElementById('mathTitleImageInput').click()">添加图片</button>
@@ -1506,12 +1506,12 @@
         <select id="inputMathCategory" class="form-select"></select>
       </div>
       <div class="form-group">
-        <label for="inputMathIndexTitle">索引标题（用于搜索，如"定理1.3.1"）</label>
-        <input type="text" id="inputMathIndexTitle" placeholder="例如：数学分析定理1.3.1" autocomplete="off">
+        <label for="inputMathIndexTitle">索引标题（用于搜索，如"知识点1.3.1"）</label>
+        <input type="text" id="inputMathIndexTitle" placeholder="例如：数学分析知识点1.3.1" autocomplete="off">
       </div>
       <div class="form-group">
         <label for="inputMathSolution">证明过程 / 思路</label>
-        <textarea id="inputMathSolution" rows="4" style="width:100%;padding:10px 12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;resize:vertical;outline:none;font-family:inherit;" placeholder="输入定理证明过程或思路..."></textarea>
+        <textarea id="inputMathSolution" rows="4" style="width:100%;padding:10px 12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;resize:vertical;outline:none;font-family:inherit;" placeholder="输入证明过程或思路..."></textarea>
         <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <button type="button" class="math-img-upload-btn" onclick="document.getElementById('mathSolutionImageInput').click()">添加图片</button>
           <input type="file" id="mathSolutionImageInput" accept="image/*" multiple style="display:none" onchange="handleMathSolutionImageUpload(event)">
@@ -1524,10 +1524,10 @@
         <div id="mathRefTags"></div>
         <button type="button" class="math-img-upload-btn" onclick="openReferencePicker('math')" style="margin-top:6px;">+ 添加引用</button>
       </div>
-      <button class="btn btn-primary btn-block" onclick="addMathProblem()">添加定理</button>
+      <button class="btn btn-primary btn-block" onclick="addMathProblem()">添加知识点</button>
     </div>
     <div class="card">
-      <h3 style="font-size:14px;font-weight:600;color:#666;margin-bottom:12px;">已保存的定理</h3>
+      <h3 style="font-size:14px;font-weight:600;color:#666;margin-bottom:12px;">已保存的知识点</h3>
       <div class="search-bar">
         <input type="text" id="mathSearchInput" placeholder="搜索索引标题..." autocomplete="off" oninput="renderMathProblemList()">
       </div>
@@ -1735,7 +1735,7 @@
   <div class="ref-picker-card" onclick="event.stopPropagation()">
     <h3>选择引用来源</h3>
     <div class="search-bar" style="margin:0 0 10px 0;">
-      <input type="text" id="refPickerSearch" placeholder="搜索定理、题目或方法..." autocomplete="off" oninput="renderPickerList()">
+      <input type="text" id="refPickerSearch" placeholder="搜索知识点、题目或方法..." autocomplete="off" oninput="renderPickerList()">
     </div>
     <div class="ref-picker-list" id="refPickerList"></div>
     <div class="ref-picker-actions">
@@ -2490,7 +2490,7 @@ async function detectServer() {
       var s = getActiveSentences();
       var m = getActiveMathProblems();
       var p = getActiveProblems();
-      cntEl.textContent = w.length + ' 个单词, ' + s.length + ' 个句子, ' + m.length + ' 个定理, ' + p.length + ' 个题目';
+      cntEl.textContent = w.length + ' 个单词, ' + s.length + ' 个句子, ' + m.length + ' 个知识点, ' + p.length + ' 个题目';
     }
     refreshAll();
   }
@@ -2642,7 +2642,7 @@ function renderCategoryManager() {
   container.innerHTML = cats.map(function(c) {
     var counts = countCategoryItems(c);
     var stats = [];
-    if (counts.theorems > 0) stats.push('定理 ' + counts.theorems);
+    if (counts.theorems > 0) stats.push('知识点 ' + counts.theorems);
     if (counts.problems > 0) stats.push('题目 ' + counts.problems);
     var statsText = stats.length > 0 ? ' (' + stats.join(', ') + ')' : '';
     return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f0f0;">' +
@@ -2688,7 +2688,7 @@ function deleteCategory(name) {
   var msg = '确定要删除分类 "' + name + '" 吗？';
   if (counts.theorems > 0 || counts.problems > 0) {
     var details = [];
-    if (counts.theorems > 0) details.push('定理 ' + counts.theorems + ' 个');
+    if (counts.theorems > 0) details.push('知识点 ' + counts.theorems + ' 个');
     if (counts.problems > 0) details.push('题目 ' + counts.problems + ' 个');
     msg += '\n\n该分类下有 ' + details.join('，') + '，\n删除后这些内容的分类字段将保留原值不变，但下拉框中不再显示该选项。';
   }
@@ -3070,7 +3070,7 @@ async function confirmSentenceEditor() {
   refreshAll();
 }
 
-// ---- 通用内容编辑器（单词/定理/题目/方法） ----
+// ---- 通用内容编辑器（单词/知识点/题目/方法） ----
 var ITEM_EDITOR_FIELDS = {
   word: [
     { key: 'word', label: '单词', type: 'text' },
@@ -3107,7 +3107,7 @@ var ITEM_EDITOR_FIELDS = {
 
 var ITEM_TYPE_LABELS = {
   word: '单词',
-  math: '定理',
+  math: '知识点',
   problem: '题目',
   method: '方法'
 };
@@ -3658,13 +3658,13 @@ function compressImageDataUrl(dataUrl, maxSize, callback) {
 }
 
 // ============================================================
-// 数学定理
+// 数学知识点
 // ============================================================
 var pendingMathTitleImage = null;
 var pendingMathSolutionImages = [];
 var pendingMathReferences = [];
 
-// --- 定理名称图片 ---
+// --- 知识点名称图片 ---
 function handleMathTitleImageUpload(event) {
   var files = event.target.files;
   if (!files || files.length === 0) return;
@@ -3694,12 +3694,12 @@ function renderMathTitlePreview() {
     return;
   }
   container.innerHTML = '<div class="math-img-item">' +
-    '<img src="' + escapeHtml(pendingMathTitleImage) + '" alt="定理名称图片" style="max-width:100%;max-height:120px;object-fit:contain;">' +
+    '<img src="' + escapeHtml(pendingMathTitleImage) + '" alt="知识点名称图片" style="max-width:100%;max-height:120px;object-fit:contain;">' +
     '<button class="img-del" onclick="removeMathTitleImage()">x</button></div>';
   if (status) status.textContent = '已选择 1 张图片';
 }
 
-// --- 定理证明过程图片 ---
+// --- 知识点证明过程图片 ---
 function handleMathSolutionImageUpload(event) {
   var files = event.target.files;
   if (!files || files.length === 0) return;
@@ -3749,7 +3749,7 @@ async function addMathProblem() {
   var indexTitle = document.getElementById('inputMathIndexTitle').value.trim();
 
   if (!title && !pendingMathTitleImage) {
-    showToast('请填写定理名称或上传定理图片');
+    showToast('请填写知识点名称或上传知识点图片');
     return;
   }
   if (!solutionText && pendingMathSolutionImages.length === 0) {
@@ -3764,7 +3764,7 @@ async function addMathProblem() {
     return p.titleImage === pendingMathTitleImage;
   });
   if (existing) {
-    if (!confirm('定理 "' + (existing.indexTitle || existing.title || '图片') + '" 已存在，是否覆盖？')) return;
+    if (!confirm('知识点 "' + (existing.indexTitle || existing.title || '图片') + '" 已存在，是否覆盖？')) return;
     existing.category = category;
     existing.indexTitle = indexTitle;
     existing.title = title;
@@ -3779,7 +3779,7 @@ async function addMathProblem() {
     existing.lastModified = new Date().toISOString();
     await saveMathProblems(problems);
     clearMathForm();
-    showToast('已更新定理');
+    showToast('已更新知识点');
     refreshAll();
     return;
   }
@@ -3805,7 +3805,7 @@ async function addMathProblem() {
   await saveMathProblems(problems);
 
   clearMathForm();
-  showToast('已添加定理：' + (indexTitle || title || '图片定理'));
+  showToast('已添加知识点：' + (indexTitle || title || '图片知识点'));
   refreshAll();
 }
 
@@ -3825,7 +3825,7 @@ function clearMathForm() {
 async function deleteMathProblem(id) {
   var backRefs = findReferencesTo(id, 'theorem');
   if (backRefs.length > 0) {
-    var msg = '以下内容引用了这个定理：\n';
+    var msg = '以下内容引用了这个知识点：\n';
     backRefs.forEach(function(r) {
       var label = r.item.indexTitle || r.item.title || r.item.question || '(无标题)';
       msg += '  [' + (getTypeLabel(r.type)) + '] ' + label + '\n';
@@ -3833,7 +3833,7 @@ async function deleteMathProblem(id) {
     msg += '\n确定要删除吗？（引用关系将失效）';
     if (!confirm(msg)) return;
   } else {
-    if (!confirm('确定要删除这个定理吗？')) return;
+    if (!confirm('确定要删除这个知识点吗？')) return;
   }
   var problems = loadMathProblems();
   var p = problems.find(function(p) { return p.id === id; });
@@ -3843,7 +3843,7 @@ async function deleteMathProblem(id) {
     currentReviewId = null;
     answerRevealed = false;
   }
-  showToast('定理已删除');
+  showToast('知识点已删除');
   refreshAll();
 }
 
@@ -3861,7 +3861,7 @@ function renderMathProblemList() {
   }
 
   if (problems.length === 0) {
-    container.innerHTML = '<div class="empty-state"><div class="icon">\u{1F4D0}</div><p>' + (searchTerm ? '没有匹配的定理' : '还没有定理，去添加吧') + '</p></div>';
+    container.innerHTML = '<div class="empty-state"><div class="icon">\u{1F4D0}</div><p>' + (searchTerm ? '没有匹配的知识点' : '还没有知识点，去添加吧') + '</p></div>';
     return;
   }
 
@@ -3879,7 +3879,7 @@ function renderMathProblemList() {
       : '';
     var titleHtml = '';
     if (p.title) { titleHtml += '<div class="math-title">' + escapeHtml(p.title) + '</div>'; }
-    if (p.titleImage) { titleHtml += '<img src="' + escapeHtml(p.titleImage) + '" class="math-image" alt="定理图片" onclick="openImagePreview(this.src)">'; }
+    if (p.titleImage) { titleHtml += '<img src="' + escapeHtml(p.titleImage) + '" class="math-image" alt="知识点图片" onclick="openImagePreview(this.src)">'; }
     var solHtml = p.solutionText
       ? '<div class="math-solution">' + escapeHtml(p.solutionText) + '</div>'
       : '';
@@ -3907,12 +3907,12 @@ function renderMathProblemList() {
     }
     var backRefs = findReferencesTo(p.id, 'theorem');
     if (backRefs.length > 0) {
-      var typeCounts = {};
-      backRefs.forEach(function(r) { typeCounts[r.type] = (typeCounts[r.type] || 0) + 1; });
-      var parts = Object.keys(typeCounts).map(function(t) {
-        return getTypeLabel(t) + '(' + typeCounts[t] + ')';
-      });
-      refHtml += '<div style="font-size:12px;color:#8b5cf6;margin:0 0 2px 0;">被引用: ' + parts.join(', ') + '</div>';
+      refHtml += '<div style="font-size:12px;color:#8b5cf6;margin:0 0 2px 0;">被引用: ';
+      refHtml += backRefs.map(function(r) {
+        var label = r.item.indexTitle || r.item.title || r.item.name || r.item.question || '(无标题)';
+        return '<span class="ref-link" onclick="switchToItem(' + r.item.id + ',\'' + r.type + '\')">[' + getTypeLabel(r.type) + '] ' + escapeHtml(label) + '</span>';
+      }).join(', ');
+      refHtml += '</div>';
     }
     return '<div class="math-item">' +
       catHtml +
@@ -4232,10 +4232,12 @@ function renderMethodList() {
     }
     var backRefs = findReferencesTo(m.id, 'method');
     if (backRefs.length > 0) {
-      var typeCounts = {};
-      backRefs.forEach(function(r) { typeCounts[r.type] = (typeCounts[r.type] || 0) + 1; });
-      var parts = Object.keys(typeCounts).map(function(t) { return getTypeLabel(t) + '(' + typeCounts[t] + ')'; });
-      refHtml += '<div style="font-size:12px;color:#8b5cf6;margin:0 0 2px 0;">被引用: ' + parts.join(', ') + '</div>';
+      refHtml += '<div style="font-size:12px;color:#8b5cf6;margin:0 0 2px 0;">被引用: ';
+      refHtml += backRefs.map(function(r) {
+        var label = r.item.indexTitle || r.item.title || r.item.name || r.item.question || '(无标题)';
+        return '<span class="ref-link" onclick="switchToItem(' + r.item.id + ',\'' + r.type + '\')">[' + getTypeLabel(r.type) + '] ' + escapeHtml(label) + '</span>';
+      }).join(', ');
+      refHtml += '</div>';
     }
     return '<div class="method-item">' +
       '<div class="method-title">' + escapeHtml(m.name) + '</div>' +
@@ -4315,12 +4317,12 @@ function renderProblemList() {
     }
     var backRefs = findReferencesTo(p.id, 'problem');
     if (backRefs.length > 0) {
-      var typeCounts = {};
-      backRefs.forEach(function(r) { typeCounts[r.type] = (typeCounts[r.type] || 0) + 1; });
-      var parts = Object.keys(typeCounts).map(function(t) {
-        return getTypeLabel(t) + '(' + typeCounts[t] + ')';
-      });
-      refHtml += '<div style="font-size:12px;color:#8b5cf6;margin:0 0 2px 0;">被引用: ' + parts.join(', ') + '</div>';
+      refHtml += '<div style="font-size:12px;color:#8b5cf6;margin:0 0 2px 0;">被引用: ';
+      refHtml += backRefs.map(function(r) {
+        var label = r.item.indexTitle || r.item.title || r.item.name || r.item.question || '(无标题)';
+        return '<span class="ref-link" onclick="switchToItem(' + r.item.id + ',\'' + r.type + '\')">[' + getTypeLabel(r.type) + '] ' + escapeHtml(label) + '</span>';
+      }).join(', ');
+      refHtml += '</div>';
     }
     return '<div class="math-item">' +
       catHtml +
@@ -4350,7 +4352,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (e.key === 'Enter') { e.preventDefault(); addWord(); }
   });
 
-  // --- 粘贴图片支持：定理 ---
+  // --- 粘贴图片支持：知识点 ---
   document.getElementById('inputMathTitle').addEventListener('paste', function(e) {
     handleImagePaste(e, function(dataUrl) {
       pendingMathTitleImage = dataUrl;
@@ -4398,7 +4400,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // ============================================================
 
 function getTypeLabel(type) {
-  if (type === 'theorem') return '定理';
+  if (type === 'theorem') return '知识点';
   if (type === 'problem') return '题目';
   if (type === 'method') return '方法';
   return type;
@@ -4454,12 +4456,24 @@ function findReferencesTo(itemId, itemType) {
 }
 
 function switchToItem(id, type) {
+  // 将当前标签页记入历史，回退时恢复
+  var currentPane = document.querySelector('.tab-pane.active');
+  if (currentPane) {
+    history.pushState({ tab: currentPane.id }, '');
+  }
+  // 目标标签页也记入历史
+  var targetPane = type === 'theorem' ? 'pane-math' : (type === 'method' ? 'pane-methods' : 'pane-problems');
+  history.pushState({ tab: targetPane, itemId: id, itemType: type }, '');
+
   if (type === 'theorem') {
     switchTab('pane-math');
+    renderMathProblemList();
   } else if (type === 'method') {
     switchTab('pane-methods');
+    renderMethodList();
   } else {
     switchTab('pane-problems');
+    renderProblemList();
   }
   setTimeout(function() {
     var listId = 'problemList';
@@ -4479,6 +4493,37 @@ function switchToItem(id, type) {
     }
   }, 100);
 }
+
+// 浏览器回退按钮恢复标签页状态
+window.addEventListener('popstate', function(e) {
+  if (e.state && e.state.tab) {
+    switchTab(e.state.tab);
+    if (e.state.tab === 'pane-math') renderMathProblemList();
+    else if (e.state.tab === 'pane-methods') renderMethodList();
+    else if (e.state.tab === 'pane-problems') renderProblemList();
+    // 如果有 itemId，滚动并高亮到该条目
+    if (e.state.itemId && e.state.itemType) {
+      setTimeout(function() {
+        var id = e.state.itemId;
+        var listId = 'problemList';
+        var itemClass = 'math-item';
+        if (e.state.itemType === 'theorem') { listId = 'mathProblemList'; }
+        else if (e.state.itemType === 'method') { listId = 'methodList'; itemClass = 'method-item'; }
+        var items = document.querySelectorAll('#' + listId + ' .' + itemClass);
+        for (var i = 0; i < items.length; i++) {
+          var btn = items[i].querySelector('.btn-del');
+          if (btn && btn.getAttribute('onclick') && btn.getAttribute('onclick').indexOf('' + id) >= 0) {
+            items[i].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            items[i].style.transition = 'background 0.5s';
+            items[i].style.background = '#eef2ff';
+            (function(el) { setTimeout(function() { el.style.background = ''; }, 2000); })(items[i]);
+            break;
+          }
+        }
+      }, 100);
+    }
+  }
+});
 
 function renderRefTags(containerId, refs, formType) {
   var container = document.getElementById(containerId);
@@ -4553,9 +4598,9 @@ function renderPickerList() {
     items.push({
       type: 'theorem',
       id: theorems[i].id,
-      label: theorems[i].indexTitle || theorems[i].title || '(图片定理)',
+      label: theorems[i].indexTitle || theorems[i].title || '(图片知识点)',
       cat: theorems[i].category || '',
-      display: '[定理] ' + (theorems[i].indexTitle || theorems[i].title || '(图片定理)'),
+      display: '[知识点] ' + (theorems[i].indexTitle || theorems[i].title || '(图片知识点)'),
     });
   }
   var problems = getActiveProblems();
@@ -4852,7 +4897,7 @@ function renderReview() {
   var problems = getActiveProblems();
   var now = new Date();
 
-  // 合并待复习的单词、句子、定理和题目
+  // 合并待复习的单词、句子、知识点和题目
   var dueWords = words.filter(function(w) {
     return w.nextReviewAt && new Date(w.nextReviewAt) <= now;
   }).map(function(w) { w._type = 'word'; return w; });
@@ -4881,7 +4926,7 @@ function renderReview() {
 
   if (dueItems.length === 0) {
     if (totalItems === 0) {
-      area.innerHTML = '<div class="card review-empty"><div class="icon">\u{1F4DA}</div><p style="font-size:16px;font-weight:600;color:#333;">还没有内容</p><p style="font-size:13px;margin-top:4px;">前往添加单词或定理开始吧</p></div>';
+      area.innerHTML = '<div class="card review-empty"><div class="icon">\u{1F4DA}</div><p style="font-size:16px;font-weight:600;color:#333;">还没有内容</p><p style="font-size:13px;margin-top:4px;">前往添加单词或知识点开始吧</p></div>';
     } else {
       var nextTime = findNextReviewTime(now);
       var nextHtml = '';
@@ -5041,7 +5086,7 @@ function renderMathReview(area, problem, dueItems, now) {
 
   var titleHtml = '';
   if (problem.title) { titleHtml += '<div class="math-title-card">' + escapeHtml(problem.title) + '</div>'; }
-  if (problem.titleImage) { titleHtml += '<img src="' + escapeHtml(problem.titleImage) + '" class="math-image-card" alt="定理图片" onclick="openImagePreview(this.src)">'; }
+  if (problem.titleImage) { titleHtml += '<img src="' + escapeHtml(problem.titleImage) + '" class="math-image-card" alt="知识点图片" onclick="openImagePreview(this.src)">'; }
 
   var solImgHtml = '';
   if (problem.solutionImages && problem.solutionImages.length > 0) {
@@ -5067,18 +5112,18 @@ function renderMathReview(area, problem, dueItems, now) {
     }
     var backRefs2 = findReferencesTo(problem.id, 'theorem');
     if (backRefs2.length > 0) {
-      var typeCounts = {};
-      backRefs2.forEach(function(r) { typeCounts[r.type] = (typeCounts[r.type] || 0) + 1; });
-      var parts = Object.keys(typeCounts).map(function(t) {
-        return getTypeLabel(t) + '(' + typeCounts[t] + ')';
-      });
-      refReviewHtml += '<div style="font-size:12px;color:#8b5cf6;margin:0 0 2px 0;">被引用: ' + parts.join(', ') + '</div>';
+      refReviewHtml += '<div style="font-size:12px;color:#8b5cf6;margin:0 0 2px 0;">被引用: ';
+      refReviewHtml += backRefs2.map(function(r) {
+        var label = r.item.indexTitle || r.item.title || r.item.name || r.item.question || '(无标题)';
+        return '<span class="ref-link" onclick="switchToItem(' + r.item.id + ',\'' + r.type + '\')">[' + getTypeLabel(r.type) + '] ' + escapeHtml(label) + '</span>';
+      }).join(', ');
+      refReviewHtml += '</div>';
     }
   }
 
   area.innerHTML =
     '<div class="card review-card">' +
-      '<div class="math-badge">\u{1F4D0} 定理</div>' +
+      '<div class="math-badge">\u{1F4D0} 知识点</div>' +
       catIdxHtml +
       titleHtml +
       '<div class="stage-badge">' + stageLabel + '</div>' +
@@ -5143,12 +5188,12 @@ function renderProblemReview(area, prob, dueItems, now) {
     }
     var backRefs2 = findReferencesTo(prob.id, 'problem');
     if (backRefs2.length > 0) {
-      var typeCounts = {};
-      backRefs2.forEach(function(r) { typeCounts[r.type] = (typeCounts[r.type] || 0) + 1; });
-      var parts = Object.keys(typeCounts).map(function(t) {
-        return getTypeLabel(t) + '(' + typeCounts[t] + ')';
-      });
-      refReviewHtml += '<div style="font-size:12px;color:#8b5cf6;margin:0 0 2px 0;">被引用: ' + parts.join(', ') + '</div>';
+      refReviewHtml += '<div style="font-size:12px;color:#8b5cf6;margin:0 0 2px 0;">被引用: ';
+      refReviewHtml += backRefs2.map(function(r) {
+        var label = r.item.indexTitle || r.item.title || r.item.name || r.item.question || '(无标题)';
+        return '<span class="ref-link" onclick="switchToItem(' + r.item.id + ',\'' + r.type + '\')">[' + getTypeLabel(r.type) + '] ' + escapeHtml(label) + '</span>';
+      }).join(', ');
+      refReviewHtml += '</div>';
     }
   }
 
@@ -5248,7 +5293,7 @@ function renderDueSidebar(dueItems, currentId, currentType, now) {
       others.slice(0, 20).map(function(item) {
         var overdue = now - new Date(item.nextReviewAt);
         if (item._type === 'math') {
-          var mathLabel = item.indexTitle || item.title || '[图片定理]';
+          var mathLabel = item.indexTitle || item.title || '[图片知识点]';
           var mathCatPrefix = item.category ? '[' + escapeHtml(item.category) + '] ' : '';
           return '<div class="review-item math" onclick="switchReviewWord(' + item.id + ', \'math\')">' +
             '<div class="word-info"><div class="word">\u{1D4D0} ' + mathCatPrefix + escapeHtml(mathLabel) + '</div>' +
@@ -5745,7 +5790,7 @@ async function handleMathReview(remembered) {
   var problem = problems[idx];
   var now = new Date();
   problem.reviewedAt.push(now.toISOString());
-  var displayName = problem.indexTitle || problem.title || '定理';
+  var displayName = problem.indexTitle || problem.title || '知识点';
 
   if (remembered) {
     problem.stage++;
@@ -6047,9 +6092,9 @@ async function importData(event) {
         if (!problems[i].question || problems[i].stage === undefined) throw new Error('数据结构不完整');
       }
 
-      if (!confirm('即将导入 ' + words.length + ' 个单词, ' + sentences.length + ' 个句子, ' + mathProblems.length + ' 个定理, ' + problems.length + ' 个题目, ' + methods.length + ' 个方法，这会覆盖当前所有数据，确定吗？')) return;
+      if (!confirm('即将导入 ' + words.length + ' 个单词, ' + sentences.length + ' 个句子, ' + mathProblems.length + ' 个知识点, ' + problems.length + ' 个题目, ' + methods.length + ' 个方法，这会覆盖当前所有数据，确定吗？')) return;
       await saveData(words, sentences, mathProblems, problems, methods);
-      showToast('成功导入 ' + words.length + ' 个单词, ' + sentences.length + ' 个句子, ' + mathProblems.length + ' 个定理, ' + problems.length + ' 个题目, ' + methods.length + ' 个方法');
+      showToast('成功导入 ' + words.length + ' 个单词, ' + sentences.length + ' 个句子, ' + mathProblems.length + ' 个知识点, ' + problems.length + ' 个题目, ' + methods.length + ' 个方法');
       refreshAll();
       generateMissingSentences();
     } catch (err) {
@@ -6195,7 +6240,7 @@ function refreshAll() {
     var mathProblems = getActiveMathProblems();
     var problems = getActiveProblems();
     var methods = getActiveMethods();
-    cntEl.textContent = words.length + ' 个单词, ' + sentences.length + ' 个句子, ' + mathProblems.length + ' 个定理, ' + problems.length + ' 个题目, ' + methods.length + ' 个方法';
+    cntEl.textContent = words.length + ' 个单词, ' + sentences.length + ' 个句子, ' + mathProblems.length + ' 个知识点, ' + problems.length + ' 个题目, ' + methods.length + ' 个方法';
   }
   updateAvatarDisplay();
   var userEl = document.getElementById('currentUserDisplay');
