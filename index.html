@@ -279,6 +279,7 @@
       font-weight: 700;
       margin: 24px 0;
       min-height: 36px;
+      white-space: pre-wrap;
       padding: 16px;
       background: #f0fdf4;
       border-radius: var(--radius-sm);
@@ -341,7 +342,7 @@
     .word-row:hover { background: #f8fafc; }
     .word-row:last-child { border-bottom: none; }
     .word-row .col-word { flex: 2; font-weight: 600; color: #0f172a; }
-    .word-row .col-def { flex: 3; color: #64748b; font-size: 14px; }
+    .word-row .col-def { flex: 3; color: #64748b; font-size: 14px; white-space: pre-wrap; }
     .word-row .col-stage { flex: 2; }
 
     .stage-bar {
@@ -426,7 +427,7 @@
       background: #f0fdf4;
       border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
     }
-    .math-item .math-title { font-weight: 600; font-size: 15px; color: #0f172a; }
+    .math-item .math-title { font-weight: 600; font-size: 15px; color: #0f172a; word-break: break-word; overflow-wrap: break-word; }
     .math-item .math-solution { font-size: 13px; color: #64748b; margin-top: 3px; white-space: pre-wrap; }
     .math-item .math-meta { font-size: 11px; color: #94a3b8; margin-top: 4px; }
     .math-item .math-image {
@@ -445,6 +446,8 @@
       color: #0f172a;
       margin-bottom: 8px;
       letter-spacing: 1px;
+      word-break: break-word;
+      overflow-wrap: break-word;
     }
     .review-card .math-solution-card {
       font-size: 18px;
@@ -478,11 +481,11 @@
       margin-top: 8px;
     }
     .math-images-preview img {
-      max-width: 120px;
+      max-width: 100%;
       max-height: 120px;
       border-radius: 6px;
       border: 1px solid #e2e8f0;
-      object-fit: cover;
+      object-fit: contain;
     }
     .math-img-upload-btn {
       display: inline-flex;
@@ -501,7 +504,10 @@
     .math-img-item {
       position: relative;
       display: inline-block;
+      max-width: 100%;
+      min-width: 0;
     }
+    .math-img-item img { max-width: 100%; max-height: 120px; border-radius: 6px; border: 1px solid #e2e8f0; object-fit: contain; vertical-align: top; }
     .math-img-item .img-del {
       position: absolute;
       top: -6px;
@@ -1011,10 +1017,12 @@
       max-width: 600px;
       max-height: 80vh;
       overflow-y: auto;
+      overflow-x: hidden;
+      box-sizing: border-box;
       box-shadow: 0 8px 32px rgba(0,0,0,0.15);
     }
     .item-editor-card h3 { font-size: 17px; font-weight: 700; margin-bottom: 14px; }
-    .item-editor-card .field-group { margin-bottom: 12px; }
+    .item-editor-card .field-group { margin-bottom: 12px; max-width: 100%; }
     .item-editor-card .field-label { font-size: 12px; color: #666; margin-bottom: 4px; font-weight: 600; }
     .item-editor-card input, .item-editor-card textarea {
       width: 100%;
@@ -1031,9 +1039,9 @@
     .item-editor-actions { display: flex; gap: 8px; margin-top: 16px; }
     .item-editor-actions .btn { flex: 1; }
     .item-editor-img-placeholder { font-size: 12px; color: #94a3b8; padding: 8px 0; }
-    .item-editor-images { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
-    .item-editor-images .math-img-item img { max-width: 120px; max-height: 120px; border-radius: 6px; border: 1px solid #e2e8f0; object-fit: cover; cursor: pointer; }
-    .item-editor-images .math-img-item { position: relative; display: inline-block; }
+    .item-editor-images { margin-bottom: 4px; max-width: 100%; }
+    .item-editor-images .math-img-item img { display: block; max-width: 100%; max-height: 120px; border-radius: 6px; border: 1px solid #e2e8f0; object-fit: contain; cursor: pointer; }
+    .item-editor-images .math-img-item { position: relative; display: inline-block; vertical-align: top; max-width: 100%; margin: 0 8px 8px 0; }
     .item-editor-images .img-del {
       position: absolute;
       top: -6px;
@@ -1922,7 +1930,9 @@ async function switchToUser(username, token) {
     if (res.ok) {
       var data = await res.json();
       if (data && data.words) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data.words || []));
+        if (Array.isArray(data.words) && data.words.length > 0) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data.words));
+        }
         if (Array.isArray(data.sentences) && data.sentences.length > 0) localStorage.setItem(SENTENCE_KEY, JSON.stringify(data.sentences));
         if (Array.isArray(data.mathProblems) && data.mathProblems.length > 0) localStorage.setItem(MATH_KEY, JSON.stringify(data.mathProblems));
         if (Array.isArray(data.problems) && data.problems.length > 0) localStorage.setItem(PROBLEMS_KEY, JSON.stringify(data.problems));
@@ -2082,7 +2092,7 @@ function getAvatar(username) {
   return getDefaultAvatarSvg(username);
 }
 
-function setAvatar(dataUrl) {
+async function setAvatar(dataUrl) {
   localStorage.setItem(getAvatarKey(), dataUrl);
   // 同步到 saved users
   var users = getSavedUsers();
@@ -2094,7 +2104,7 @@ function setAvatar(dataUrl) {
   }
   localStorage.setItem(SAVED_USERS_KEY, JSON.stringify(users));
   updateAvatarDisplay();
-  syncToServer();
+  await syncToServer();
 }
 
 function handleAvatarUpload(event) {
@@ -2333,7 +2343,9 @@ async function hideLoginAndSync() {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         }
       } else if (data && data.words) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data.words || []));
+        if (Array.isArray(data.words) && data.words.length > 0) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data.words));
+        }
         if (Array.isArray(data.sentences) && data.sentences.length > 0) {
           localStorage.setItem(SENTENCE_KEY, JSON.stringify(data.sentences));
         }
@@ -2515,7 +2527,9 @@ async function syncFromServer() {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         }
       } else if (data && data.words) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data.words || []));
+        if (Array.isArray(data.words) && data.words.length > 0) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data.words));
+        }
         if (Array.isArray(data.sentences) && data.sentences.length > 0) {
           localStorage.setItem(SENTENCE_KEY, JSON.stringify(data.sentences));
         }
@@ -2549,9 +2563,9 @@ function loadWords() {
 }
 
 // 保存到 localStorage，不再自动推送（手动推送通过 forceSyncToServer）
-function saveWords(words) {
+async function saveWords(words) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
-  syncToServer();
+  await syncToServer();
 }
 
 function loadSentences() {
@@ -2561,9 +2575,9 @@ function loadSentences() {
   } catch { return []; }
 }
 
-function saveSentences(sentences) {
+async function saveSentences(sentences) {
   localStorage.setItem(SENTENCE_KEY, JSON.stringify(sentences));
-  syncToServer();
+  await syncToServer();
 }
 
 function loadMathProblems() {
@@ -2573,9 +2587,9 @@ function loadMathProblems() {
   } catch { return []; }
 }
 
-function saveMathProblems(problems) {
+async function saveMathProblems(problems) {
   localStorage.setItem(MATH_KEY, JSON.stringify(problems));
-  syncToServer();
+  await syncToServer();
 }
 
 function loadProblems() {
@@ -2695,9 +2709,9 @@ function getActiveSentences() { return loadSentences().filter(function(s) { retu
 function getActiveMathProblems() { return loadMathProblems().filter(function(p) { return !p.deletedAt; }); }
 function getActiveProblems() { return loadProblems().filter(function(p) { return !p.deletedAt; }); }
 
-function saveProblems(problems) {
+async function saveProblems(problems) {
   localStorage.setItem(PROBLEMS_KEY, JSON.stringify(problems));
-  syncToServer();
+  await syncToServer();
 }
 
 function loadMethods() {
@@ -2707,15 +2721,15 @@ function loadMethods() {
   } catch { return []; }
 }
 
-function saveMethods(methods) {
+async function saveMethods(methods) {
   localStorage.setItem(METHODS_KEY, JSON.stringify(methods));
-  syncToServer();
+  await syncToServer();
 }
 
 function getActiveMethods() { return loadMethods().filter(function(m) { return !m.deletedAt; }); }
 
 // 同时保存单词和句子（用于导入恢复等场景）
-function saveData(words, sentences, mathProblems, problems, methods) {
+async function saveData(words, sentences, mathProblems, problems, methods) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
   localStorage.setItem(SENTENCE_KEY, JSON.stringify(sentences));
   if (mathProblems !== undefined) {
@@ -2727,7 +2741,7 @@ function saveData(words, sentences, mathProblems, problems, methods) {
   if (methods !== undefined) {
     localStorage.setItem(METHODS_KEY, JSON.stringify(methods));
   }
-  syncToServer();
+  await syncToServer();
 }
 
 // 以 {words, sentences, mathProblems, problems, methods} 格式同步到服务器
@@ -2884,7 +2898,7 @@ async function triggerSentenceGeneration(allWords) {
     forgottenCount: 0,
   };
   sentences.push(sentence);
-  saveSentences(sentences);
+  await saveSentences(sentences);
   showToast('句子 ' + wordRange + ' 已生成并加入复习');
   refreshAll();
 }
@@ -3006,7 +3020,7 @@ async function _doRegenerateSentence(sentences, idx) {
   sentences[idx].stage = 0;
   sentences[idx].forgottenCount = 0;
   sentences[idx].reviewedAt = [];
-  saveSentences(sentences);
+  await saveSentences(sentences);
   currentReviewId = null;
   answerRevealed = false;
   showToast('句子 ' + sentence.wordRange + ' 已重新生成');
@@ -3033,7 +3047,7 @@ function closeSentenceEditor() {
   document.getElementById('senEditorOverlay').classList.add('hidden');
 }
 
-function confirmSentenceEditor() {
+async function confirmSentenceEditor() {
   var id = _editingSentenceId;
   if (!id) { closeSentenceEditor(); return; }
   var english = document.getElementById('senEditorEnglish').value.trim();
@@ -3046,7 +3060,7 @@ function confirmSentenceEditor() {
   sentences[idx].english = english;
   sentences[idx].chinese = chinese;
   sentences[idx].lastModified = now.toISOString();
-  saveSentences(sentences);
+  await saveSentences(sentences);
   closeSentenceEditor();
   showToast('句子已更新');
   // 如果正在复习这个句子，刷新复习卡
@@ -3061,6 +3075,7 @@ var ITEM_EDITOR_FIELDS = {
   word: [
     { key: 'word', label: '单词', type: 'text' },
     { key: 'definition', label: '释义', type: 'textarea' },
+    { key: 'mnemonic', label: '背诵技巧', type: 'textarea' },
     { key: 'phonetic', label: '音标', type: 'text' }
   ],
   math: [
@@ -3199,10 +3214,49 @@ function openItemEditor(type, id) {
     }
   });
   document.getElementById('itemEditorFields').innerHTML = html;
+
+  // 显示历史释义（单词类型，只读，供编辑时参考）
+  if (type === 'word' && item.definitionHistory && item.definitionHistory.length > 0) {
+    var histHtml = '<div class="field-group"><div class="field-label">历史释义（只读）</div>';
+    item.definitionHistory.forEach(function(h) {
+      var typeLabel = h.type === 'original' ? '原始' : (h.type === 'edit' ? '修改' : '添加');
+      var timeStr = h.timestamp ? new Date(h.timestamp).toLocaleString() : '';
+      histHtml += '<div style="font-size:13px;color:#64748b;padding:4px 0;border-bottom:1px solid #f1f5f9;">' +
+        escapeHtml(h.text) +
+        ' <span style="font-size:11px;color:#94a3b8;">(' + typeLabel + (timeStr ? ' · ' + timeStr : '') + ')</span></div>';
+    });
+    histHtml += '</div>';
+    document.getElementById('itemEditorFields').insertAdjacentHTML('beforeend', histHtml);
+  }
+
   document.getElementById('itemEditorOverlay').classList.remove('hidden');
 
   // 添加粘贴事件监听（Ctrl+V 粘贴图片）
   var fieldsContainer = document.getElementById('itemEditorFields');
+
+  // 点击文字输入区时自动关联到后面的图片字段（如 question → questionImage）
+  for (var fi = 0; fi < fields.length; fi++) {
+    var fdef = fields[fi];
+    if ((fdef.type === 'text' || fdef.type === 'textarea') && fi + 1 < fields.length && fields[fi + 1].type === 'image') {
+      var nextImgKey = fields[fi + 1].key;
+      (function(imgKey, textKey) {
+        var inputEl = fieldsContainer.querySelector('[data-key="' + textKey.replace(/'/g, "\\'") + '"]');
+        if (inputEl) {
+          inputEl.addEventListener('focus', function() { _activeImageFieldKey = imgKey; });
+          inputEl.addEventListener('click', function() { _activeImageFieldKey = imgKey; });
+        }
+      })(nextImgKey, fdef.key);
+    }
+    // 图片区域点击也设为当前粘贴目标
+    if (fdef.type === 'image') {
+      (function(imgKey) {
+        var area = fieldsContainer.querySelector('.item-editor-images[data-key="' + imgKey.replace(/'/g, "\\'") + '"]');
+        if (area) {
+          area.addEventListener('click', function() { _activeImageFieldKey = imgKey; });
+        }
+      })(fdef.key);
+    }
+  }
   fieldsContainer._pasteHandler = function(e) {
     var items = e.clipboardData && e.clipboardData.items;
     if (!items) return;
@@ -3368,7 +3422,7 @@ function confirmItemEditor() {
     if (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA') return;
     var key = el.getAttribute('data-key');
     var val = el.value.trim();
-    if (items[idx][key] !== val) {
+    if (items[idx][key] !== val && (items[idx][key] || '') !== val) {
       items[idx][key] = val;
       changed = true;
     }
@@ -3450,7 +3504,7 @@ async function addWord() {
       existing.nextReviewAt = new Date(Date.now() + INTERVALS[0]).toISOString();
       existing.forgottenCount = 0;
       existing.lastModified = new Date().toISOString();
-      saveWords(words);
+      await saveWords(words);
       wordEl.value = '';
       defEl.value = '';
       wordEl.focus();
@@ -3472,6 +3526,7 @@ async function addWord() {
     id: Date.now() + Math.random(),
     word: word,
     definition: def,
+    mnemonic: '',
     phonetic: phonetic,
     audioUrl: audioUrl,
     stage: 0,
@@ -3482,7 +3537,7 @@ async function addWord() {
     forgottenCount: 0,
   };
   words.push(newWord);
-  saveWords(words);
+  await saveWords(words);
   wordEl.value = '';
   defEl.value = '';
   wordEl.focus();
@@ -3526,6 +3581,7 @@ async function addBatch() {
       id: Date.now() + Math.random(),
       word: w,
       definition: d,
+      mnemonic: '',
       phonetic: result2.phonetic,
       audioUrl: result2.audioUrl,
       stage: 0,
@@ -3537,7 +3593,7 @@ async function addBatch() {
     added++;
   }
   if (added === 0) { showToast('没有新单词可添加'); return; }
-  saveWords(words);
+  await saveWords(words);
   document.getElementById('inputBatch').value = '';
   showToast('成功添加 ' + added + ' 个单词');
   refreshAll();
@@ -3637,8 +3693,8 @@ function renderMathTitlePreview() {
     if (status) status.textContent = '';
     return;
   }
-  container.innerHTML = '<div class="math-img-item" style="max-width:200px;">' +
-    '<img src="' + escapeHtml(pendingMathTitleImage) + '" alt="定理名称图片">' +
+  container.innerHTML = '<div class="math-img-item">' +
+    '<img src="' + escapeHtml(pendingMathTitleImage) + '" alt="定理名称图片" style="max-width:100%;max-height:120px;object-fit:contain;">' +
     '<button class="img-del" onclick="removeMathTitleImage()">x</button></div>';
   if (status) status.textContent = '已选择 1 张图片';
 }
@@ -3684,7 +3740,7 @@ function renderMathSolutionPreviews() {
   if (status) status.textContent = '已选择 ' + pendingMathSolutionImages.length + ' 张图片';
 }
 
-function addMathProblem() {
+async function addMathProblem() {
   var titleEl = document.getElementById('inputMathTitle');
   var solutionEl = document.getElementById('inputMathSolution');
   var title = titleEl.value.trim();
@@ -3721,7 +3777,7 @@ function addMathProblem() {
     existing.forgottenCount = 0;
     existing.createdAt = new Date().toISOString();
     existing.lastModified = new Date().toISOString();
-    saveMathProblems(problems);
+    await saveMathProblems(problems);
     clearMathForm();
     showToast('已更新定理');
     refreshAll();
@@ -3746,7 +3802,7 @@ function addMathProblem() {
     forgottenCount: 0,
   };
   problems.push(problem);
-  saveMathProblems(problems);
+  await saveMathProblems(problems);
 
   clearMathForm();
   showToast('已添加定理：' + (indexTitle || title || '图片定理'));
@@ -3766,7 +3822,7 @@ function clearMathForm() {
   renderMathRefTags();
 }
 
-function deleteMathProblem(id) {
+async function deleteMathProblem(id) {
   var backRefs = findReferencesTo(id, 'theorem');
   if (backRefs.length > 0) {
     var msg = '以下内容引用了这个定理：\n';
@@ -3782,7 +3838,7 @@ function deleteMathProblem(id) {
   var problems = loadMathProblems();
   var p = problems.find(function(p) { return p.id === id; });
   if (p) { p.deletedAt = new Date().toISOString(); p.lastModified = p.deletedAt; }
-  saveMathProblems(problems);
+  await saveMathProblems(problems);
   if (currentReviewId === id && currentReviewType === 'math') {
     currentReviewId = null;
     answerRevealed = false;
@@ -3998,7 +4054,7 @@ function renderMethodImagePreviews() {
   if (status) status.textContent = '已选择 ' + pendingMethodImages.length + ' 张图片';
 }
 
-function addMathProblemItem() {
+async function addMathProblemItem() {
   var questionEl = document.getElementById('inputProbQuestion');
   var solutionEl = document.getElementById('inputProbSolution');
   var question = questionEl.value.trim();
@@ -4035,7 +4091,7 @@ function addMathProblemItem() {
     forgottenCount: 0,
   };
   problems.push(problem);
-  saveProblems(problems);
+  await saveProblems(problems);
 
   clearProbForm();
   showToast('已添加题目：' + (indexTitle || question || '图片题目'));
@@ -4055,7 +4111,7 @@ function clearProbForm() {
   renderProbRefTags();
 }
 
-function deleteProblem(id) {
+async function deleteProblem(id) {
   var backRefs = findReferencesTo(id, 'problem');
   if (backRefs.length > 0) {
     var msg = '以下内容引用了这个题目：\n';
@@ -4071,7 +4127,7 @@ function deleteProblem(id) {
   var problems = loadProblems();
   var p = problems.find(function(p) { return p.id === id; });
   if (p) { p.deletedAt = new Date().toISOString(); p.lastModified = p.deletedAt; }
-  saveProblems(problems);
+  await saveProblems(problems);
   if (currentReviewId === id && currentReviewType === 'problem') {
     currentReviewId = null;
     answerRevealed = false;
@@ -4097,7 +4153,7 @@ function clearMethodForm() {
   renderMethodImagePreviews();
 }
 
-function addMethod() {
+async function addMethod() {
   var name = document.getElementById('inputMethodName').value.trim();
   if (!name) { showToast('请输入方法名称'); return; }
   var description = document.getElementById('inputMethodDesc').value.trim();
@@ -4113,13 +4169,13 @@ function addMethod() {
     lastModified: now.toISOString(),
   };
   methods.push(method);
-  saveMethods(methods);
+  await saveMethods(methods);
   clearMethodForm();
   showToast('已添加方法：' + name);
   refreshAll();
 }
 
-function deleteMethod(id) {
+async function deleteMethod(id) {
   var backRefs = findReferencesTo(id, 'method');
   if (backRefs.length > 0) {
     var msg = '以下内容引用了这个方法：\n';
@@ -4135,7 +4191,7 @@ function deleteMethod(id) {
   var methods = loadMethods();
   var m = methods.find(function(m) { return m.id === id; });
   if (m) { m.deletedAt = new Date().toISOString(); m.lastModified = m.deletedAt; }
-  saveMethods(methods);
+  await saveMethods(methods);
   showToast('方法已删除');
   refreshAll();
 }
@@ -4608,6 +4664,7 @@ var currentReviewType = 'word'; // 'word' or 'sentence'
 var answerRevealed = false;
 var lastAlarmTime = 0;
 var snoozeUntil = 0; // 延时截止时间戳，0 表示未延时
+var editingMnemonicId = null; // 正在编辑背诵技巧的单词 ID
 
 // 题目练习模式状态
 var practiceState = null; // null | 'upload' | 'method'
@@ -4883,6 +4940,26 @@ function renderWordReview(area, reviewWord, dueItems, now) {
       });
       defHtml += '</div>';
     }
+    // 背诵技巧（可编辑）
+    (function() {
+      if (editingMnemonicId === reviewWord.id) {
+        defHtml += '<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #ddd;">';
+        defHtml += '<div style="font-size:12px;color:#888;margin-bottom:4px;">💡 背诵技巧</div>';
+        defHtml += '<textarea id="mnemonicEditor" style="width:100%;min-height:50px;font-size:13px;box-sizing:border-box;">' + escapeHtml(reviewWord.mnemonic || '') + '</textarea>';
+        defHtml += '<div style="margin-top:4px;">';
+        defHtml += '<button class="review-edit-btn" onclick="saveMnemonic(' + reviewWord.id + ')">保存</button>';
+        defHtml += '<button class="review-edit-btn" onclick="cancelMnemonicEdit()" style="margin-left:4px;">取消</button>';
+        defHtml += '</div></div>';
+      } else if (reviewWord.mnemonic && reviewWord.mnemonic.trim()) {
+        defHtml += '<div style="margin-top:8px;padding-top:6px;border-top:1px dashed #ddd;">';
+        defHtml += '<div style="font-size:12px;color:#888;margin-bottom:2px;">💡 背诵技巧</div>';
+        defHtml += '<div style="font-size:13px;color:#555;padding:4px 0;">' + escapeHtml(reviewWord.mnemonic) + '</div>';
+        defHtml += '<button class="review-edit-btn" onclick="editMnemonic(' + reviewWord.id + ')" title="编辑背诵技巧" style="font-size:12px;">✏️ 编辑</button>';
+        defHtml += '</div>';
+      } else {
+        defHtml += '<div style="margin-top:8px;"><button class="review-edit-btn" onclick="editMnemonic(' + reviewWord.id + ')" style="font-size:12px;color:#8B5CF6;">💡 + 添加背诵技巧</button></div>';
+      }
+    })();
   } else {
     defHtml += '<div class="definition" style="visibility:hidden;">' + escapeHtml(reviewWord.definition) + '</div>';
   }
@@ -4977,24 +5054,26 @@ function renderMathReview(area, problem, dueItems, now) {
     }).join('');
   }
 
-  // References info for review card
+  // References info for review card (只在显示答案后可见)
   var refReviewHtml = '';
-  if (problem.references && problem.references.length > 0) {
-    refReviewHtml += '<div style="font-size:12px;color:#6366f1;margin:8px 0 2px 0;">引用: ';
-    refReviewHtml += problem.references.map(function(ref) {
-      var typeLabel = getTypeLabel(ref.type);
-      return '<span class="ref-link" onclick="switchToItem(' + ref.id + ',\'' + ref.type + '\')">[' + typeLabel + '] ' + escapeHtml(ref.label) + '</span>';
-    }).join(', ');
-    refReviewHtml += '</div>';
-  }
-  var backRefs2 = findReferencesTo(problem.id, 'theorem');
-  if (backRefs2.length > 0) {
-    var typeCounts = {};
-    backRefs2.forEach(function(r) { typeCounts[r.type] = (typeCounts[r.type] || 0) + 1; });
-    var parts = Object.keys(typeCounts).map(function(t) {
-      return getTypeLabel(t) + '(' + typeCounts[t] + ')';
-    });
-    refReviewHtml += '<div style="font-size:12px;color:#8b5cf6;margin:0 0 2px 0;">被引用: ' + parts.join(', ') + '</div>';
+  if (answerRevealed) {
+    if (problem.references && problem.references.length > 0) {
+      refReviewHtml += '<div style="font-size:12px;color:#6366f1;margin:8px 0 2px 0;">引用: ';
+      refReviewHtml += problem.references.map(function(ref) {
+        var typeLabel = getTypeLabel(ref.type);
+        return '<span class="ref-link" onclick="switchToItem(' + ref.id + ',\'' + ref.type + '\')">[' + typeLabel + '] ' + escapeHtml(ref.label) + '</span>';
+      }).join(', ');
+      refReviewHtml += '</div>';
+    }
+    var backRefs2 = findReferencesTo(problem.id, 'theorem');
+    if (backRefs2.length > 0) {
+      var typeCounts = {};
+      backRefs2.forEach(function(r) { typeCounts[r.type] = (typeCounts[r.type] || 0) + 1; });
+      var parts = Object.keys(typeCounts).map(function(t) {
+        return getTypeLabel(t) + '(' + typeCounts[t] + ')';
+      });
+      refReviewHtml += '<div style="font-size:12px;color:#8b5cf6;margin:0 0 2px 0;">被引用: ' + parts.join(', ') + '</div>';
+    }
   }
 
   area.innerHTML =
@@ -5051,24 +5130,26 @@ function renderProblemReview(area, prob, dueItems, now) {
     }).join('');
   }
 
-  // References info for review card
+  // References info for review card (只在显示答案后可见)
   var refReviewHtml = '';
-  if (prob.references && prob.references.length > 0) {
-    refReviewHtml += '<div style="font-size:12px;color:#6366f1;margin:8px 0 2px 0;">引用: ';
-    refReviewHtml += prob.references.map(function(ref) {
-      var typeLabel = getTypeLabel(ref.type);
-      return '<span class="ref-link" onclick="switchToItem(' + ref.id + ',\'' + ref.type + '\')">[' + typeLabel + '] ' + escapeHtml(ref.label) + '</span>';
-    }).join(', ');
-    refReviewHtml += '</div>';
-  }
-  var backRefs2 = findReferencesTo(prob.id, 'problem');
-  if (backRefs2.length > 0) {
-    var typeCounts = {};
-    backRefs2.forEach(function(r) { typeCounts[r.type] = (typeCounts[r.type] || 0) + 1; });
-    var parts = Object.keys(typeCounts).map(function(t) {
-      return getTypeLabel(t) + '(' + typeCounts[t] + ')';
-    });
-    refReviewHtml += '<div style="font-size:12px;color:#8b5cf6;margin:0 0 2px 0;">被引用: ' + parts.join(', ') + '</div>';
+  if (answerRevealed) {
+    if (prob.references && prob.references.length > 0) {
+      refReviewHtml += '<div style="font-size:12px;color:#6366f1;margin:8px 0 2px 0;">引用: ';
+      refReviewHtml += prob.references.map(function(ref) {
+        var typeLabel = getTypeLabel(ref.type);
+        return '<span class="ref-link" onclick="switchToItem(' + ref.id + ',\'' + ref.type + '\')">[' + typeLabel + '] ' + escapeHtml(ref.label) + '</span>';
+      }).join(', ');
+      refReviewHtml += '</div>';
+    }
+    var backRefs2 = findReferencesTo(prob.id, 'problem');
+    if (backRefs2.length > 0) {
+      var typeCounts = {};
+      backRefs2.forEach(function(r) { typeCounts[r.type] = (typeCounts[r.type] || 0) + 1; });
+      var parts = Object.keys(typeCounts).map(function(t) {
+        return getTypeLabel(t) + '(' + typeCounts[t] + ')';
+      });
+      refReviewHtml += '<div style="font-size:12px;color:#8b5cf6;margin:0 0 2px 0;">被引用: ' + parts.join(', ') + '</div>';
+    }
   }
 
   var practiceCount = prob.practiceHistory ? prob.practiceHistory.length : 0;
@@ -5241,7 +5322,7 @@ function openDefEditor(mode, wordId) {
     title.textContent = '添加额外释义';
     textarea.value = '';
     textarea.placeholder = '输入额外的释义或含义';
-    hint.textContent = '添加的释义会保存到历史记录中，主释义保持不变';
+    hint.textContent = '添加的释义会追加到现有释义下方，与新行显示';
     btn.textContent = '添加';
   }
 
@@ -5249,12 +5330,12 @@ function openDefEditor(mode, wordId) {
   textarea.focus();
 }
 
-function closeDefEditor() {
+async function closeDefEditor() {
   document.getElementById('defEditorOverlay').classList.add('hidden');
   _editingWordId = null;
 }
 
-function confirmDefEditor() {
+async function confirmDefEditor() {
   var textarea = document.getElementById('defEditorTextarea');
   var newText = textarea.value.trim();
   if (!newText) { showToast('请输入释义'); return; }
@@ -5277,18 +5358,13 @@ function confirmDefEditor() {
     word.definition = newText;
     showToast('释义已更新，旧释义已保存到历史记录');
   } else {
-    // Add mode: save the additional definition to history
-    if (!word.definitionHistory) word.definitionHistory = [];
-    word.definitionHistory.push({
-      text: newText,
-      timestamp: now,
-      type: 'addition'
-    });
-    showToast('已添加额外释义到历史记录');
+    // Add mode: append to main definition (with line break)
+    word.definition = word.definition + '\n' + newText;
+    showToast('已添加额外释义');
   }
 
   word.lastModified = now;
-  saveWords(words);
+  await saveWords(words);
   closeDefEditor();
   renderReview();
 }
@@ -5343,7 +5419,7 @@ function submitPracticeMethod(methodMatches) {
   finishPractice(methodMatches);
 }
 
-function finishPractice(methodMatches) {
+async function finishPractice(methodMatches) {
   var allProblems = loadProblems();
   var idx = allProblems.findIndex(function(p) { return p.id === practiceProbId; });
   if (idx === -1) { resetPractice(); return; }
@@ -5370,7 +5446,7 @@ function finishPractice(methodMatches) {
   }
 
   problem.lastModified = now.toISOString();
-  saveProblems(allProblems);
+  await saveProblems(allProblems);
   resetPractice();
   currentReviewId = null;
   answerRevealed = false;
@@ -5378,7 +5454,7 @@ function finishPractice(methodMatches) {
   refreshAll();
 }
 
-function handleReview(remembered) {
+async function handleReview(remembered) {
   var words = loadWords();
   var idx = words.findIndex(function(w) { return w.id === currentReviewId; });
   if (idx === -1) return;
@@ -5400,8 +5476,7 @@ function handleReview(remembered) {
       showToast('"' + word.word + '" 进入第 ' + (word.stage + 1) + ' 次复习');
     }
     word.lastModified = now.toISOString();
-    saveWords(words);
-    syncToServer();
+    await saveWords(words);
     currentReviewId = null;
     answerRevealed = false;
     lastAlarmTime = Date.now();
@@ -5412,7 +5487,7 @@ function handleReview(remembered) {
   }
 }
 
-function handleNonWordReview(remembered, idx) {
+async function handleNonWordReview(remembered, idx) {
   // For non-word items, find item by ID in the correct array
   var findById = function(arr) { return arr.findIndex(function(x) { return x.id === currentReviewId; }); };
   var items, saveFn;
@@ -5436,7 +5511,7 @@ function handleNonWordReview(remembered, idx) {
     item.nextReviewAt = new Date(now.getTime() + INTERVALS[0]).toISOString();
   }
   item.lastModified = now.toISOString();
-  saveFn(items);
+  await saveFn(items);
   currentReviewId = null;
   answerRevealed = false;
   lastAlarmTime = Date.now();
@@ -5459,7 +5534,7 @@ function handleForgetChoice(choice) {
   }
 }
 
-function doWordForget() {
+async function doWordForget() {
   var words = loadWords();
   var idx = words.findIndex(function(w) { return w.id === currentReviewId; });
   if (idx === -1) return;
@@ -5470,13 +5545,38 @@ function doWordForget() {
   word.stage = 0;
   word.nextReviewAt = new Date(now.getTime() + INTERVALS[0]).toISOString();
   word.lastModified = now.toISOString();
-  saveWords(words);
-  syncToServer();
+  await saveWords(words);
   currentReviewId = null;
   answerRevealed = false;
   lastAlarmTime = Date.now();
   refreshAll();
   showToast('"' + word.word + '" 已重置，重新开始');
+}
+
+// 背诵技巧编辑
+function editMnemonic(id) {
+  editingMnemonicId = id;
+  renderReview();
+}
+
+function cancelMnemonicEdit() {
+  editingMnemonicId = null;
+  renderReview();
+}
+
+async function saveMnemonic(id) {
+  var textarea = document.getElementById('mnemonicEditor');
+  if (!textarea) { editingMnemonicId = null; renderReview(); return; }
+  var val = textarea.value.trim();
+  var words = loadWords();
+  var idx = words.findIndex(function(w) { return w.id === id; });
+  if (idx === -1) { showToast('找不到该单词'); editingMnemonicId = null; renderReview(); return; }
+  words[idx].mnemonic = val;
+  words[idx].lastModified = new Date().toISOString();
+  await saveWords(words);
+  editingMnemonicId = null;
+  renderReview();
+  showToast('背诵技巧已保存');
 }
 
 function openConfusePicker() {
@@ -5517,7 +5617,7 @@ function renderConfusePickerList() {
   }).join('');
 }
 
-function confirmConfuseBinding() {
+async function confirmConfuseBinding() {
   var checked = document.querySelectorAll('#confusePickerList input[type="checkbox"]:checked');
   if (checked.length === 0) { showToast('请选择至少一个易混单词'); return; }
   var selectedIds = [];
@@ -5545,8 +5645,7 @@ function confirmConfuseBinding() {
   });
 
   curWord.lastModified = new Date().toISOString();
-  saveWords(words);
-  syncToServer();
+  await saveWords(words);
   // 走忘记流程
   doWordForget();
   showToast('已绑定 ' + selectedIds.length + ' 个易混单词');
@@ -5608,7 +5707,7 @@ function getConfusedWords(word) {
   return result;
 }
 
-function handleSentenceReview(remembered) {
+async function handleSentenceReview(remembered) {
   var sentences = loadSentences();
   var idx = sentences.findIndex(function(s) { return s.id === currentReviewId; });
   if (idx === -1) return;
@@ -5632,15 +5731,14 @@ function handleSentenceReview(remembered) {
     showToast('句子 ' + sentence.wordRange + ' 已重置，重新开始');
   }
   sentence.lastModified = now.toISOString();
-  saveSentences(sentences);
-  syncToServer();
+  await saveSentences(sentences);
   currentReviewId = null;
   answerRevealed = false;
   lastAlarmTime = Date.now(); // 正在复习，重置闹铃计时
   refreshAll();
 }
 
-function handleMathReview(remembered) {
+async function handleMathReview(remembered) {
   var problems = loadMathProblems();
   var idx = problems.findIndex(function(p) { return p.id === currentReviewId; });
   if (idx === -1) return;
@@ -5665,15 +5763,14 @@ function handleMathReview(remembered) {
     showToast('"' + displayName + '" 已重置，重新开始');
   }
   problem.lastModified = now.toISOString();
-  saveMathProblems(problems);
-  syncToServer();
+  await saveMathProblems(problems);
   currentReviewId = null;
   answerRevealed = false;
   lastAlarmTime = Date.now();
   refreshAll();
 }
 
-function handleProblemReview(remembered) {
+async function handleProblemReview(remembered) {
   var allProblems = loadProblems();
   var idx = allProblems.findIndex(function(p) { return p.id === currentReviewId; });
   if (idx === -1) return;
@@ -5698,8 +5795,7 @@ function handleProblemReview(remembered) {
     showToast('"' + displayName + '" 已重置，重新开始');
   }
   problem.lastModified = now.toISOString();
-  saveProblems(allProblems);
-  syncToServer();
+  await saveProblems(allProblems);
   currentReviewId = null;
   answerRevealed = false;
   lastAlarmTime = Date.now();
@@ -5737,7 +5833,8 @@ function renderBank() {
   if (searchTerm) {
     filtered = filtered.filter(function(w) {
       return (w.word && w.word.toLowerCase().includes(searchTerm)) ||
-             (w.definition && w.definition.toLowerCase().includes(searchTerm));
+             (w.definition && w.definition.toLowerCase().includes(searchTerm)) ||
+             (w.mnemonic && w.mnemonic.toLowerCase().includes(searchTerm));
     });
   }
 
@@ -5760,7 +5857,8 @@ function renderBank() {
         (w.phonetic ? escapeHtml(w.phonetic) : '') +
         (w.audioUrl ? ' <span class="play-btn" onclick="event.stopPropagation();playWordAudio(' + w.id + ')">🔊</span>' : '') +
         '</span>' : '') + '</div>' +
-      '<div class="col-def">' + escapeHtml(w.definition) + '</div>' +
+      '<div class="col-def">' + escapeHtml(w.definition) +
+      (w.mnemonic && w.mnemonic.trim() ? '<br><span style="font-size:11px;color:#8B5CF6;font-style:italic;">💡 ' + escapeHtml(w.mnemonic) + '</span>' : '') + '</div>' +
       '<div class="col-stage"><div class="stage-bar"><div class="fill" style="width:' + pct + '%"></div></div>' +
       '<div class="stage-label ' + (isAnnual ? 'stage-mastered' : '') + '">' + stageText + ' - 下次: ' + nextTime + '</div></div>' +
       '<div class="col-action"><button onclick="openItemEditor(\'word\',' + w.id + ')" title="编辑" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:14px;padding:2px 4px;">✏️</button><button class="btn-del" onclick="deleteWord(' + w.id + ')" title="删除">X</button></div></div>';
@@ -5797,23 +5895,23 @@ function renderSentenceBank(senList, sentences) {
   senList.style.display = 'block';
 }
 
-function deleteWord(id) {
+async function deleteWord(id) {
   if (!confirm('确定要删除这个单词吗？')) return;
   var words = loadWords();
   var word = words.find(function(w) { return w.id === id; });
   if (word) { word.deletedAt = new Date().toISOString(); word.lastModified = word.deletedAt; }
-  saveWords(words);
+  await saveWords(words);
   if (currentReviewId === id && currentReviewType === 'word') { currentReviewId = null; answerRevealed = false; }
   showToast('已删除');
   refreshAll();
 }
 
-function deleteSentence(id) {
+async function deleteSentence(id) {
   if (!confirm('确定要删除这个句子吗？')) return;
   var sentences = loadSentences();
   var s = sentences.find(function(s) { return s.id === id; });
   if (s) { s.deletedAt = new Date().toISOString(); s.lastModified = s.deletedAt; }
-  saveSentences(sentences);
+  await saveSentences(sentences);
   if (currentReviewId === id && currentReviewType === 'sentence') { currentReviewId = null; answerRevealed = false; }
   showToast('句子已删除');
   refreshAll();
@@ -5831,13 +5929,13 @@ function renderStats() {
   var dueWords = words.filter(function(w) { return w.nextReviewAt && new Date(w.nextReviewAt) <= now; }).length;
   var dueSentences = sentences.filter(function(s) { return s.nextReviewAt && new Date(s.nextReviewAt) <= now; }).length;
   var dueMath = mathProblems.filter(function(m) { return m.nextReviewAt && new Date(m.nextReviewAt) <= now; }).length;
-  document.getElementById('statTotal').textContent = total;
-  document.getElementById('statWordDue').textContent = dueWords;
-  document.getElementById('statDue').textContent = dueWords + dueSentences + dueMath;
-  document.getElementById('statSentenceCount').textContent = sentences.length;
-  document.getElementById('statSentenceDue').textContent = dueSentences;
   var problems = getActiveProblems();
   var dueProblems = problems.filter(function(p) { return p.nextReviewAt && new Date(p.nextReviewAt) <= now; }).length;
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statWordDue').textContent = dueWords;
+  document.getElementById('statDue').textContent = dueWords + dueSentences + dueMath + dueProblems;
+  document.getElementById('statSentenceCount').textContent = sentences.length;
+  document.getElementById('statSentenceDue').textContent = dueSentences;
   document.getElementById('statMathCount').textContent = mathProblems.length;
   document.getElementById('statMathDue').textContent = dueMath;
   document.getElementById('statProbCount').textContent = problems.length;
@@ -5912,11 +6010,11 @@ function exportData() {
   showToast('导出成功');
 }
 
-function importData(event) {
+async function importData(event) {
   var file = event.target.files[0];
   if (!file) return;
   var reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = async function(e) {
     try {
       var data = JSON.parse(e.target.result);
       var words = [];
@@ -5950,7 +6048,7 @@ function importData(event) {
       }
 
       if (!confirm('即将导入 ' + words.length + ' 个单词, ' + sentences.length + ' 个句子, ' + mathProblems.length + ' 个定理, ' + problems.length + ' 个题目, ' + methods.length + ' 个方法，这会覆盖当前所有数据，确定吗？')) return;
-      saveData(words, sentences, mathProblems, problems, methods);
+      await saveData(words, sentences, mathProblems, problems, methods);
       showToast('成功导入 ' + words.length + ' 个单词, ' + sentences.length + ' 个句子, ' + mathProblems.length + ' 个定理, ' + problems.length + ' 个题目, ' + methods.length + ' 个方法');
       refreshAll();
       generateMissingSentences();

@@ -44,8 +44,9 @@ QG.loadRecords = async function() {
         // 避免服务器文件不存在时返回 [] 清空本地记录
         if (serverRecords.length > 0) {
           localStorage.setItem(QG.STORAGE_KEY, JSON.stringify(serverRecords));
+          return serverRecords;
         }
-        return serverRecords;
+        // 服务器返回空数据，不覆盖本地，走本地回退
       }
     } catch (e) { /* 服务器不可用，走本地回退 */ }
   }
