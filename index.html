@@ -2897,6 +2897,8 @@ async function triggerSentenceGeneration(allWords) {
     reviewedAt: [],
     forgottenCount: 0,
   };
+  // 自动将关联单词加粗
+  boldVocabularyWords(sentence, last10);
   sentences.push(sentence);
   await saveSentences(sentences);
   showToast('句子 ' + wordRange + ' 已生成并加入复习');
@@ -3020,6 +3022,8 @@ async function _doRegenerateSentence(sentences, idx) {
   sentences[idx].stage = 0;
   sentences[idx].forgottenCount = 0;
   sentences[idx].reviewedAt = [];
+  // 自动将关联单词加粗
+  boldVocabularyWords(sentences[idx], matchedWords);
   await saveSentences(sentences);
   currentReviewId = null;
   answerRevealed = false;
@@ -5011,7 +5015,7 @@ function renderWordReview(area, reviewWord, dueItems, now) {
 
   area.innerHTML =
     '<div class="card review-card">' +
-      '<div class="word">' + escapeHtml(reviewWord.word) + '</div>' +
+      '<div class="word">' + escapeHtmlAndBold(reviewWord.word) + '</div>' +
       (reviewWord.phonetic || reviewWord.audioUrl ? '<div style="font-size:15px;color:#999;margin-bottom:6px;">' +
         (reviewWord.phonetic ? escapeHtml(reviewWord.phonetic) : '') +
         (reviewWord.audioUrl ? ' <span class="play-btn" onclick="playWordAudio(' + reviewWord.id + ')">🔊</span>' : '') +
@@ -5025,7 +5029,7 @@ function renderWordReview(area, reviewWord, dueItems, now) {
         if (cw.length === 0) return '';
         return '<div class="confuse-items">' +
           '<div class="ci-title">🔀 易混单词 (' + cw.length + ')</div>' +
-          cw.map(function(c) { return '<div class="ci-word">' + escapeHtml(c.word.word) + ' <span class="ci-def">' + escapeHtml(c.word.definition) + '</span></div>'; }).join('') +
+          cw.map(function(c) { return '<div class="ci-word">' + escapeHtmlAndBold(c.word.word) + ' <span class="ci-def">' + escapeHtml(c.word.definition) + '</span></div>'; }).join('') +
           '</div>';
       })() : '') +
       (!answerRevealed ? '<div class="hint">回想一下释义，然后点击下方按钮</div>' : '') +
@@ -5050,10 +5054,10 @@ function renderSentenceReview(area, sentence, dueItems, now) {
   area.innerHTML =
     '<div class="card review-card">' +
       '<div class="sentence-badge">\u{1F4DD} 句子 ' + sentence.wordRange + '</div>' +
-      '<div class="word" style="font-size:24px;">' + escapeHtml(sentence.english) + '</div>' +
+      '<div class="word" style="font-size:24px;">' + escapeHtmlAndBold(sentence.english) + '</div>' +
       '<div class="stage-badge">' + stageLabel + '</div>' +
       (overdueText ? '<div style="font-size:12px;color:#FF4D4F;margin-bottom:8px;">' + overdueText + '</div>' : '') +
-      '<div class="definition" style="font-size:18px;' + (answerRevealed ? '' : 'visibility:hidden;') + '">' + escapeHtml(sentence.chinese) + '</div>' +
+      '<div class="definition" style="font-size:18px;' + (answerRevealed ? '' : 'visibility:hidden;') + '">' + escapeHtmlAndBold(sentence.chinese) + '</div>' +
       (!answerRevealed ? '<div class="hint">回想一下中文翻译，然后点击下方按钮</div>' : '') +
       '<div class="btn-group">' +
         (!answerRevealed
@@ -5301,7 +5305,7 @@ function renderDueSidebar(dueItems, currentId, currentType, now) {
             '<div class="overdue">' + (overdue > 0 ? formatShortDuration(overdue) + '前' : '即将') + '</div></div>';
         } else if (item._type === 'sentence') {
           return '<div class="review-item sentence" onclick="switchReviewWord(' + item.id + ', \'sentence\')">' +
-            '<div class="word-info"><div class="word">\u{1F4DD} ' + escapeHtml(item.english) + '</div>' +
+            '<div class="word-info"><div class="word">\u{1F4DD} ' + escapeHtmlAndBold(item.english) + '</div>' +
             '<div class="meta">句子 ' + item.wordRange + ' - ' + (item.stage >= TOTAL_STAGES ? '年复习' : '复习 ' + (item.stage + 1) + '/' + TOTAL_STAGES) + '</div></div>' +
             '<div class="overdue">' + (overdue > 0 ? formatShortDuration(overdue) + '前' : '即将') + '</div></div>';
         } else if (item._type === 'problem') {
@@ -5313,7 +5317,7 @@ function renderDueSidebar(dueItems, currentId, currentType, now) {
             '<div class="overdue">' + (overdue > 0 ? formatShortDuration(overdue) + '前' : '即将') + '</div></div>';
         } else {
           return '<div class="review-item" onclick="switchReviewWord(' + item.id + ', \'word\')">' +
-            '<div class="word-info"><div class="word">' + escapeHtml(item.word) +
+            '<div class="word-info"><div class="word">' + escapeHtmlAndBold(item.word) +
             (item.phonetic || item.audioUrl ? ' <span style="font-size:11px;color:#999;">' +
               (item.phonetic ? escapeHtml(item.phonetic) : '') +
               (item.audioUrl ? ' <span class="play-btn" onclick="event.stopPropagation();playWordAudio(' + item.id + ')">🔊</span>' : '') +
@@ -5657,7 +5661,7 @@ function renderConfusePickerList() {
   list.innerHTML = allWords.map(function(w) {
     return '<label class="confuse-picker-item">' +
       '<input type="checkbox" value="' + w.id + '">' +
-      '<div><div class="cpi-word">' + escapeHtml(w.word) + '</div><div class="cpi-def">' + escapeHtml(w.definition) + '</div></div>' +
+      '<div><div class="cpi-word">' + escapeHtmlAndBold(w.word) + '</div><div class="cpi-def">' + escapeHtml(w.definition) + '</div></div>' +
       '</label>';
   }).join('');
 }
@@ -5896,7 +5900,7 @@ function renderBank() {
     var stageText = isAnnual ? '年复习 (' + (w.stage + 1) + '次)' : '复习 ' + (w.stage + 1) + '/' + TOTAL_STAGES;
     var nextTime = w.nextReviewAt ? formatDateTime(w.nextReviewAt) : '--';
     return '<div class="word-row">' +
-      '<div class="col-word">' + escapeHtml(w.word) +
+      '<div class="col-word">' + escapeHtmlAndBold(w.word) +
       (w.confusedWith && w.confusedWith.length > 0 ? ' <span style="font-size:10px;color:#e65100;background:#fff3e0;padding:1px 5px;border-radius:4px;font-weight:600;">易混' + w.confusedWith.length + '</span>' : '') +
       (w.phonetic || w.audioUrl ? '<br><span style="font-size:11px;color:#999;">' +
         (w.phonetic ? escapeHtml(w.phonetic) : '') +
@@ -5929,7 +5933,7 @@ function renderSentenceBank(senList, sentences) {
       var stageText = s.stage >= TOTAL_STAGES ? '年复习 (' + (s.stage + 1) + '次)' : '复习 ' + (s.stage + 1) + '/' + TOTAL_STAGES;
       var nextTime = s.nextReviewAt ? formatDateTime(s.nextReviewAt) : '--';
       return '<div class="sentence-item">' +
-        '<div class="sen-english">' + escapeHtml(s.english) + '</div>' +
+        '<div class="sen-english">' + escapeHtmlAndBold(s.english) + '</div>' +
         '<div class="sen-chinese">' + escapeHtml(s.chinese) + '</div>' +
         '<div class="sen-meta">句子 #' + s.wordRange + ' - ' + stageText + ' - 下次: ' + nextTime +
         ' <button class="btn-del" onclick="deleteSentence(' + s.id + ')" title="删除" style="font-size:14px;">X</button>' +
@@ -6155,6 +6159,31 @@ function escapeHtml(str) {
   var div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+function escapeHtmlAndBold(str) {
+  if (!str) return '';
+  return escapeHtml(str).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+}
+
+// 在句子中将关联的单词用 ** 加粗（用于生成后的后处理）
+function boldVocabularyWords(sentence, allWords) {
+  if (!sentence || !sentence.english) return;
+  var wordTexts = (sentence.wordIds || []).map(function(id) {
+    var w = allWords.find(function(x) { return x.id === id; });
+    return w ? w.word : null;
+  }).filter(Boolean);
+  if (wordTexts.length === 0) return;
+
+  function esc(str) { return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+  wordTexts.sort(function(a, b) { return b.length - a.length; });
+
+  var text = sentence.english.replace(/\*\*/g, '');
+  wordTexts.forEach(function(wt) {
+    var pattern = new RegExp('\\b' + esc(wt) + '(?:s|es|ed|ing|d|n)?\\b', 'gi');
+    text = text.replace(pattern, '**$&**');
+  });
+  sentence.english = text;
 }
 
 function formatDuration(ms) {
