@@ -64,7 +64,7 @@ header p {
   gap: 8px;
   margin: 16px auto 0;
   padding: 0 16px;
-  max-width: 600px;
+  max-width: 900px;
   position: relative;
   z-index: 10;
 }
@@ -101,7 +101,7 @@ header p {
 /* Tabs */
 .qg-tabs {
   display: flex;
-  max-width: 600px;
+  max-width: 800px;
   margin: 14px auto 0;
   padding: 0 16px;
   gap: 2px;
@@ -125,7 +125,7 @@ header p {
   color: var(--primary);
   box-shadow: 0 -2px 0 var(--primary);
 }
-.qg-tab-content { max-width: 600px; margin: 0 auto; padding: 0 16px; }
+.qg-tab-content { max-width: 800px; margin: 0 auto; padding: 0 16px; }
 .qg-tab-pane { display: none; }
 .qg-tab-pane.active { display: block; }
 
@@ -540,7 +540,7 @@ header p {
 
 /* Per-type stats section */
 .qg-type-stats-section {
-  max-width: 600px;
+  max-width: 800px;
   margin: 8px auto 0;
   padding: 0 16px;
 }
