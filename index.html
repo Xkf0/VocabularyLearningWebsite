@@ -6383,12 +6383,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }).catch(function(err) {
       console.warn('Service Worker 注册失败:', err);
     });
-    // 新 Service Worker 激活后刷新页面
-    var refreshing = false;
+    // 新 Service Worker 激活后提示用户刷新（不强制刷新，以免中断复习）
+    var newVerPending = false;
     navigator.serviceWorker.addEventListener('controllerchange', function() {
-      if (refreshing) return;
-      refreshing = true;
-      window.location.reload();
+      if (newVerPending) return;
+      newVerPending = true;
+      showToast('检测到新版本，请手动刷新页面以应用更新');
     });
   }
 
