@@ -83,6 +83,35 @@ def _read_user_data(username):
     return {'words': data.get('words', []), 'sentences': data.get('sentences', []), 'mathProblems': data.get('mathProblems', []), 'problems': data.get('problems', []), 'methods': data.get('methods', []), 'avatar': data.get('avatar', '')}
 
 
+def _dedup_by_id(items):
+    """按 id 字段去重，保留 stage 较小的条目，合并 reviewedAt/practiceHistory，赋予新 ID"""
+    import random, time
+    seen = {}
+    result = []
+    for item in items:
+        item_id = item.get('id')
+        if item_id is None:
+            result.append(item)
+            continue
+        if item_id in seen:
+            prev_idx = seen[item_id]
+            existing = result[prev_idx]
+            keep, discard = (item, existing) if item.get('stage', 0) < existing.get('stage', 0) else (existing, item)
+            if discard.get('reviewedAt'):
+                keep['reviewedAt'] = list(keep.get('reviewedAt', [])) + list(discard['reviewedAt'])
+            if discard.get('practiceHistory'):
+                keep['practiceHistory'] = list(keep.get('practiceHistory', [])) + list(discard['practiceHistory'])
+            if discard.get('lastModified') and (not keep.get('lastModified') or discard['lastModified'] > keep['lastModified']):
+                keep['lastModified'] = discard['lastModified']
+            # 生成新 ID 避免后续冲突
+            keep['id'] = time.time() * 1000 + random.random()
+            result[prev_idx] = keep
+        else:
+            seen[item_id] = len(result)
+            result.append(item)
+    return result
+
+
 def _merge_items(existing_items, incoming_items, key_field, fallback_field=None):
     """合并两个对象列表（双向合并）。
 
@@ -1686,11 +1715,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     existing = _read_user_data(username)
 
                     if isinstance(incoming, dict) and 'words' in incoming:
-                        merged_words = _merge_items(existing['words'], incoming.get('words', []), 'word')
-                        merged_sentences = _merge_items(existing['sentences'], incoming.get('sentences', []), 'id')
-                        merged_math = _merge_items(existing['mathProblems'], incoming.get('mathProblems', []), 'indexTitle', 'title')
-                        merged_problems = _merge_items(existing['problems'], incoming.get('problems', []), 'indexTitle', 'question')
-                        merged_methods = _merge_items(existing.get('methods', []), incoming.get('methods', []), 'id')
+                        merged_words = _dedup_by_id(_merge_items(existing['words'], incoming.get('words', []), 'word'))
+                        merged_sentences = _dedup_by_id(_merge_items(existing['sentences'], incoming.get('sentences', []), 'id'))
+                        merged_math = _dedup_by_id(_merge_items(existing['mathProblems'], incoming.get('mathProblems', []), 'indexTitle', 'title'))
+                        merged_problems = _dedup_by_id(_merge_items(existing['problems'], incoming.get('problems', []), 'indexTitle', 'question'))
+                        merged_methods = _dedup_by_id(_merge_items(existing.get('methods', []), incoming.get('methods', []), 'id'))
                         merged_avatar = incoming.get('avatar', existing.get('avatar', ''))
                         result = {'words': merged_words, 'sentences': merged_sentences, 'mathProblems': merged_math, 'problems': merged_problems, 'methods': merged_methods, 'avatar': merged_avatar}
                         count = len(merged_words) + len(merged_sentences) + len(merged_math) + len(merged_problems) + len(merged_methods)
