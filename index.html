@@ -2564,6 +2564,7 @@ function loadWords() {
 
 // 保存到 localStorage，不再自动推送（手动推送通过 forceSyncToServer）
 async function saveWords(words) {
+  words = _dedupById(words, true);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
   await syncToServer();
 }
@@ -2576,6 +2577,7 @@ function loadSentences() {
 }
 
 async function saveSentences(sentences) {
+  sentences = _dedupById(sentences, true);
   localStorage.setItem(SENTENCE_KEY, JSON.stringify(sentences));
   await syncToServer();
 }
@@ -2587,7 +2589,81 @@ function loadMathProblems() {
   } catch { return []; }
 }
 
+function _dedupById(items, changeIds) {
+  var seen = {}, result = [];
+  for (var i = 0; i < items.length; i++) {
+    var id = items[i].id;
+    if (id === undefined || id === null) { result.push(items[i]); continue; }
+    if (seen[id] !== undefined) {
+      var prev = seen[id];
+      var keep, discard, oldId = id;
+      // 保留 stage 较小的（正在复习中的），合并 reviewedAt
+      if (items[i].stage < prev.stage) { keep = items[i]; discard = prev; }
+      else { keep = prev; discard = items[i]; }
+      // 合并 reviewedAt
+      if (discard.reviewedAt && discard.reviewedAt.length) {
+        keep.reviewedAt = (keep.reviewedAt || []).concat(discard.reviewedAt);
+      }
+      // 合并 practiceHistory
+      if (discard.practiceHistory && discard.practiceHistory.length) {
+        keep.practiceHistory = (keep.practiceHistory || []).concat(discard.practiceHistory);
+      }
+      // 保留最新的 lastModified
+      if (discard.lastModified && (!keep.lastModified || discard.lastModified > keep.lastModified)) {
+        keep.lastModified = discard.lastModified;
+      }
+      // 仅在写入模式（changeIds=true）时生成新 ID
+      if (changeIds) {
+        keep.id = Date.now() + Math.random();
+        (window._idChanges = window._idChanges || {})[oldId] = keep.id;
+      }
+      // 替换 result 中的旧条目
+      for (var j = 0; j < result.length; j++) {
+        if (result[j] === discard) { result[j] = keep; break; }
+      }
+      seen[changeIds ? keep.id : id] = keep;
+    } else {
+      seen[id] = items[i];
+      result.push(items[i]);
+    }
+  }
+  return result;
+}
+
+function _applyIdChanges() {
+  var idMap = window._idChanges;
+  if (!idMap || Object.keys(idMap).length === 0) return;
+  window._idChanges = {};
+  var allData = [
+    { key: MATH_KEY, load: loadMathProblems, save: saveMathProblems },
+    { key: PROBLEMS_KEY, load: loadProblems, save: saveProblems },
+    { key: STORAGE_KEY, load: loadWords, save: saveWords },
+    { key: SENTENCE_KEY, load: loadSentences, save: saveSentences },
+    { key: METHODS_KEY, load: loadMethods, save: saveMethods },
+  ];
+  allData.forEach(function(entry) {
+    var items = entry.load();
+    var changed = false;
+    items.forEach(function(item) {
+      if (item.references && item.references.length) {
+        item.references.forEach(function(ref) {
+          if (idMap[ref.id] !== undefined) { ref.id = idMap[ref.id]; changed = true; }
+        });
+      }
+      if (item.confusedWith && item.confusedWith.length) {
+        item.confusedWith.forEach(function(cw) {
+          if (idMap[cw.wordId] !== undefined) { cw.wordId = idMap[cw.wordId]; changed = true; }
+        });
+      }
+    });
+    if (changed) {
+      localStorage.setItem(entry.key, JSON.stringify(items));
+    }
+  });
+}
+
 async function saveMathProblems(problems) {
+  problems = _dedupById(problems, true);
   localStorage.setItem(MATH_KEY, JSON.stringify(problems));
   await syncToServer();
 }
@@ -2710,6 +2786,7 @@ function getActiveMathProblems() { return loadMathProblems().filter(function(p) 
 function getActiveProblems() { return loadProblems().filter(function(p) { return !p.deletedAt; }); }
 
 async function saveProblems(problems) {
+  problems = _dedupById(problems, true);
   localStorage.setItem(PROBLEMS_KEY, JSON.stringify(problems));
   await syncToServer();
 }
@@ -2722,6 +2799,7 @@ function loadMethods() {
 }
 
 async function saveMethods(methods) {
+  methods = _dedupById(methods, true);
   localStorage.setItem(METHODS_KEY, JSON.stringify(methods));
   await syncToServer();
 }
@@ -5073,9 +5151,14 @@ function renderSentenceReview(area, sentence, dueItems, now) {
 }
 
 function renderMathReview(area, problem, dueItems, now) {
-  var stageLabel = problem.stage >= TOTAL_STAGES
-    ? '第 ' + (problem.stage + 1) + ' 次复习 · 年复习'
-    : '复习 ' + (problem.stage + 1) + '/' + TOTAL_STAGES;
+  var rawStage = problem.stage;
+  var stageLabel = rawStage >= TOTAL_STAGES
+    ? '第 ' + (rawStage + 1) + ' 次复习 · 年复习'
+    : '复习 ' + (rawStage + 1) + '/' + TOTAL_STAGES;
+  // 显示实际 stage 值用于调试
+  if (rawStage === undefined || rawStage === null || typeof rawStage !== 'number' || isNaN(rawStage)) {
+    stageLabel += ' (stage=' + JSON.stringify(rawStage) + ')';
+  }
   var overdueMs = now - new Date(problem.nextReviewAt);
   var overdueText = overdueMs > 0 ? formatDuration(overdueMs) + '前应复习' : '';
 
@@ -5143,6 +5226,9 @@ function renderMathReview(area, problem, dueItems, now) {
             '<button onclick="openItemEditor(\'math\',' + problem.id + ')" title="编辑" style="margin-left:4px;background:#fff;color:#666;border:1px solid #ddd;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;">✏️ 编辑</button>'
         ) +
       '</div>' +
+      (rawStage >= TOTAL_STAGES
+        ? '<div style="text-align:center;margin-top:8px;"><a href="#" onclick="return resetMathStage(' + problem.id + ')" style="font-size:12px;color:#ff4d4f;">该知识点处于年复习状态，点击强制重置</a></div>'
+        : '') +
       (problem.forgottenCount > 0 ? '<div style="font-size:11px;color:#bbb;margin-top:12px;">曾忘记 ' + problem.forgottenCount + ' 次</div>' : '') +
     '</div>' +
     renderDueSidebar(dueItems, problem.id, 'math', now);
@@ -5504,7 +5590,7 @@ async function finishPractice(methodMatches) {
 }
 
 async function handleReview(remembered) {
-  var words = loadWords();
+  var words = _dedupById(loadWords());
   var idx = words.findIndex(function(w) { return w.id === currentReviewId; });
   if (idx === -1) return;
   if (currentReviewType !== 'word') {
@@ -5537,30 +5623,35 @@ async function handleReview(remembered) {
 }
 
 async function handleNonWordReview(remembered, idx) {
-  // For non-word items, find item by ID in the correct array
-  var findById = function(arr) { return arr.findIndex(function(x) { return x.id === currentReviewId; }); };
-  var items, saveFn;
-  if (currentReviewType === 'sentence') { items = loadSentences(); saveFn = saveSentences; }
-  else if (currentReviewType === 'math') { items = loadMathProblems(); saveFn = saveMathProblems; }
-  else if (currentReviewType === 'problem') { items = loadProblems(); saveFn = saveProblems; }
-  else return;
-  var itemIdx = findById(items);
-  if (itemIdx === -1) return;
-  var item = items[itemIdx];
-  var now = new Date();
-  item.reviewedAt.push(now.toISOString());
-  if (remembered) {
-    item.stage++;
-    item.nextReviewAt = item.stage >= TOTAL_STAGES
-      ? new Date(now.getTime() + YEARLY_INTERVAL).toISOString()
-      : new Date(now.getTime() + INTERVALS[item.stage]).toISOString();
-  } else {
-    item.forgottenCount = (item.forgottenCount || 0) + 1;
-    item.stage = 0;
-    item.nextReviewAt = new Date(now.getTime() + INTERVALS[0]).toISOString();
+  try {
+    // For non-word items, find item by ID in the correct array
+    var findById = function(arr) { return arr.findIndex(function(x) { return x.id === currentReviewId; }); };
+    var items, saveFn;
+    if (currentReviewType === 'sentence') { items = _dedupById(loadSentences()); saveFn = saveSentences; }
+    else if (currentReviewType === 'math') { items = _dedupById(loadMathProblems()); saveFn = saveMathProblems; }
+    else if (currentReviewType === 'problem') { items = _dedupById(loadProblems()); saveFn = saveProblems; }
+    else return;
+    var itemIdx = findById(items);
+    if (itemIdx === -1) return;
+    var item = items[itemIdx];
+    var now = new Date();
+    item.reviewedAt.push(now.toISOString());
+    if (remembered) {
+      item.stage++;
+      item.nextReviewAt = item.stage >= TOTAL_STAGES
+        ? new Date(now.getTime() + YEARLY_INTERVAL).toISOString()
+        : new Date(now.getTime() + INTERVALS[item.stage]).toISOString();
+    } else {
+      item.forgottenCount = (item.forgottenCount || 0) + 1;
+      item.stage = 0;
+      item.nextReviewAt = new Date(now.getTime() + INTERVALS[0]).toISOString();
+    }
+    item.lastModified = now.toISOString();
+    await saveFn(items);
+  } catch(e) {
+    console.error('handleNonWordReview error:', e);
+    showToast('保存失败，请重试');
   }
-  item.lastModified = now.toISOString();
-  await saveFn(items);
   currentReviewId = null;
   answerRevealed = false;
   lastAlarmTime = Date.now();
@@ -5757,30 +5848,35 @@ function getConfusedWords(word) {
 }
 
 async function handleSentenceReview(remembered) {
-  var sentences = loadSentences();
-  var idx = sentences.findIndex(function(s) { return s.id === currentReviewId; });
-  if (idx === -1) return;
-  var sentence = sentences[idx];
-  var now = new Date();
-  sentence.reviewedAt.push(now.toISOString());
+  try {
+    var sentences = _dedupById(loadSentences());
+    var idx = sentences.findIndex(function(s) { return s.id === currentReviewId; });
+    if (idx === -1) return;
+    var sentence = sentences[idx];
+    var now = new Date();
+    sentence.reviewedAt.push(now.toISOString());
 
-  if (remembered) {
-    sentence.stage++;
-    if (sentence.stage >= TOTAL_STAGES) {
-      sentence.nextReviewAt = new Date(now.getTime() + YEARLY_INTERVAL).toISOString();
-      showToast('句子 ' + sentence.wordRange + ' 进入年复习（每年一次）');
+    if (remembered) {
+      sentence.stage++;
+      if (sentence.stage >= TOTAL_STAGES) {
+        sentence.nextReviewAt = new Date(now.getTime() + YEARLY_INTERVAL).toISOString();
+        showToast('句子 ' + sentence.wordRange + ' 进入年复习（每年一次）');
+      } else {
+        sentence.nextReviewAt = new Date(now.getTime() + INTERVALS[sentence.stage]).toISOString();
+        showToast('句子 ' + sentence.wordRange + ' 进入第 ' + (sentence.stage + 1) + ' 次复习');
+      }
     } else {
-      sentence.nextReviewAt = new Date(now.getTime() + INTERVALS[sentence.stage]).toISOString();
-      showToast('句子 ' + sentence.wordRange + ' 进入第 ' + (sentence.stage + 1) + ' 次复习');
+      sentence.forgottenCount++;
+      sentence.stage = 0;
+      sentence.nextReviewAt = new Date(now.getTime() + INTERVALS[0]).toISOString();
+      showToast('句子 ' + sentence.wordRange + ' 已重置，重新开始');
     }
-  } else {
-    sentence.forgottenCount++;
-    sentence.stage = 0;
-    sentence.nextReviewAt = new Date(now.getTime() + INTERVALS[0]).toISOString();
-    showToast('句子 ' + sentence.wordRange + ' 已重置，重新开始');
+    sentence.lastModified = now.toISOString();
+    await saveSentences(sentences);
+  } catch(e) {
+    console.error('handleSentenceReview error:', e);
+    showToast('保存失败，请重试');
   }
-  sentence.lastModified = now.toISOString();
-  await saveSentences(sentences);
   currentReviewId = null;
   answerRevealed = false;
   lastAlarmTime = Date.now(); // 正在复习，重置闹铃计时
@@ -5788,63 +5884,92 @@ async function handleSentenceReview(remembered) {
 }
 
 async function handleMathReview(remembered) {
-  var problems = loadMathProblems();
-  var idx = problems.findIndex(function(p) { return p.id === currentReviewId; });
-  if (idx === -1) return;
-  var problem = problems[idx];
-  var now = new Date();
-  problem.reviewedAt.push(now.toISOString());
-  var displayName = problem.indexTitle || problem.title || '知识点';
+  try {
+    var problems = _dedupById(loadMathProblems());  // 先去重，确保只有一条记录
+    var idx = problems.findIndex(function(p) { return p.id === currentReviewId; });
+    if (idx === -1) return;
+    var problem = problems[idx];
+    var now = new Date();
+    problem.reviewedAt.push(now.toISOString());
+    var displayName = problem.indexTitle || problem.title || '知识点';
+    console.log('[DEBUG handleMathReview] stage before:', problem.stage, 'id:', problem.id, 'name:', displayName);
 
-  if (remembered) {
-    problem.stage++;
-    if (problem.stage >= TOTAL_STAGES) {
-      problem.nextReviewAt = new Date(now.getTime() + YEARLY_INTERVAL).toISOString();
-      showToast('"' + displayName + '" 进入年复习（每年一次）');
+    if (remembered) {
+      problem.stage++;
+      if (problem.stage >= TOTAL_STAGES) {
+        problem.nextReviewAt = new Date(now.getTime() + YEARLY_INTERVAL).toISOString();
+        showToast('"' + displayName + '" 进入年复习（每年一次）');
+      } else {
+        problem.nextReviewAt = new Date(now.getTime() + INTERVALS[problem.stage]).toISOString();
+        showToast('"' + displayName + '" 进入第 ' + (problem.stage + 1) + ' 次复习');
+      }
     } else {
-      problem.nextReviewAt = new Date(now.getTime() + INTERVALS[problem.stage]).toISOString();
-      showToast('"' + displayName + '" 进入第 ' + (problem.stage + 1) + ' 次复习');
+      problem.forgottenCount++;
+      problem.stage = 0;
+      problem.nextReviewAt = new Date(now.getTime() + INTERVALS[0]).toISOString();
+      showToast('"' + displayName + '" 已重置，重新开始');
     }
-  } else {
-    problem.forgottenCount++;
-    problem.stage = 0;
-    problem.nextReviewAt = new Date(now.getTime() + INTERVALS[0]).toISOString();
-    showToast('"' + displayName + '" 已重置，重新开始');
+    problem.lastModified = now.toISOString();
+    await saveMathProblems(problems);
+  } catch(e) {
+    console.error('handleMathReview error:', e);
+    showToast('保存失败，请重试');
   }
-  problem.lastModified = now.toISOString();
-  await saveMathProblems(problems);
   currentReviewId = null;
   answerRevealed = false;
   lastAlarmTime = Date.now();
   refreshAll();
 }
 
-async function handleProblemReview(remembered) {
-  var allProblems = loadProblems();
-  var idx = allProblems.findIndex(function(p) { return p.id === currentReviewId; });
-  if (idx === -1) return;
-  var problem = allProblems[idx];
-  var now = new Date();
-  problem.reviewedAt.push(now.toISOString());
-  var displayName = problem.indexTitle || problem.question || '题目';
+// 强制重置数学知识点阶段（用于解决卡在年复习的问题）
+function resetMathStage(id) {
+  var problems = loadMathProblems();
+  var idx = problems.findIndex(function(p) { return p.id === id; });
+  if (idx === -1) { showToast('找不到该知识点'); return false; }
+  var oldStage = problems[idx].stage;
+  problems[idx].stage = 0;
+  problems[idx].forgottenCount = 0;
+  problems[idx].nextReviewAt = new Date(Date.now() + 20 * 60 * 1000).toISOString();
+  problems[idx].lastModified = new Date().toISOString();
+  saveMathProblems(problems);
+  currentReviewId = null;
+  answerRevealed = false;
+  refreshAll();
+  showToast('已重置（stage: ' + oldStage + ' → 0），20 分钟后可重新复习');
+  return false;
+}
 
-  if (remembered) {
-    problem.stage++;
-    if (problem.stage >= TOTAL_STAGES) {
-      problem.nextReviewAt = new Date(now.getTime() + YEARLY_INTERVAL).toISOString();
-      showToast('"' + displayName + '" 进入年复习（每年一次）');
+async function handleProblemReview(remembered) {
+  try {
+    var allProblems = _dedupById(loadProblems());  // 先去重
+    var idx = allProblems.findIndex(function(p) { return p.id === currentReviewId; });
+    if (idx === -1) return;
+    var problem = allProblems[idx];
+    var now = new Date();
+    problem.reviewedAt.push(now.toISOString());
+    var displayName = problem.indexTitle || problem.question || '题目';
+
+    if (remembered) {
+      problem.stage++;
+      if (problem.stage >= TOTAL_STAGES) {
+        problem.nextReviewAt = new Date(now.getTime() + YEARLY_INTERVAL).toISOString();
+        showToast('"' + displayName + '" 进入年复习（每年一次）');
+      } else {
+        problem.nextReviewAt = new Date(now.getTime() + INTERVALS[problem.stage]).toISOString();
+        showToast('"' + displayName + '" 进入第 ' + (problem.stage + 1) + ' 次复习');
+      }
     } else {
-      problem.nextReviewAt = new Date(now.getTime() + INTERVALS[problem.stage]).toISOString();
-      showToast('"' + displayName + '" 进入第 ' + (problem.stage + 1) + ' 次复习');
+      problem.forgottenCount++;
+      problem.stage = 0;
+      problem.nextReviewAt = new Date(now.getTime() + INTERVALS[0]).toISOString();
+      showToast('"' + displayName + '" 已重置，重新开始');
     }
-  } else {
-    problem.forgottenCount++;
-    problem.stage = 0;
-    problem.nextReviewAt = new Date(now.getTime() + INTERVALS[0]).toISOString();
-    showToast('"' + displayName + '" 已重置，重新开始');
+    problem.lastModified = now.toISOString();
+    await saveProblems(allProblems);
+  } catch(e) {
+    console.error('handleProblemReview error:', e);
+    showToast('保存失败，请重试');
   }
-  problem.lastModified = now.toISOString();
-  await saveProblems(allProblems);
   currentReviewId = null;
   answerRevealed = false;
   lastAlarmTime = Date.now();
@@ -6319,11 +6444,13 @@ document.addEventListener('DOMContentLoaded', function() {
         useServer = true;
         requireLogin = false;
         syncFromServer().then(function() {
+          _applyIdChanges();  // 修复去重后的 ID 引用
           refreshAll();
           updateServerUI();
         });
       } else {
         // token 无效，用本地数据渲染
+        _applyIdChanges();
         refreshAll();
         // 检查服务器是否可达（可能只是 token 过期）
         fetchWithTimeout('/api/auth/verify', { cache: 'no-store' }).then(function(r) {
