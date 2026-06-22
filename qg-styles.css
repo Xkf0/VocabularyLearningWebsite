@@ -1,5 +1,8 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* 表单元素默认不继承 font-family，需要显式继承 */
+input, textarea, button, select { font-family: inherit; }
+
 :root {
   --primary: #4A6CF7;
   --primary-light: #6B8AFF;

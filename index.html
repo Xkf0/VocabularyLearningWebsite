@@ -64,6 +64,9 @@
       min-height: 100vh;
     }
 
+    /* 表单元素默认不继承 font-family，需要显式继承 */
+    input, textarea, button, select { font-family: inherit; }
+
     /* Header */
     header {
       background: linear-gradient(135deg, #1e293b, #334155);
@@ -1496,7 +1499,7 @@
         <input type="text" id="inputMathTitle" placeholder="例如：勾股定理、牛顿第二定律" autocomplete="off">
         <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <button type="button" class="math-img-upload-btn" onclick="document.getElementById('mathTitleImageInput').click()">添加图片</button>
-          <input type="file" id="mathTitleImageInput" accept="image/*" style="display:none" onchange="handleMathTitleImageUpload(event)">
+          <input type="file" id="mathTitleImageInput" accept="image/*" multiple style="display:none" onchange="handleMathTitleImageUpload(event)">
           <span id="mathTitleImageStatus" style="font-size:12px;color:#94a3b8;"></span>
         </div>
         <div id="mathTitleImagePreview"></div>
@@ -1543,7 +1546,7 @@
         <textarea id="inputProbQuestion" rows="3" style="width:100%;padding:10px 12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;resize:vertical;outline:none;font-family:inherit;" placeholder="输入数学题目..."></textarea>
         <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <button type="button" class="math-img-upload-btn" onclick="document.getElementById('probQuestionImageInput').click()">添加图片</button>
-          <input type="file" id="probQuestionImageInput" accept="image/*" style="display:none" onchange="handleProbQuestionImageUpload(event)">
+          <input type="file" id="probQuestionImageInput" accept="image/*" multiple style="display:none" onchange="handleProbQuestionImageUpload(event)">
           <span id="probQuestionImageStatus" style="font-size:12px;color:#94a3b8;"></span>
         </div>
         <div id="probQuestionImagePreview"></div>
@@ -3164,7 +3167,7 @@ var ITEM_EDITOR_FIELDS = {
     { key: 'category', label: '分类', type: 'text' },
     { key: 'indexTitle', label: '编号', type: 'text' },
     { key: 'title', label: '标题', type: 'text' },
-    { key: 'titleImage', label: '标题图片', type: 'image', single: true },
+    { key: 'titleImage', label: '标题图片', type: 'image' },
     { key: 'solutionText', label: '内容/证明', type: 'textarea' },
     { key: 'solutionImages', label: '证明图片', type: 'image' },
     { key: 'references', label: '引用来源', type: 'references' },
@@ -3174,7 +3177,7 @@ var ITEM_EDITOR_FIELDS = {
     { key: 'category', label: '分类', type: 'text' },
     { key: 'indexTitle', label: '编号', type: 'text' },
     { key: 'question', label: '题目', type: 'textarea' },
-    { key: 'questionImage', label: '题目图片', type: 'image', single: true },
+    { key: 'questionImage', label: '题目图片', type: 'image' },
     { key: 'solutionText', label: '解答', type: 'textarea' },
     { key: 'solutionImages', label: '解答图片', type: 'image' },
     { key: 'references', label: '引用来源', type: 'references' },
@@ -3252,7 +3255,13 @@ function openItemEditor(type, id) {
       if (f.single) {
         _pendingItemImages[f.key] = item[f.key] || null;
       } else {
-        _pendingItemImages[f.key] = (item[f.key] || []).slice();
+        // 兼容旧数据：单个字符串 → 转成数组
+        var raw = item[f.key];
+        if (raw && !Array.isArray(raw)) {
+          _pendingItemImages[f.key] = [raw];
+        } else {
+          _pendingItemImages[f.key] = (raw || []).slice();
+        }
         // 兼容旧数据：如果 solutionImages 为空但有 legacy images 字段
         if (_pendingItemImages[f.key].length === 0 && item.images && item.images.length > 0) {
           _pendingItemImages[f.key] = item.images.slice();
@@ -3742,7 +3751,7 @@ function compressImageDataUrl(dataUrl, maxSize, callback) {
 // ============================================================
 // 数学知识点
 // ============================================================
-var pendingMathTitleImage = null;
+var pendingMathTitleImage = [];  // 改为数组，支持多张图片
 var pendingMathSolutionImages = [];
 var pendingMathReferences = [];
 
@@ -3750,19 +3759,23 @@ var pendingMathReferences = [];
 function handleMathTitleImageUpload(event) {
   var files = event.target.files;
   if (!files || files.length === 0) return;
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    compressImageDataUrl(e.target.result, 800, function(compressed) {
-      pendingMathTitleImage = compressed;
-      renderMathTitlePreview();
-    });
-  };
-  reader.readAsDataURL(files[0]);
+  for (var i = 0; i < files.length; i++) {
+    (function(file) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        compressImageDataUrl(e.target.result, 800, function(compressed) {
+          pendingMathTitleImage.push(compressed);
+          renderMathTitlePreview();
+        });
+      };
+      reader.readAsDataURL(file);
+    })(files[i]);
+  }
   event.target.value = '';
 }
 
-function removeMathTitleImage() {
-  pendingMathTitleImage = null;
+function removeMathTitleImage(index) {
+  pendingMathTitleImage.splice(index, 1);
   renderMathTitlePreview();
 }
 
@@ -3770,15 +3783,17 @@ function renderMathTitlePreview() {
   var container = document.getElementById('mathTitleImagePreview');
   var status = document.getElementById('mathTitleImageStatus');
   if (!container) return;
-  if (!pendingMathTitleImage) {
+  if (pendingMathTitleImage.length === 0) {
     container.innerHTML = '';
     if (status) status.textContent = '';
     return;
   }
-  container.innerHTML = '<div class="math-img-item">' +
-    '<img src="' + escapeHtml(pendingMathTitleImage) + '" alt="知识点名称图片" style="max-width:100%;max-height:120px;object-fit:contain;">' +
-    '<button class="img-del" onclick="removeMathTitleImage()">x</button></div>';
-  if (status) status.textContent = '已选择 1 张图片';
+  container.innerHTML = pendingMathTitleImage.map(function(src, idx) {
+    return '<div class="math-img-item">' +
+      '<img src="' + escapeHtml(src) + '" alt="知识点名称图片" style="max-width:100%;max-height:120px;object-fit:contain;">' +
+      '<button class="img-del" onclick="removeMathTitleImage(' + idx + ')">x</button></div>';
+  }).join('');
+  if (status) status.textContent = '已选择 ' + pendingMathTitleImage.length + ' 张图片';
 }
 
 // --- 知识点证明过程图片 ---
@@ -3830,7 +3845,7 @@ async function addMathProblem() {
   var category = document.getElementById('inputMathCategory').value;
   var indexTitle = document.getElementById('inputMathIndexTitle').value.trim();
 
-  if (!title && !pendingMathTitleImage) {
+  if (!title && pendingMathTitleImage.length === 0) {
     showToast('请填写知识点名称或上传知识点图片');
     return;
   }
@@ -3843,14 +3858,14 @@ async function addMathProblem() {
   var existing = getActiveMathProblems().find(function(p) {
     if (indexTitle) return p.indexTitle && p.indexTitle.toLowerCase() === indexTitle.toLowerCase();
     if (title) return p.title && p.title.toLowerCase() === title.toLowerCase();
-    return p.titleImage === pendingMathTitleImage;
+    return p.titleImage && p.titleImage.length > 0;
   });
   if (existing) {
     if (!confirm('知识点 "' + (existing.indexTitle || existing.title || '图片') + '" 已存在，是否覆盖？')) return;
     existing.category = category;
     existing.indexTitle = indexTitle;
     existing.title = title;
-    existing.titleImage = pendingMathTitleImage;
+    existing.titleImage = pendingMathTitleImage.slice();
     existing.solutionText = solutionText;
     existing.solutionImages = pendingMathSolutionImages.slice();
     existing.references = pendingMathReferences.slice();
@@ -3872,7 +3887,7 @@ async function addMathProblem() {
     category: category,
     indexTitle: indexTitle,
     title: title,
-    titleImage: pendingMathTitleImage,
+    titleImage: pendingMathTitleImage.slice(),
     solutionText: solutionText,
     solutionImages: pendingMathSolutionImages.slice(),
     references: pendingMathReferences.slice(),
@@ -3896,7 +3911,7 @@ function clearMathForm() {
   document.getElementById('inputMathIndexTitle').value = '';
   document.getElementById('inputMathCategory').selectedIndex = 0;
   document.getElementById('inputMathSolution').value = '';
-  pendingMathTitleImage = null;
+  pendingMathTitleImage = [];
   pendingMathSolutionImages = [];
   pendingMathReferences = [];
   renderMathTitlePreview();
@@ -3961,7 +3976,9 @@ function renderMathProblemList() {
       : '';
     var titleHtml = '';
     if (p.title) { titleHtml += '<div class="math-title">' + escapeHtml(p.title) + '</div>'; }
-    if (p.titleImage) { titleHtml += '<img src="' + escapeHtml(p.titleImage) + '" class="math-image" alt="知识点图片" onclick="openImagePreview(this.src)">'; }
+    if (p.titleImage) { titleHtml += (Array.isArray(p.titleImage) ? p.titleImage : [p.titleImage]).map(function(src) {
+      return '<img src="' + escapeHtml(src) + '" class="math-image" alt="知识点图片" onclick="openImagePreview(this.src)">';
+    }).join(''); }
     var solHtml = p.solutionText
       ? '<div class="math-solution">' + escapeHtml(p.solutionText) + '</div>'
       : '';
@@ -4013,7 +4030,7 @@ function renderMathProblemList() {
 // ============================================================
 // 数学题目
 // ============================================================
-var pendingProbQuestionImage = null;
+var pendingProbQuestionImage = [];  // 改为数组，支持多张图片
 var pendingProbSolutionImages = [];
 var pendingProbReferences = [];
 var pendingMethodReferences = [];
@@ -4023,19 +4040,23 @@ var pendingMethodImages = [];
 function handleProbQuestionImageUpload(event) {
   var files = event.target.files;
   if (!files || files.length === 0) return;
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    compressImageDataUrl(e.target.result, 800, function(compressed) {
-      pendingProbQuestionImage = compressed;
-      renderProbQuestionPreview();
-    });
-  };
-  reader.readAsDataURL(files[0]);
+  for (var i = 0; i < files.length; i++) {
+    (function(file) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        compressImageDataUrl(e.target.result, 800, function(compressed) {
+          pendingProbQuestionImage.push(compressed);
+          renderProbQuestionPreview();
+        });
+      };
+      reader.readAsDataURL(file);
+    })(files[i]);
+  }
   event.target.value = '';
 }
 
-function removeProbQuestionImage() {
-  pendingProbQuestionImage = null;
+function removeProbQuestionImage(index) {
+  pendingProbQuestionImage.splice(index, 1);
   renderProbQuestionPreview();
 }
 
@@ -4043,15 +4064,17 @@ function renderProbQuestionPreview() {
   var container = document.getElementById('probQuestionImagePreview');
   var status = document.getElementById('probQuestionImageStatus');
   if (!container) return;
-  if (!pendingProbQuestionImage) {
+  if (pendingProbQuestionImage.length === 0) {
     container.innerHTML = '';
     if (status) status.textContent = '';
     return;
   }
-  container.innerHTML = '<div class="math-img-item" style="max-width:200px;">' +
-    '<img src="' + escapeHtml(pendingProbQuestionImage) + '" alt="题目图片">' +
-    '<button class="img-del" onclick="removeProbQuestionImage()">x</button></div>';
-  if (status) status.textContent = '已选择 1 张图片';
+  container.innerHTML = pendingProbQuestionImage.map(function(src, idx) {
+    return '<div class="math-img-item">' +
+      '<img src="' + escapeHtml(src) + '" alt="题目图片">' +
+      '<button class="img-del" onclick="removeProbQuestionImage(' + idx + ')">x</button></div>';
+  }).join('');
+  if (status) status.textContent = '已选择 ' + pendingProbQuestionImage.length + ' 张图片';
 }
 
 // --- 解题思路图片 ---
@@ -4144,7 +4167,7 @@ async function addMathProblemItem() {
   var category = document.getElementById('inputProbCategory').value;
   var indexTitle = document.getElementById('inputProbIndexTitle').value.trim();
 
-  if (!question && !pendingProbQuestionImage) {
+  if (!question && pendingProbQuestionImage.length === 0) {
     showToast('请填写题目或上传题目图片');
     return;
   }
@@ -4160,7 +4183,7 @@ async function addMathProblemItem() {
     category: category,
     indexTitle: indexTitle,
     question: question,
-    questionImage: pendingProbQuestionImage,
+    questionImage: pendingProbQuestionImage.slice(),
     solutionText: solutionText,
     solutionImages: pendingProbSolutionImages.slice(),
     references: pendingProbReferences.slice(),
@@ -4185,7 +4208,7 @@ function clearProbForm() {
   document.getElementById('inputProbIndexTitle').value = '';
   document.getElementById('inputProbCategory').selectedIndex = 0;
   document.getElementById('inputProbSolution').value = '';
-  pendingProbQuestionImage = null;
+  pendingProbQuestionImage = [];
   pendingProbSolutionImages = [];
   pendingProbReferences = [];
   renderProbQuestionPreview();
@@ -4365,7 +4388,9 @@ function renderProblemList() {
       : '';
     var questionHtml = '';
     if (p.question) { questionHtml += '<div class="math-title">' + escapeHtml(p.question) + '</div>'; }
-    if (p.questionImage) { questionHtml += '<img src="' + escapeHtml(p.questionImage) + '" class="math-image" alt="题目图片" onclick="openImagePreview(this.src)">'; }
+    if (p.questionImage) { questionHtml += (Array.isArray(p.questionImage) ? p.questionImage : [p.questionImage]).map(function(src) {
+      return '<img src="' + escapeHtml(src) + '" class="math-image" alt="题目图片" onclick="openImagePreview(this.src)">';
+    }).join(''); }
     var solHtml = p.solutionText
       ? '<div class="math-solution">' + escapeHtml(p.solutionText) + '</div>'
       : '';
@@ -4437,7 +4462,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // --- 粘贴图片支持：知识点 ---
   document.getElementById('inputMathTitle').addEventListener('paste', function(e) {
     handleImagePaste(e, function(dataUrl) {
-      pendingMathTitleImage = dataUrl;
+      pendingMathTitleImage.push(dataUrl);
       renderMathTitlePreview();
     });
   });
@@ -4451,7 +4476,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // --- 粘贴图片支持：题目 ---
   document.getElementById('inputProbQuestion').addEventListener('paste', function(e) {
     handleImagePaste(e, function(dataUrl) {
-      pendingProbQuestionImage = dataUrl;
+      pendingProbQuestionImage.push(dataUrl);
       renderProbQuestionPreview();
     });
   });
@@ -5173,7 +5198,9 @@ function renderMathReview(area, problem, dueItems, now) {
 
   var titleHtml = '';
   if (problem.title) { titleHtml += '<div class="math-title-card">' + escapeHtml(problem.title) + '</div>'; }
-  if (problem.titleImage) { titleHtml += '<img src="' + escapeHtml(problem.titleImage) + '" class="math-image-card" alt="知识点图片" onclick="openImagePreview(this.src)">'; }
+  if (problem.titleImage) { titleHtml += (Array.isArray(problem.titleImage) ? problem.titleImage : [problem.titleImage]).map(function(src) {
+    return '<img src="' + escapeHtml(src) + '" class="math-image-card" alt="知识点图片" onclick="openImagePreview(this.src)">';
+  }).join(''); }
 
   var solImgHtml = '';
   if (problem.solutionImages && problem.solutionImages.length > 0) {
@@ -5252,7 +5279,9 @@ function renderProblemReview(area, prob, dueItems, now) {
 
   var questionHtml = '';
   if (prob.question) { questionHtml += '<div class="math-title-card" style="font-size:22px;">' + escapeHtml(prob.question) + '</div>'; }
-  if (prob.questionImage) { questionHtml += '<img src="' + escapeHtml(prob.questionImage) + '" class="math-image-card" alt="题目图片" onclick="openImagePreview(this.src)">'; }
+  if (prob.questionImage) { questionHtml += (Array.isArray(prob.questionImage) ? prob.questionImage : [prob.questionImage]).map(function(src) {
+    return '<img src="' + escapeHtml(src) + '" class="math-image-card" alt="题目图片" onclick="openImagePreview(this.src)">';
+  }).join(''); }
 
   var solImgHtml = '';
   if (prob.solutionImages && prob.solutionImages.length > 0) {
