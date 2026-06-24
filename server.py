@@ -194,6 +194,11 @@ def _get_user_stats_file(username):
     return os.path.join(DATA_DIR, f'stats-data-{username}.json')
 
 
+def _get_review_stats_file(username):
+    """获取某个用户的每日复习统计文件路径"""
+    return os.path.join(DATA_DIR, f'review-stats-{username}.json')
+
+
 def _load_user_stats(username):
     """读取某个用户的统计数据"""
     path = _get_user_stats_file(username)
@@ -212,6 +217,27 @@ def _save_user_stats(username, data):
     """保存某个用户的统计数据（原子写入，避免崩溃时文件损坏）"""
     with _get_user_data_lock(username):
         path = _get_user_stats_file(username)
+        _save_json(path, data)
+
+
+def _load_review_stats(username):
+    """读取某个用户的每日复习统计"""
+    path = _get_review_stats_file(username)
+    if os.path.exists(path):
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    return data
+        except (json.JSONDecodeError, IOError):
+            pass
+    return {}
+
+
+def _save_review_stats(username, data):
+    """保存某个用户的每日复习统计（原子写入）"""
+    with _get_user_data_lock(username):
+        path = _get_review_stats_file(username)
         _save_json(path, data)
 
 
@@ -1012,7 +1038,7 @@ INVERSE_MATRIX_PROMPT = """你是一个矩阵求逆出题器。请生成一道{n
 }}"""
 
 
-def generate_question(api_key: str, question_type: str = 'mixed') -> dict | None:
+def generate_question(api_key: str, question_type: str = 'mixed', username: str = '') -> dict | None:
     """生成一道符合约束的题目，最多重试3次
 
     question_type 取值:
@@ -1117,7 +1143,7 @@ def generate_question(api_key: str, question_type: str = 'mixed') -> dict | None
                         continue
 
             print(f'[matrix] 生成成功: {rows}×{inner_dim} · {inner_dim}×{cols}')
-            return {
+            result = {
                 'questionType': 'matrix',
                 'question': question,
                 'matrixA': matrix_a,
@@ -1129,6 +1155,14 @@ def generate_question(api_key: str, question_type: str = 'mixed') -> dict | None
                 'innerDim': inner_dim,
                 'solution': solution,
             }
+            # 检查是否与历史记录重复
+            if username:
+                history = load_question_history(username)
+                if is_duplicate_question(result, question_type, history):
+                    print(f'[matrix] 与历史记录重复，重试')
+                    continue
+                save_question_to_history(username, result, question_type)
+            return result
 
         if question_type == 'equation':
             equations = data.get('equations', [])
@@ -1211,7 +1245,7 @@ def generate_question(api_key: str, question_type: str = 'mixed') -> dict | None
                 print(f'[equation] 高斯消元出错: {e}，跳过', file=sys.stderr)
                 continue
 
-            return {
+            equation_result = {
                 'questionType': 'equation',
                 'question': '解下列线性方程组',
                 'equations': _build_equation_text(matrix_a, vector_b, variables),
@@ -1224,6 +1258,13 @@ def generate_question(api_key: str, question_type: str = 'mixed') -> dict | None
                 'solution': solution,
                 'solutionSteps': solution_steps,
             }
+            if username:
+                history = load_question_history(username)
+                if is_duplicate_question(equation_result, question_type, history):
+                    print(f'[equation] 与历史记录重复，重试')
+                    continue
+                save_question_to_history(username, equation_result, question_type)
+            return equation_result
 
         if question_type == 'inverse':
             matrix_a = data.get('matrixA')
@@ -1294,7 +1335,7 @@ def generate_question(api_key: str, question_type: str = 'mixed') -> dict | None
             # 使用服务端计算的逆矩阵作为正确答案（更可靠）
             final_answer = server_inverse if server_inverse else answer
 
-            return {
+            inverse_result = {
                 'questionType': 'inverse',
                 'question': f'求矩阵 A 的逆矩阵',
                 'matrixA': matrix_a,
@@ -1304,6 +1345,13 @@ def generate_question(api_key: str, question_type: str = 'mixed') -> dict | None
                 'solution': solution,
                 'solutionSteps': solution_steps,
             }
+            if username:
+                history = load_question_history(username)
+                if is_duplicate_question(inverse_result, question_type, history):
+                    print(f'[inverse] 与历史记录重复，重试')
+                    continue
+                save_question_to_history(username, inverse_result, question_type)
+            return inverse_result
 
         # 原有的口算题逻辑
         question = data.get('question', '').strip()
@@ -1358,13 +1406,20 @@ def generate_question(api_key: str, question_type: str = 'mixed') -> dict | None
             server_answer = str(int(result))
 
         print(f'[Question] 生成成功: {question}')
-        return {
+        arith_result = {
             'question': question,
             'expression': expression,
             'answer': server_answer,
             'answerType': answer_type,
             'solution': solution,
         }
+        if username:
+            history = load_question_history(username)
+            if is_duplicate_question(arith_result, question_type, history):
+                print(f'[{question_type}] 与历史记录重复，重试')
+                continue
+            save_question_to_history(username, arith_result, question_type)
+        return arith_result
 
     return None
 
@@ -1693,6 +1748,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._send_json({'records': records})
             return
 
+        if path == '/api/review-stats':
+            username = self._get_token_user()
+            if not username:
+                self._send_json({'ok': False, 'error': '未登录'}, 401)
+                return
+            data = _load_review_stats(username)
+            self._send_json(data)
+            return
+
         super().do_GET()
 
     def do_POST(self):
@@ -1736,6 +1800,24 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 self._send_json({'ok': False, 'error': str(e)}, 500)
             return
 
+        if path == '/api/review-stats':
+            username = self._get_token_user()
+            if not username:
+                self._send_json({'ok': False, 'error': '未登录'}, 401)
+                return
+            try:
+                length = int(self.headers.get('Content-Length', 0))
+                body = self.rfile.read(length).decode('utf-8')
+                incoming = json.loads(body)
+                if isinstance(incoming, dict):
+                    _save_review_stats(username, incoming)
+                    self._send_json({'ok': True})
+                else:
+                    self._send_json({'ok': False, 'error': '数据格式错误'}, 400)
+            except Exception as e:
+                self._send_json({'ok': False, 'error': str(e)}, 500)
+            return
+
         # 兼容旧式无登录 POST（检测到旧客户端时允许，但不推荐）
         if self.path == '/api/words-legacy':
             try:
@@ -1767,7 +1849,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     self._send_json({'error': '请在设置中配置 API Key'}, 400)
                     return
                 qtype = body.get('questionType', 'mixed')
-                result = generate_question(api_key, qtype)
+                result = generate_question(api_key, qtype, username)
                 if result:
                     self._send_json(result)
                 else:
