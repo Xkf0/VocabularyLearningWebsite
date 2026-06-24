@@ -1228,6 +1228,46 @@
     }
     .forget-choice-card .fc-btn:hover { border-color: var(--primary); background: #f8faff; }
     .forget-choice-card .fc-btn .fc-desc { font-size: 12px; font-weight: 400; color: #94a3b8; margin-top: 2px; }
+
+    .review-history-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.35);
+      z-index: 10005;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .review-history-overlay.hidden { display: none; }
+    .review-history-card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 24px;
+      width: 380px;
+      max-width: 90vw;
+      max-height: 80vh;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    }
+    .review-history-card table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    .review-history-card th {
+      text-align: left;
+      padding: 8px 12px;
+      border-bottom: 2px solid #e2e8f0;
+      color: #64748b;
+      font-weight: 600;
+    }
+    .review-history-card td {
+      padding: 8px 12px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .review-history-card tr:last-child td { border-bottom: none; }
+    .review-history-card tr:hover td { background: #f8fafc; }
+    .review-history-today { font-weight: 600; color: #10b981; }
+
     .confuse-picker-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -1456,6 +1496,10 @@
   <div class="stat-card" onclick="toggleSnooze()">
     <div class="num" id="statAudioStatus" title="点击延时 10 分钟">🔔</div>
     <div class="label">延时</div>
+  </div>
+  <div class="stat-card" onclick="showReviewHistory()" style="cursor:pointer;background:#e8f5e9;" title="查看每日复习记录">
+    <div class="num" id="todayReviewCount">0</div>
+    <div class="label">今日复习</div>
   </div>
 </div>
 
@@ -1760,6 +1804,19 @@
   </div>
 </div>
 
+<!-- Review History Modal -->
+<div class="review-history-overlay hidden" id="reviewHistoryOverlay" onclick="if(event.target===this)hideReviewHistory()">
+  <div class="review-history-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="margin:0;font-size:16px;font-weight:600;">每日复习记录</h3>
+      <button class="btn btn-sm btn-outline" onclick="hideReviewHistory()">关闭</button>
+    </div>
+    <div id="reviewHistoryContent" style="max-height:400px;overflow-y:auto;">
+      <div style="text-align:center;color:#94a3b8;padding:20px;">加载中...</div>
+    </div>
+  </div>
+</div>
+
 <!-- Forget Choice Overlay -->
 <div class="forget-choice-overlay hidden" id="forgetChoiceOverlay" onclick="if(event.target===this)hideForgetChoice()">
   <div class="forget-choice-card">
@@ -1855,6 +1912,134 @@ function getAuthHeaders() {
   var h = { 'Content-Type': 'application/json' };
   if (authToken) h['Authorization'] = 'Bearer ' + authToken;
   return h;
+}
+
+// ============================================================
+// 每日复习次数统计（性能优先：同步自增 + 异步同步）
+// ============================================================
+var _reviewCountsCache = null;
+var _reviewSyncTimer = null;
+
+function _ensureReviewCounts() {
+  if (_reviewCountsCache) return _reviewCountsCache;
+  try {
+    _reviewCountsCache = JSON.parse(localStorage.getItem('ebbinghaus_review_counts')) || {};
+  } catch(e) {
+    _reviewCountsCache = {};
+  }
+  return _reviewCountsCache;
+}
+
+function _saveReviewCounts() {
+  if (_reviewCountsCache) {
+    localStorage.setItem('ebbinghaus_review_counts', JSON.stringify(_reviewCountsCache));
+  }
+}
+
+function getTodayStr() {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+/** 同步自增当日复习次数（纯内存+localStorage，不阻塞） */
+function incrementReviewCount() {
+  var counts = _ensureReviewCounts();
+  var today = getTodayStr();
+  counts[today] = (counts[today] || 0) + 1;
+  _saveReviewCounts();
+  updateReviewCountUI();
+  // 防抖同步到服务器（不阻塞当前流程）
+  scheduleReviewSync();
+}
+
+function getTodayReviewCount() {
+  var counts = _ensureReviewCounts();
+  return counts[getTodayStr()] || 0;
+}
+
+function getReviewStats() {
+  return _ensureReviewCounts();
+}
+
+function updateReviewCountUI() {
+  var el = document.getElementById('todayReviewCount');
+  if (el) el.textContent = getTodayReviewCount();
+}
+
+/** 防抖：2秒内的多次点击只触发一次服务器同步 */
+function scheduleReviewSync() {
+  if (!useServer) return;
+  clearTimeout(_reviewSyncTimer);
+  _reviewSyncTimer = setTimeout(function() {
+    syncReviewStatsToServer();
+  }, 2000);
+}
+
+/** 将本地复习统计推送到服务器（fire-and-forget，不阻塞） */
+function syncReviewStatsToServer() {
+  if (!useServer || !authToken) return;
+  var stats = getReviewStats();
+  fetch('/api/review-stats', {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(stats),
+  }).catch(function() {}); // 静默处理错误，绝不阻塞
+}
+
+/** 从服务器拉取复习统计到本地 */
+async function pullReviewStatsFromServer() {
+  if (!useServer || !authToken) return;
+  try {
+    var res = await fetch('/api/review-stats', {
+      headers: getAuthHeaders(),
+    });
+    if (res.ok) {
+      var data = await res.json();
+      if (data && typeof data === 'object') {
+        _reviewCountsCache = data;
+        _saveReviewCounts();
+        updateReviewCountUI();
+      }
+    }
+  } catch(e) {} // 静默处理
+}
+
+/** 打开每日复习记录弹窗 */
+function showReviewHistory() {
+  var overlay = document.getElementById('reviewHistoryOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('hidden');
+  renderReviewHistory();
+}
+
+/** 关闭每日复习记录弹窗 */
+function hideReviewHistory() {
+  var overlay = document.getElementById('reviewHistoryOverlay');
+  if (overlay) overlay.classList.add('hidden');
+}
+
+/** 渲染复习历史表格 */
+function renderReviewHistory() {
+  var container = document.getElementById('reviewHistoryContent');
+  if (!container) return;
+  var stats = getReviewStats();
+  var dates = Object.keys(stats).sort().reverse();
+  if (dates.length === 0) {
+    container.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;">暂无记录</div>';
+    return;
+  }
+  var today = getTodayStr();
+  var total = 0;
+  var html = '<table><thead><tr><th>日期</th><th style="text-align:right;">复习次数</th></tr></thead><tbody>';
+  for (var i = 0; i < dates.length; i++) {
+    var count = stats[dates[i]] || 0;
+    total += count;
+    var cls = dates[i] === today ? ' class="review-history-today"' : '';
+    html += '<tr' + cls + '><td>' + dates[i] + '</td><td style="text-align:right;">' + count + '</td></tr>';
+  }
+  html += '</tbody></table>';
+  html += '<div style="margin-top:12px;padding-top:12px;border-top:2px solid #e2e8f0;text-align:right;font-size:14px;color:#64748b;">累计复习：<strong>' + total + '</strong> 次</div>';
+  container.innerHTML = html;
 }
 
 function saveAuth(token, user) {
@@ -2368,6 +2553,9 @@ async function hideLoginAndSync() {
     }
   } catch (e) {}
 
+  // 从服务器拉取复习统计
+  await pullReviewStatsFromServer();
+
   updateAvatarDisplay();
   refreshAll();
 }
@@ -2556,6 +2744,10 @@ async function syncFromServer() {
       showLoginOverlay(false);
     }
   } catch (e) { /* 忽略 */ }
+  // 同步复习统计（不阻塞）
+  try {
+    await pullReviewStatsFromServer();
+  } catch(e) {}
 }
 
 function loadWords() {
@@ -5622,6 +5814,11 @@ async function handleReview(remembered) {
   var words = _dedupById(loadWords());
   var idx = words.findIndex(function(w) { return w.id === currentReviewId; });
   if (idx === -1) return;
+  // 每日复习计数（同步，绝不阻塞）
+  // 单词的"忘记了"由 doWordForget 计数，避免弹窗后取消导致的重复
+  if (remembered || currentReviewType !== 'word') {
+    incrementReviewCount();
+  }
   if (currentReviewType !== 'word') {
     handleNonWordReview(remembered, idx);
     return;
@@ -5707,6 +5904,7 @@ async function doWordForget() {
   var words = loadWords();
   var idx = words.findIndex(function(w) { return w.id === currentReviewId; });
   if (idx === -1) return;
+  incrementReviewCount(); // 每日复习计数（同步，绝不阻塞）
   var word = words[idx];
   var now = new Date();
   word.reviewedAt.push(now.toISOString());
