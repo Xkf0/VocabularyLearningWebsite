@@ -247,32 +247,6 @@ def _save_review_stats(username, data):
         _save_json(path, data)
 
 
-def _get_word_add_stats_file(username):
-    """获取某个用户的每日新增单词统计文件路径"""
-    return os.path.join(DATA_DIR, f'word-add-stats-{username}.json')
-
-
-def _load_word_add_stats(username):
-    """读取某个用户的每日新增单词统计"""
-    path = _get_word_add_stats_file(username)
-    if os.path.exists(path):
-        try:
-            with open(path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if isinstance(data, dict):
-                    return data
-        except (json.JSONDecodeError, IOError):
-            pass
-    return {}
-
-
-def _save_word_add_stats(username, data):
-    """保存某个用户的每日新增单词统计（原子写入）"""
-    with _get_user_data_lock(username):
-        path = _get_word_add_stats_file(username)
-        _save_json(path, data)
-
-
 # ---- Question Generator ----
 
 QUESTION_HISTORY_MAX = 500
@@ -1786,15 +1760,25 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 self._send_json({'ok': False, 'error': '未登录'}, 401)
                 return
             data = _load_review_stats(username)
-            self._send_json(data)
-            return
-
-        if path == '/api/word-add-stats':
-            username = self._get_token_user()
-            if not username:
-                self._send_json({'ok': False, 'error': '未登录'}, 401)
-                return
-            data = _load_word_add_stats(username)
+            # 一次性迁移：将旧 word-add-stats 合并到 review-stats 的 add 字段
+            if isinstance(data, dict):
+                old_add_path = os.path.join(DATA_DIR, f'word-add-stats-{username}.json')
+                if os.path.exists(old_add_path):
+                    try:
+                        with open(old_add_path, 'r', encoding='utf-8') as f:
+                            old_add = json.load(f)
+                        if isinstance(old_add, dict):
+                            for d, c in old_add.items():
+                                if isinstance(c, (int, float)) and c > 0:
+                                    if d not in data or not isinstance(data[d], dict):
+                                        data[d] = {'review': {'word': data[d]} if isinstance(data.get(d), (int, float)) else {}, 'add': {}}
+                                    if 'add' not in data[d]:
+                                        data[d]['add'] = {}
+                                    data[d]['add']['word'] = max(data[d]['add'].get('word', 0), int(c))
+                            _save_review_stats(username, data)
+                        os.remove(old_add_path)
+                    except Exception:
+                        pass
             self._send_json(data)
             return
 
@@ -1852,24 +1836,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 incoming = json.loads(body)
                 if isinstance(incoming, dict):
                     _save_review_stats(username, incoming)
-                    self._send_json({'ok': True})
-                else:
-                    self._send_json({'ok': False, 'error': '数据格式错误'}, 400)
-            except Exception as e:
-                self._send_json({'ok': False, 'error': str(e)}, 500)
-            return
-
-        if path == '/api/word-add-stats':
-            username = self._get_token_user()
-            if not username:
-                self._send_json({'ok': False, 'error': '未登录'}, 401)
-                return
-            try:
-                length = int(self.headers.get('Content-Length', 0))
-                body = self.rfile.read(length).decode('utf-8')
-                incoming = json.loads(body)
-                if isinstance(incoming, dict):
-                    _save_word_add_stats(username, incoming)
                     self._send_json({'ok': True})
                 else:
                     self._send_json({'ok': False, 'error': '数据格式错误'}, 400)
