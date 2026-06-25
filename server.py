@@ -158,6 +158,9 @@ def _merge_items(existing_items, incoming_items, key_field, fallback_field=None)
                 else:
                     # 都不是删除状态：字段级合并
                     merged = dict(existing)
+                    # 如果 existing 有 deletedAt（已删除）但 incoming 没有（重新添加）→ 恢复
+                    if 'deletedAt' in existing and not item.get('deletedAt'):
+                        merged.pop('deletedAt', None)
                     for key, val in item.items():
                         if val is not None and val != '':
                             merged[key] = val
@@ -177,6 +180,9 @@ def _merge_items(existing_items, incoming_items, key_field, fallback_field=None)
                 else:
                     # existing 复习次数更多或相等 → 保留 existing，叠加 incoming 的字段
                     merged = dict(existing)
+                    # 如果 existing 有 deletedAt 但 incoming 没有（重新添加）→ 恢复
+                    if 'deletedAt' in existing and not item.get('deletedAt'):
+                        merged.pop('deletedAt', None)
                     for key, val in item.items():
                         if val is not None and val != '':
                             merged[key] = val
@@ -238,6 +244,32 @@ def _save_review_stats(username, data):
     """保存某个用户的每日复习统计（原子写入）"""
     with _get_user_data_lock(username):
         path = _get_review_stats_file(username)
+        _save_json(path, data)
+
+
+def _get_word_add_stats_file(username):
+    """获取某个用户的每日新增单词统计文件路径"""
+    return os.path.join(DATA_DIR, f'word-add-stats-{username}.json')
+
+
+def _load_word_add_stats(username):
+    """读取某个用户的每日新增单词统计"""
+    path = _get_word_add_stats_file(username)
+    if os.path.exists(path):
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    return data
+        except (json.JSONDecodeError, IOError):
+            pass
+    return {}
+
+
+def _save_word_add_stats(username, data):
+    """保存某个用户的每日新增单词统计（原子写入）"""
+    with _get_user_data_lock(username):
+        path = _get_word_add_stats_file(username)
         _save_json(path, data)
 
 
@@ -1757,6 +1789,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._send_json(data)
             return
 
+        if path == '/api/word-add-stats':
+            username = self._get_token_user()
+            if not username:
+                self._send_json({'ok': False, 'error': '未登录'}, 401)
+                return
+            data = _load_word_add_stats(username)
+            self._send_json(data)
+            return
+
         super().do_GET()
 
     def do_POST(self):
@@ -1811,6 +1852,24 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 incoming = json.loads(body)
                 if isinstance(incoming, dict):
                     _save_review_stats(username, incoming)
+                    self._send_json({'ok': True})
+                else:
+                    self._send_json({'ok': False, 'error': '数据格式错误'}, 400)
+            except Exception as e:
+                self._send_json({'ok': False, 'error': str(e)}, 500)
+            return
+
+        if path == '/api/word-add-stats':
+            username = self._get_token_user()
+            if not username:
+                self._send_json({'ok': False, 'error': '未登录'}, 401)
+                return
+            try:
+                length = int(self.headers.get('Content-Length', 0))
+                body = self.rfile.read(length).decode('utf-8')
+                incoming = json.loads(body)
+                if isinstance(incoming, dict):
+                    _save_word_add_stats(username, incoming)
                     self._send_json({'ok': True})
                 else:
                     self._send_json({'ok': False, 'error': '数据格式错误'}, 400)

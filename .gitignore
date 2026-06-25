@@ -6,6 +6,7 @@ vocabulary-data.json
 vocabulary-data-*.json
 stats-data-*.json
 review-stats-*.json
+word-add-stats-*.json
 
 # ====================================
 # 服务器同步脚本（含服务器 IP）

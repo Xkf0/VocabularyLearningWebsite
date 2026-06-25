@@ -1501,6 +1501,10 @@
     <div class="num" id="todayReviewCount">0</div>
     <div class="label">今日复习</div>
   </div>
+  <div class="stat-card" onclick="showWordAddHistory()" style="cursor:pointer;background:#e3f2fd;" title="查看每日新增单词记录">
+    <div class="num" id="todayWordAddCount">0</div>
+    <div class="label">今日新增</div>
+  </div>
 </div>
 
 <!-- File Bar -->
@@ -2042,6 +2046,122 @@ function renderReviewHistory() {
   container.innerHTML = html;
 }
 
+// ============================================================
+// 每日新增单词计数（与复习计数相同模式：同步自增 + 异步同步）
+// ============================================================
+var _wordAddCountsCache = null;
+var _wordAddSyncTimer = null;
+
+function _ensureWordAddCounts() {
+  if (_wordAddCountsCache) return _wordAddCountsCache;
+  try {
+    _wordAddCountsCache = JSON.parse(localStorage.getItem('ebbinghaus_word_add_counts')) || {};
+  } catch(e) {
+    _wordAddCountsCache = {};
+  }
+  return _wordAddCountsCache;
+}
+
+function _saveWordAddCounts() {
+  if (_wordAddCountsCache) {
+    localStorage.setItem('ebbinghaus_word_add_counts', JSON.stringify(_wordAddCountsCache));
+  }
+}
+
+/** 同步自增当日新增单词数（纯内存+localStorage，不阻塞） */
+function incrementWordAddCount() {
+  var counts = _ensureWordAddCounts();
+  var today = getTodayStr();
+  counts[today] = (counts[today] || 0) + 1;
+  _saveWordAddCounts();
+  updateWordAddCountUI();
+  scheduleWordAddSync();
+}
+
+function getTodayWordAddCount() {
+  var counts = _ensureWordAddCounts();
+  return counts[getTodayStr()] || 0;
+}
+
+function getWordAddStats() {
+  return _ensureWordAddCounts();
+}
+
+function updateWordAddCountUI() {
+  var el = document.getElementById('todayWordAddCount');
+  if (el) el.textContent = getTodayWordAddCount();
+}
+
+/** 防抖：2秒内的多次添加只触发一次服务器同步 */
+function scheduleWordAddSync() {
+  if (!useServer) return;
+  clearTimeout(_wordAddSyncTimer);
+  _wordAddSyncTimer = setTimeout(function() {
+    syncWordAddStatsToServer();
+  }, 2000);
+}
+
+/** 将本地新增单词统计推送到服务器（fire-and-forget，不阻塞） */
+function syncWordAddStatsToServer() {
+  if (!useServer || !authToken) return;
+  var stats = getWordAddStats();
+  fetch('/api/word-add-stats', {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(stats),
+  }).catch(function() {});
+}
+
+/** 从服务器拉取新增单词统计到本地 */
+async function pullWordAddStatsFromServer() {
+  if (!useServer || !authToken) return;
+  try {
+    var res = await fetch('/api/word-add-stats', {
+      headers: getAuthHeaders(),
+    });
+    if (res.ok) {
+      var data = await res.json();
+      if (data && typeof data === 'object') {
+        _wordAddCountsCache = data;
+        _saveWordAddCounts();
+        updateWordAddCountUI();
+      }
+    }
+  } catch(e) {}
+}
+
+/** 打开每日新增单词记录弹窗 */
+function showWordAddHistory() {
+  var overlay = document.getElementById('reviewHistoryOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('hidden');
+  renderWordAddHistory();
+}
+
+/** 渲染新增单词历史表格 */
+function renderWordAddHistory() {
+  var container = document.getElementById('reviewHistoryContent');
+  if (!container) return;
+  var stats = getWordAddStats();
+  var dates = Object.keys(stats).sort().reverse();
+  if (dates.length === 0) {
+    container.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;">暂无记录</div>';
+    return;
+  }
+  var today = getTodayStr();
+  var total = 0;
+  var html = '<table><thead><tr><th>日期</th><th style="text-align:right;">新增单词数</th></tr></thead><tbody>';
+  for (var i = 0; i < dates.length; i++) {
+    var count = stats[dates[i]] || 0;
+    total += count;
+    var cls = dates[i] === today ? ' class="review-history-today"' : '';
+    html += '<tr' + cls + '><td>' + dates[i] + '</td><td style="text-align:right;">' + count + '</td></tr>';
+  }
+  html += '</tbody></table>';
+  html += '<div style="margin-top:12px;padding-top:12px;border-top:2px solid #e2e8f0;text-align:right;font-size:14px;color:#64748b;">累计新增：<strong>' + total + '</strong> 个</div>';
+  container.innerHTML = html;
+}
+
 function saveAuth(token, user) {
   authToken = token;
   currentUser = user;
@@ -2555,6 +2675,8 @@ async function hideLoginAndSync() {
 
   // 从服务器拉取复习统计
   await pullReviewStatsFromServer();
+  // 从服务器拉取新增单词统计
+  await pullWordAddStatsFromServer();
 
   updateAvatarDisplay();
   refreshAll();
@@ -2747,6 +2869,10 @@ async function syncFromServer() {
   // 同步复习统计（不阻塞）
   try {
     await pullReviewStatsFromServer();
+  } catch(e) {}
+  // 同步新增单词统计（不阻塞）
+  try {
+    await pullWordAddStatsFromServer();
   } catch(e) {}
 }
 
@@ -3796,6 +3922,11 @@ async function addWord() {
     }
     return;
   }
+  // 检查是否曾经删除过这个词
+  var deletedWord = words.find(function(w) { return w.word.toLowerCase() === word.toLowerCase() && w.deletedAt; });
+  if (deletedWord) {
+    showToast('"' + word + '" 之前被删除过，现在重新添加');
+  }
   var btn = document.querySelector('#pane-words .btn-block');
   var originalText = btn.textContent;
   btn.textContent = '查询音标中...';
@@ -3820,6 +3951,7 @@ async function addWord() {
     forgottenCount: 0,
   };
   words.push(newWord);
+  incrementWordAddCount(); // 每日新增计数（同步，绝不阻塞）
   await saveWords(words);
   wordEl.value = '';
   defEl.value = '';
@@ -3874,6 +4006,7 @@ async function addBatch() {
       forgottenCount: 0,
     });
     added++;
+    incrementWordAddCount(); // 每日新增计数（同步，绝不阻塞）
   }
   if (added === 0) { showToast('没有新单词可添加'); return; }
   await saveWords(words);
