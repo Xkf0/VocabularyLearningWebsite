@@ -1267,6 +1267,10 @@
     .review-history-card tr:last-child td { border-bottom: none; }
     .review-history-card tr:hover td { background: #f8fafc; }
     .review-history-today { font-weight: 600; color: #10b981; }
+    .history-date-row:hover { background: #f8fafc; }
+    .history-date-detail table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .history-date-detail th { text-align: left; padding: 4px 8px; border-bottom: 1px solid #e2e8f0; }
+    .history-date-detail td { padding: 4px 8px; border-bottom: 1px solid #f1f5f9; }
 
     .confuse-picker-overlay {
       position: fixed;
@@ -1497,11 +1501,11 @@
     <div class="num" id="statAudioStatus" title="点击延时 10 分钟">🔔</div>
     <div class="label">延时</div>
   </div>
-  <div class="stat-card" onclick="showReviewHistory()" style="cursor:pointer;background:#e8f5e9;" title="查看每日复习记录">
+  <div class="stat-card" onclick="showTodayReviewDetail()" style="cursor:pointer;background:#e8f5e9;" title="点击查看今日复习详情">
     <div class="num" id="todayReviewCount">0</div>
     <div class="label">今日复习</div>
   </div>
-  <div class="stat-card" onclick="showWordAddHistory()" style="cursor:pointer;background:#e3f2fd;" title="查看每日新增单词记录">
+  <div class="stat-card" onclick="showTodayAddDetail()" style="cursor:pointer;background:#e3f2fd;" title="点击查看今日新增详情">
     <div class="num" id="todayWordAddCount">0</div>
     <div class="label">今日新增</div>
   </div>
@@ -1528,6 +1532,7 @@
   <button class="tab-btn" data-tab="problems">题目</button>
   <button class="tab-btn" data-tab="methods">方法</button>
   <button class="tab-btn" data-tab="words">单词</button>
+  <button class="tab-btn" data-tab="history">历史</button>
   <button class="tab-btn" data-tab="settings">设置</button>
 </div>
 
@@ -1701,6 +1706,16 @@
     </div>
   </div>
 
+  <!-- History -->
+  <div class="tab-pane" id="pane-history">
+    <div class="card">
+      <h3 style="font-size:16px;font-weight:600;margin-bottom:16px;">历史统计</h3>
+      <div id="historyContent" style="max-height:70vh;overflow-y:auto;">
+        <div style="text-align:center;color:#94a3b8;padding:20px;">加载中...</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Settings -->
   <div class="tab-pane" id="pane-settings">
     <div class="card">
@@ -1808,14 +1823,10 @@
   </div>
 </div>
 
-<!-- Review History Modal -->
+<!-- Stats Detail Modal -->
 <div class="review-history-overlay hidden" id="reviewHistoryOverlay" onclick="if(event.target===this)hideReviewHistory()">
   <div class="review-history-card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <h3 style="margin:0;font-size:16px;font-weight:600;">每日复习记录</h3>
-      <button class="btn btn-sm btn-outline" onclick="hideReviewHistory()">关闭</button>
-    </div>
-    <div id="reviewHistoryContent" style="max-height:400px;overflow-y:auto;">
+    <div id="reviewHistoryContent" style="max-height:500px;overflow-y:auto;">
       <div style="text-align:center;color:#94a3b8;padding:20px;">加载中...</div>
     </div>
   </div>
@@ -1919,24 +1930,53 @@ function getAuthHeaders() {
 }
 
 // ============================================================
-// 每日复习次数统计（性能优先：同步自增 + 异步同步）
+// 统一每日统计（复习 + 新增，支持全部类型）
+// 格式: {"2026-06-25": {review:{word:5,sentence:2,...}, add:{word:3,...}}}
+// 性能优先：同步自增 + 异步同步，绝不阻塞
 // ============================================================
-var _reviewCountsCache = null;
-var _reviewSyncTimer = null;
+var _statsCache = null;
+var _statsSyncTimer = null;
+var STATS_TYPES = ['word', 'sentence', 'theorem', 'problem', 'method'];
+var STATS_LABELS = {word: '单词', sentence: '句子', theorem: '知识点', problem: '题目', method: '方法'};
 
-function _ensureReviewCounts() {
-  if (_reviewCountsCache) return _reviewCountsCache;
+function _ensureStats() {
+  if (_statsCache) return _statsCache;
   try {
-    _reviewCountsCache = JSON.parse(localStorage.getItem('ebbinghaus_review_counts')) || {};
+    _statsCache = JSON.parse(localStorage.getItem('ebbinghaus_stats')) || {};
   } catch(e) {
-    _reviewCountsCache = {};
+    _statsCache = {};
   }
-  return _reviewCountsCache;
+  _statsCache = _migrateLegacyStats(_statsCache);
+  _sanitizeStats(_statsCache);
+  return _statsCache;
 }
 
-function _saveReviewCounts() {
-  if (_reviewCountsCache) {
-    localStorage.setItem('ebbinghaus_review_counts', JSON.stringify(_reviewCountsCache));
+/** 确保所有计数为纯数字，修复可能的格式损坏 */
+function _sanitizeStats(data) {
+  if (!data || typeof data !== 'object') return;
+  var changed = false;
+  for (var d in data) {
+    if (!data[d] || typeof data[d] !== 'object') continue;
+    for (var t in data[d]) {
+      if (t !== 'review' && t !== 'add') { delete data[d][t]; changed = true; continue; }
+      if (!data[d][t] || typeof data[d][t] !== 'object') { data[d][t] = {}; changed = true; continue; }
+      for (var cat in data[d][t]) {
+        if (typeof data[d][t][cat] !== 'number' || isNaN(data[d][t][cat]) || !isFinite(data[d][t][cat])) {
+          data[d][t][cat] = 0;
+          changed = true;
+        }
+      }
+    }
+  }
+  if (changed) {
+    localStorage.setItem('ebbinghaus_stats', JSON.stringify(data));
+  }
+}
+
+function _saveStatsCache(data) {
+  _statsCache = data;
+  if (data) {
+    localStorage.setItem('ebbinghaus_stats', JSON.stringify(data));
   }
 }
 
@@ -1945,221 +1985,209 @@ function getTodayStr() {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
-/** 同步自增当日复习次数（纯内存+localStorage，不阻塞） */
-function incrementReviewCount() {
-  var counts = _ensureReviewCounts();
+/** 迁移旧版扁平格式到新版 2D 格式 */
+function _migrateLegacyStats(data) {
+  if (!data || typeof data !== 'object') return {};
+  var changed = false;
+  var keys = Object.keys(data);
+  if (keys.length > 0 && typeof data[keys[0]] === 'number') {
+    var newData = {};
+    for (var k in data) { newData[k] = {review: {word: data[k]}, add: {}}; }
+    data = newData;
+    changed = true;
+  }
+  for (var d in data) {
+    if (!data[d].review) { data[d].review = {}; changed = true; }
+    if (!data[d].add) { data[d].add = {}; changed = true; }
+  }
+  if (changed) localStorage.setItem('ebbinghaus_stats', JSON.stringify(data));
+  return data;
+}
+
+/** 一次性迁移旧 localStorage 键到新格式 */
+function _mergeLegacyLocalStorage() {
+  var stats = _ensureStats();
+  var changed = false;
+  try {
+    var oldR = JSON.parse(localStorage.getItem('ebbinghaus_review_counts'));
+    if (oldR && typeof oldR === 'object') {
+      for (var dt in oldR) {
+        if (!stats[dt]) stats[dt] = {review: {}, add: {}};
+        if (!stats[dt].review) stats[dt].review = {};
+        stats[dt].review['word'] = (stats[dt].review['word'] || 0) + (oldR[dt] || 0);
+      }
+      localStorage.removeItem('ebbinghaus_review_counts');
+      changed = true;
+    }
+  } catch(e) {}
+  try {
+    var oldA = JSON.parse(localStorage.getItem('ebbinghaus_word_add_counts'));
+    if (oldA && typeof oldA === 'object') {
+      for (var dt2 in oldA) {
+        if (!stats[dt2]) stats[dt2] = {review: {}, add: {}};
+        if (!stats[dt2].add) stats[dt2].add = {};
+        stats[dt2].add['word'] = (stats[dt2].add['word'] || 0) + (oldA[dt2] || 0);
+      }
+      localStorage.removeItem('ebbinghaus_word_add_counts');
+      changed = true;
+    }
+  } catch(e) {}
+  if (changed) _saveStatsCache(stats);
+}
+
+/** 同步自增统计（type:'review'|'add', category: word|sentence|theorem|problem|method） */
+function incrementStat(type, category) {
+  if (STATS_TYPES.indexOf(category) === -1) category = 'word';
+  var stats = _ensureStats();
   var today = getTodayStr();
-  counts[today] = (counts[today] || 0) + 1;
-  _saveReviewCounts();
-  updateReviewCountUI();
-  // 防抖同步到服务器（不阻塞当前流程）
-  scheduleReviewSync();
+  if (!stats[today]) stats[today] = {review: {}, add: {}};
+  if (!stats[today][type]) stats[today][type] = {};
+  stats[today][type][category] = (stats[today][type][category] || 0) + 1;
+  _saveStatsCache(stats);
+  updateStatsUI();
+  scheduleStatsSync();
 }
 
-function getTodayReviewCount() {
-  var counts = _ensureReviewCounts();
-  return counts[getTodayStr()] || 0;
+/** 获取今日某项统计总数 */
+function getTodayStatTotal(type) {
+  var stats = _ensureStats();
+  var today = stats[getTodayStr()];
+  if (!today || !today[type]) return 0;
+  var s = 0;
+  for (var k in today[type]) {
+    var v = today[type][k];
+    s += (typeof v === 'number' && !isNaN(v) && isFinite(v)) ? v : 0;
+  }
+  return s;
 }
 
-function getReviewStats() {
-  return _ensureReviewCounts();
+/** 获取今日某项统计的详细分类（值保证为数字） */
+function getTodayStatBreakdown(type) {
+  var stats = _ensureStats();
+  var today = stats[getTodayStr()];
+  if (!today || !today[type]) return {};
+  var result = {};
+  for (var k in today[type]) {
+    var v = today[type][k];
+    result[k] = (typeof v === 'number' && !isNaN(v) && isFinite(v)) ? v : 0;
+  }
+  return result;
 }
 
-function updateReviewCountUI() {
+/** 获取全部统计数据 */
+function getStats() { return _ensureStats(); }
+
+/** 获取指定日期统计数据 */
+function getDateStats(dateStr) {
+  var stats = _ensureStats();
+  return stats[dateStr] || {review: {}, add: {}};
+}
+
+function updateStatsUI() {
   var el = document.getElementById('todayReviewCount');
-  if (el) el.textContent = getTodayReviewCount();
+  if (el) el.textContent = getTodayStatTotal('review');
+  el = document.getElementById('todayWordAddCount');
+  if (el) el.textContent = getTodayStatTotal('add');
 }
 
-/** 防抖：2秒内的多次点击只触发一次服务器同步 */
-function scheduleReviewSync() {
+/** 防抖：2 秒内多次操作只触发一次同步 */
+function scheduleStatsSync() {
   if (!useServer) return;
-  clearTimeout(_reviewSyncTimer);
-  _reviewSyncTimer = setTimeout(function() {
-    syncReviewStatsToServer();
-  }, 2000);
+  clearTimeout(_statsSyncTimer);
+  _statsSyncTimer = setTimeout(function() { syncStatsToServer(); }, 2000);
 }
 
-/** 将本地复习统计推送到服务器（fire-and-forget，不阻塞） */
-function syncReviewStatsToServer() {
+/** 推送到服务器（fire-and-forget） */
+function syncStatsToServer() {
   if (!useServer || !authToken) return;
-  var stats = getReviewStats();
   fetch('/api/review-stats', {
     method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify(stats),
-  }).catch(function() {}); // 静默处理错误，绝不阻塞
-}
-
-/** 从服务器拉取复习统计到本地 */
-async function pullReviewStatsFromServer() {
-  if (!useServer || !authToken) return;
-  try {
-    var res = await fetch('/api/review-stats', {
-      headers: getAuthHeaders(),
-    });
-    if (res.ok) {
-      var data = await res.json();
-      if (data && typeof data === 'object') {
-        _reviewCountsCache = data;
-        _saveReviewCounts();
-        updateReviewCountUI();
-      }
-    }
-  } catch(e) {} // 静默处理
-}
-
-/** 打开每日复习记录弹窗 */
-function showReviewHistory() {
-  var overlay = document.getElementById('reviewHistoryOverlay');
-  if (!overlay) return;
-  overlay.classList.remove('hidden');
-  renderReviewHistory();
-}
-
-/** 关闭每日复习记录弹窗 */
-function hideReviewHistory() {
-  var overlay = document.getElementById('reviewHistoryOverlay');
-  if (overlay) overlay.classList.add('hidden');
-}
-
-/** 渲染复习历史表格 */
-function renderReviewHistory() {
-  var container = document.getElementById('reviewHistoryContent');
-  if (!container) return;
-  var stats = getReviewStats();
-  var dates = Object.keys(stats).sort().reverse();
-  if (dates.length === 0) {
-    container.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;">暂无记录</div>';
-    return;
-  }
-  var today = getTodayStr();
-  var total = 0;
-  var html = '<table><thead><tr><th>日期</th><th style="text-align:right;">复习次数</th></tr></thead><tbody>';
-  for (var i = 0; i < dates.length; i++) {
-    var count = stats[dates[i]] || 0;
-    total += count;
-    var cls = dates[i] === today ? ' class="review-history-today"' : '';
-    html += '<tr' + cls + '><td>' + dates[i] + '</td><td style="text-align:right;">' + count + '</td></tr>';
-  }
-  html += '</tbody></table>';
-  html += '<div style="margin-top:12px;padding-top:12px;border-top:2px solid #e2e8f0;text-align:right;font-size:14px;color:#64748b;">累计复习：<strong>' + total + '</strong> 次</div>';
-  container.innerHTML = html;
-}
-
-// ============================================================
-// 每日新增单词计数（与复习计数相同模式：同步自增 + 异步同步）
-// ============================================================
-var _wordAddCountsCache = null;
-var _wordAddSyncTimer = null;
-
-function _ensureWordAddCounts() {
-  if (_wordAddCountsCache) return _wordAddCountsCache;
-  try {
-    _wordAddCountsCache = JSON.parse(localStorage.getItem('ebbinghaus_word_add_counts')) || {};
-  } catch(e) {
-    _wordAddCountsCache = {};
-  }
-  return _wordAddCountsCache;
-}
-
-function _saveWordAddCounts() {
-  if (_wordAddCountsCache) {
-    localStorage.setItem('ebbinghaus_word_add_counts', JSON.stringify(_wordAddCountsCache));
-  }
-}
-
-/** 同步自增当日新增单词数（纯内存+localStorage，不阻塞） */
-function incrementWordAddCount() {
-  var counts = _ensureWordAddCounts();
-  var today = getTodayStr();
-  counts[today] = (counts[today] || 0) + 1;
-  _saveWordAddCounts();
-  updateWordAddCountUI();
-  scheduleWordAddSync();
-}
-
-function getTodayWordAddCount() {
-  var counts = _ensureWordAddCounts();
-  return counts[getTodayStr()] || 0;
-}
-
-function getWordAddStats() {
-  return _ensureWordAddCounts();
-}
-
-function updateWordAddCountUI() {
-  var el = document.getElementById('todayWordAddCount');
-  if (el) el.textContent = getTodayWordAddCount();
-}
-
-/** 防抖：2秒内的多次添加只触发一次服务器同步 */
-function scheduleWordAddSync() {
-  if (!useServer) return;
-  clearTimeout(_wordAddSyncTimer);
-  _wordAddSyncTimer = setTimeout(function() {
-    syncWordAddStatsToServer();
-  }, 2000);
-}
-
-/** 将本地新增单词统计推送到服务器（fire-and-forget，不阻塞） */
-function syncWordAddStatsToServer() {
-  if (!useServer || !authToken) return;
-  var stats = getWordAddStats();
-  fetch('/api/word-add-stats', {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(stats),
+    body: JSON.stringify(getStats()),
   }).catch(function() {});
 }
 
-/** 从服务器拉取新增单词统计到本地 */
-async function pullWordAddStatsFromServer() {
+/** 从服务器拉取统计到本地（取最大值合并，绝不覆盖本地更新） */
+async function pullStatsFromServer() {
   if (!useServer || !authToken) return;
   try {
-    var res = await fetch('/api/word-add-stats', {
-      headers: getAuthHeaders(),
-    });
+    var res = await fetch('/api/review-stats', { headers: getAuthHeaders() });
     if (res.ok) {
       var data = await res.json();
       if (data && typeof data === 'object') {
-        _wordAddCountsCache = data;
-        _saveWordAddCounts();
-        updateWordAddCountUI();
+        data = _migrateLegacyStats(data);
+        var local = _ensureStats();
+        // 合并：取各维度的最大值（统计只增不减），绝不覆盖
+        for (var date in data) {
+          if (!local[date]) local[date] = {review: {}, add: {}};
+          if (data[date].review) {
+            for (var cat in data[date].review) {
+              var sv = data[date].review[cat];
+              if (sv > (local[date].review[cat] || 0)) local[date].review[cat] = sv;
+            }
+          }
+          if (data[date].add) {
+            for (var cat in data[date].add) {
+              var sv = data[date].add[cat];
+              if (sv > (local[date].add[cat] || 0)) local[date].add[cat] = sv;
+            }
+          }
+        }
+        _saveStatsCache(local);
+        updateStatsUI();
       }
     }
   } catch(e) {}
 }
 
-/** 打开每日新增单词记录弹窗 */
-function showWordAddHistory() {
+/** 今日复习统计弹窗 */
+function showTodayReviewDetail() {
   var overlay = document.getElementById('reviewHistoryOverlay');
   if (!overlay) return;
   overlay.classList.remove('hidden');
-  renderWordAddHistory();
+  var breakdown = getTodayStatBreakdown('review');
+  var total = getTodayStatTotal('review');
+  var today = getTodayStr();
+  var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
+    + '<h3 style="margin:0;font-size:16px;font-weight:600;">今日复习 (' + today + ')</h3>'
+    + '<button class="btn btn-sm btn-outline" onclick="hideReviewHistory()">关闭</button></div>';
+  html += '<table><thead><tr><th style="text-align:left;">类型</th><th style="text-align:right;">复习次数</th></tr></thead><tbody>';
+  for (var i = 0; i < STATS_TYPES.length; i++) {
+    var cat = STATS_TYPES[i];
+    var cnt = breakdown[cat] || 0;
+    html += '<tr><td>' + (STATS_LABELS[cat] || cat) + '</td><td style="text-align:right;">' + cnt + '</td></tr>';
+  }
+  html += '</tbody></table>';
+  html += '<div style="margin-top:12px;padding-top:12px;border-top:2px solid #e2e8f0;text-align:right;font-size:14px;color:#64748b;">累计复习：<strong>' + total + '</strong> 次</div>';
+  document.getElementById('reviewHistoryContent').innerHTML = html;
 }
 
-/** 渲染新增单词历史表格 */
-function renderWordAddHistory() {
-  var container = document.getElementById('reviewHistoryContent');
-  if (!container) return;
-  var stats = getWordAddStats();
-  var dates = Object.keys(stats).sort().reverse();
-  if (dates.length === 0) {
-    container.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;">暂无记录</div>';
-    return;
-  }
+/** 今日新增统计弹窗 */
+function showTodayAddDetail() {
+  var overlay = document.getElementById('reviewHistoryOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('hidden');
+  var breakdown = getTodayStatBreakdown('add');
+  var total = getTodayStatTotal('add');
   var today = getTodayStr();
-  var total = 0;
-  var html = '<table><thead><tr><th>日期</th><th style="text-align:right;">新增单词数</th></tr></thead><tbody>';
-  for (var i = 0; i < dates.length; i++) {
-    var count = stats[dates[i]] || 0;
-    total += count;
-    var cls = dates[i] === today ? ' class="review-history-today"' : '';
-    html += '<tr' + cls + '><td>' + dates[i] + '</td><td style="text-align:right;">' + count + '</td></tr>';
+  var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
+    + '<h3 style="margin:0;font-size:16px;font-weight:600;">今日新增 (' + today + ')</h3>'
+    + '<button class="btn btn-sm btn-outline" onclick="hideReviewHistory()">关闭</button></div>';
+  html += '<table><thead><tr><th style="text-align:left;">类型</th><th style="text-align:right;">新增数量</th></tr></thead><tbody>';
+  for (var i = 0; i < STATS_TYPES.length; i++) {
+    var cat = STATS_TYPES[i];
+    var cnt = breakdown[cat] || 0;
+    html += '<tr><td>' + (STATS_LABELS[cat] || cat) + '</td><td style="text-align:right;">' + cnt + '</td></tr>';
   }
   html += '</tbody></table>';
   html += '<div style="margin-top:12px;padding-top:12px;border-top:2px solid #e2e8f0;text-align:right;font-size:14px;color:#64748b;">累计新增：<strong>' + total + '</strong> 个</div>';
-  container.innerHTML = html;
+  document.getElementById('reviewHistoryContent').innerHTML = html;
+}
+
+/** 关闭弹窗 */
+function hideReviewHistory() {
+  var overlay = document.getElementById('reviewHistoryOverlay');
+  if (overlay) overlay.classList.add('hidden');
 }
 
 function saveAuth(token, user) {
@@ -2673,10 +2701,8 @@ async function hideLoginAndSync() {
     }
   } catch (e) {}
 
-  // 从服务器拉取复习统计
-  await pullReviewStatsFromServer();
-  // 从服务器拉取新增单词统计
-  await pullWordAddStatsFromServer();
+  // 从服务器拉取统计
+  await pullStatsFromServer();
 
   updateAvatarDisplay();
   refreshAll();
@@ -2866,13 +2892,9 @@ async function syncFromServer() {
       showLoginOverlay(false);
     }
   } catch (e) { /* 忽略 */ }
-  // 同步复习统计（不阻塞）
+  // 同步统计（不阻塞）
   try {
-    await pullReviewStatsFromServer();
-  } catch(e) {}
-  // 同步新增单词统计（不阻塞）
-  try {
-    await pullWordAddStatsFromServer();
+    await pullStatsFromServer();
   } catch(e) {}
 }
 
@@ -3299,6 +3321,7 @@ async function triggerSentenceGeneration(allWords) {
   // 自动将关联单词加粗
   boldVocabularyWords(sentence, last10);
   sentences.push(sentence);
+  incrementStat('add', 'sentence'); // 每日新增计数
   await saveSentences(sentences);
   showToast('句子 ' + wordRange + ' 已生成并加入复习');
   refreshAll();
@@ -3951,7 +3974,7 @@ async function addWord() {
     forgottenCount: 0,
   };
   words.push(newWord);
-  incrementWordAddCount(); // 每日新增计数（同步，绝不阻塞）
+  incrementStat('add', 'word'); // 每日新增计数（同步，绝不阻塞）
   await saveWords(words);
   wordEl.value = '';
   defEl.value = '';
@@ -4006,7 +4029,7 @@ async function addBatch() {
       forgottenCount: 0,
     });
     added++;
-    incrementWordAddCount(); // 每日新增计数（同步，绝不阻塞）
+    incrementStat('add', 'word'); // 每日新增计数（同步，绝不阻塞）
   }
   if (added === 0) { showToast('没有新单词可添加'); return; }
   await saveWords(words);
@@ -4224,6 +4247,7 @@ async function addMathProblem() {
     forgottenCount: 0,
   };
   problems.push(problem);
+  incrementStat('add', 'theorem'); // 每日新增计数
   await saveMathProblems(problems);
 
   clearMathForm();
@@ -4521,6 +4545,7 @@ async function addMathProblemItem() {
     forgottenCount: 0,
   };
   problems.push(problem);
+  incrementStat('add', 'problem'); // 每日新增计数
   await saveProblems(problems);
 
   clearProbForm();
@@ -4599,6 +4624,7 @@ async function addMethod() {
     lastModified: now.toISOString(),
   };
   methods.push(method);
+  incrementStat('add', 'method'); // 每日新增计数
   await saveMethods(methods);
   clearMethodForm();
   showToast('已添加方法：' + name);
@@ -5944,18 +5970,21 @@ async function finishPractice(methodMatches) {
 }
 
 async function handleReview(remembered) {
+  // 每日复习计数（同步，绝不阻塞）- 在任何早期返回之前执行
+  if (remembered || currentReviewType !== 'word') {
+    var _st = currentReviewType === 'math' ? 'theorem' : currentReviewType;
+    incrementStat('review', _st);
+  }
+
+  // 非单词类型（句子/知识点/题目）直接交给 handleNonWordReview
+  if (currentReviewType !== 'word') {
+    handleNonWordReview(remembered);
+    return;
+  }
+
   var words = _dedupById(loadWords());
   var idx = words.findIndex(function(w) { return w.id === currentReviewId; });
   if (idx === -1) return;
-  // 每日复习计数（同步，绝不阻塞）
-  // 单词的"忘记了"由 doWordForget 计数，避免弹窗后取消导致的重复
-  if (remembered || currentReviewType !== 'word') {
-    incrementReviewCount();
-  }
-  if (currentReviewType !== 'word') {
-    handleNonWordReview(remembered, idx);
-    return;
-  }
   var now = new Date();
   var word = words[idx];
   word.reviewedAt.push(now.toISOString());
@@ -6037,7 +6066,7 @@ async function doWordForget() {
   var words = loadWords();
   var idx = words.findIndex(function(w) { return w.id === currentReviewId; });
   if (idx === -1) return;
-  incrementReviewCount(); // 每日复习计数（同步，绝不阻塞）
+  incrementStat('review', 'word'); // 每日复习计数（同步，绝不阻塞）
   var word = words[idx];
   var now = new Date();
   word.reviewedAt.push(now.toISOString());
@@ -6740,6 +6769,62 @@ function formatTime(isoStr) {
   function pad(n) { return n < 10 ? '0' + n : '' + n; }
 }
 
+function renderHistoryTab() {
+  var container = document.getElementById('historyContent');
+  if (!container) return;
+  var pane = document.getElementById('pane-history');
+  if (!pane.classList.contains('active')) return;
+  var stats = getStats();
+  var dates = Object.keys(stats).sort().reverse();
+  if (dates.length === 0) {
+    container.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:30px;">暂无历史记录</div>';
+    return;
+  }
+  var today = getTodayStr();
+  var html = '';
+  for (var i = 0; i < dates.length; i++) {
+    var date = dates[i];
+    var dayStats = stats[date];
+    var rTotal = 0, aTotal = 0;
+    if (dayStats.review) { for (var k in dayStats.review) rTotal += dayStats.review[k]; }
+    if (dayStats.add) { for (var k in dayStats.add) aTotal += dayStats.add[k]; }
+    var isToday = date === today;
+    var label = isToday ? '<strong>' + date + ' (今天)</strong>' : date;
+    html += '<div class="history-date-row" onclick="toggleHistoryDetail(\'' + date + '\')" style="cursor:pointer;padding:10px 12px;border-bottom:1px solid #f1f5f9;">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;">'
+      + '<span style="font-size:14px;' + (isToday ? 'font-weight:600;color:#10b981;' : '') + '">' + label + '</span>'
+      + '<span style="font-size:13px;color:#64748b;">复习 <strong>' + rTotal + '</strong> | 新增 <strong>' + aTotal + '</strong></span>'
+      + '</div>'
+      + '<div class="history-date-detail" id="hd-' + date + '" style="display:none;margin-top:8px;padding:8px 12px;background:#f8fafc;border-radius:8px;"></div>'
+      + '</div>';
+  }
+  container.innerHTML = html;
+}
+
+function toggleHistoryDetail(date) {
+  var el = document.getElementById('hd-' + date);
+  if (!el) return;
+  if (el.style.display !== 'none') { el.style.display = 'none'; return; }
+  var dayStats = getDateStats(date);
+  // Hide all other open details
+  var allDetails = document.querySelectorAll('[id^="hd-"]');
+  for (var i = 0; i < allDetails.length; i++) allDetails[i].style.display = 'none';
+  var html = '<table><thead><tr><th style="text-align:left;padding:4px 8px;">类型</th><th style="text-align:right;padding:4px 8px;">复习</th><th style="text-align:right;padding:4px 8px;">新增</th></tr></thead><tbody>';
+  for (var i2 = 0; i2 < STATS_TYPES.length; i2++) {
+    var cat = STATS_TYPES[i2];
+    var r = (dayStats.review && dayStats.review[cat]) || 0;
+    var a = (dayStats.add && dayStats.add[cat]) || 0;
+    if (r > 0 || a > 0) {
+      html += '<tr><td style="padding:4px 8px;border-bottom:1px solid #f1f5f9;">' + (STATS_LABELS[cat] || cat) + '</td>'
+        + '<td style="text-align:right;padding:4px 8px;border-bottom:1px solid #f1f5f9;">' + r + '</td>'
+        + '<td style="text-align:right;padding:4px 8px;border-bottom:1px solid #f1f5f9;">' + a + '</td></tr>';
+    }
+  }
+  html += '</tbody></table>';
+  el.innerHTML = html;
+  el.style.display = 'block';
+}
+
 function refreshAll() {
   renderStats();
   renderReview();
@@ -6747,6 +6832,7 @@ function refreshAll() {
   renderMathProblemList();
   renderProblemList();
   renderMethodList();
+  renderHistoryTab();
   var cntEl = document.getElementById('fileDetailCount');
   if (cntEl) {
     var words = getActiveWords();
@@ -6771,6 +6857,8 @@ setInterval(refreshAll, 60000);
 document.addEventListener('DOMContentLoaded', function() {
   setupTabs();
   setupFilters();
+  // 迁移旧的 localStorage 统计键到新格式（一次性）
+  _mergeLegacyLocalStorage();
 
   // 登录表单回车提交
   document.getElementById('loginUsername').addEventListener('keydown', function(e) {
