@@ -1803,12 +1803,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 with _get_user_data_lock(username):
                     existing = _read_user_data(username)
 
-                    if isinstance(incoming, dict) and 'words' in incoming:
-                        merged_words = _dedup_by_id(_merge_items(existing['words'], incoming.get('words', []), 'word'))
-                        merged_sentences = _dedup_by_id(_merge_items(existing['sentences'], incoming.get('sentences', []), 'id'))
-                        merged_math = _dedup_by_id(_merge_items(existing['mathProblems'], incoming.get('mathProblems', []), 'indexTitle', 'title'))
-                        merged_problems = _dedup_by_id(_merge_items(existing['problems'], incoming.get('problems', []), 'indexTitle', 'question'))
-                        merged_methods = _dedup_by_id(_merge_items(existing.get('methods', []), incoming.get('methods', []), 'id'))
+                    if isinstance(incoming, dict):
+                        # 只合并 incoming 中存在的字段，不存在的保留现有数据（支持增量同步）
+                        merged_words = _dedup_by_id(_merge_items(existing['words'], incoming.get('words', existing['words']), 'word'))
+                        merged_sentences = _dedup_by_id(_merge_items(existing['sentences'], incoming.get('sentences', existing['sentences']), 'id'))
+                        merged_math = _dedup_by_id(_merge_items(existing['mathProblems'], incoming.get('mathProblems', existing['mathProblems']), 'indexTitle', 'title'))
+                        merged_problems = _dedup_by_id(_merge_items(existing['problems'], incoming.get('problems', existing['problems']), 'indexTitle', 'question'))
+                        merged_methods = _dedup_by_id(_merge_items(existing.get('methods', []), incoming.get('methods', existing.get('methods', [])), 'id'))
                         merged_avatar = incoming.get('avatar', existing.get('avatar', ''))
                         result = {'words': merged_words, 'sentences': merged_sentences, 'mathProblems': merged_math, 'problems': merged_problems, 'methods': merged_methods, 'avatar': merged_avatar}
                         count = len(merged_words) + len(merged_sentences) + len(merged_math) + len(merged_problems) + len(merged_methods)

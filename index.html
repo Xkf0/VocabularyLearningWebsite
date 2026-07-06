@@ -1359,6 +1359,74 @@
     }
     .img-preview-close:hover { opacity: 1; }
 
+    /* Toggle Switch */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .switch-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #cbd5e1;
+      border-radius: 24px;
+      transition: 0.3s;
+    }
+    .switch-slider::before {
+      content: '';
+      position: absolute;
+      height: 18px; width: 18px;
+      left: 3px; bottom: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: 0.3s;
+    }
+    .switch input:checked + .switch-slider {
+      background: #3b82f6;
+    }
+    .switch input:checked + .switch-slider::before {
+      transform: translateX(20px);
+    }
+
+    /* Crop Overlay */
+    .crop-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 30000;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .crop-overlay.hidden { display: none; }
+    .crop-card {
+      background: #fff; border-radius: 16px; padding: 20px;
+      width: 92%; max-width: 500px; text-align: center;
+    }
+    .crop-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+    .crop-container {
+      position: relative; overflow: hidden;
+      max-height: 55vh; background: #000; border-radius: 8px;
+      cursor: crosshair; touch-action: none;
+    }
+    .crop-container img { display: block; max-width: 100%; user-select: none; -webkit-user-drag: none; }
+    .crop-selection {
+      position: absolute;
+      border: 2px dashed #fff;
+      outline: 9999px solid rgba(0,0,0,0.4);
+      cursor: move; display: none;
+    }
+    .crop-handle {
+      position: absolute; width: 22px; height: 22px;
+      background: #fff; border: 2px solid #3b82f6; border-radius: 50%;
+    }
+    .crop-handle.nw { top: -11px; left: -11px; cursor: nw-resize; }
+    .crop-handle.ne { top: -11px; right: -11px; cursor: ne-resize; }
+    .crop-handle.sw { bottom: -11px; left: -11px; cursor: sw-resize; }
+    .crop-handle.se { bottom: -11px; right: -11px; cursor: se-resize; }
+    .crop-actions { display: flex; gap: 10px; justify-content: center; margin-top: 14px; }
+    .crop-actions .btn { min-width: 90px; }
+
     /* Mode Switcher */
     .mode-switcher {
       display: flex;
@@ -1552,6 +1620,7 @@
         <input type="text" id="inputMathTitle" placeholder="例如：勾股定理、牛顿第二定律" autocomplete="off">
         <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <button type="button" class="math-img-upload-btn" onclick="document.getElementById('mathTitleImageInput').click()">添加图片</button>
+          <button type="button" class="math-img-upload-btn" onclick="capturePhoto(function(url){ pendingMathTitleImage.push(url); renderMathTitlePreview(); })">📷 拍照</button>
           <input type="file" id="mathTitleImageInput" accept="image/*" multiple style="display:none" onchange="handleMathTitleImageUpload(event)">
           <span id="mathTitleImageStatus" style="font-size:12px;color:#94a3b8;"></span>
         </div>
@@ -1570,6 +1639,7 @@
         <textarea id="inputMathSolution" rows="4" style="width:100%;padding:10px 12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;resize:vertical;outline:none;font-family:inherit;" placeholder="输入证明过程或思路..."></textarea>
         <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <button type="button" class="math-img-upload-btn" onclick="document.getElementById('mathSolutionImageInput').click()">添加图片</button>
+          <button type="button" class="math-img-upload-btn" onclick="capturePhoto(function(url){ pendingMathSolutionImages.push(url); renderMathSolutionPreviews(); })">📷 拍照</button>
           <input type="file" id="mathSolutionImageInput" accept="image/*" multiple style="display:none" onchange="handleMathSolutionImageUpload(event)">
           <span id="mathSolutionImagesStatus" style="font-size:12px;color:#94a3b8;"></span>
         </div>
@@ -1599,6 +1669,7 @@
         <textarea id="inputProbQuestion" rows="3" style="width:100%;padding:10px 12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;resize:vertical;outline:none;font-family:inherit;" placeholder="输入数学题目..."></textarea>
         <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <button type="button" class="math-img-upload-btn" onclick="document.getElementById('probQuestionImageInput').click()">添加图片</button>
+          <button type="button" class="math-img-upload-btn" onclick="capturePhoto(function(url){ pendingProbQuestionImage.push(url); renderProbQuestionPreview(); })">📷 拍照</button>
           <input type="file" id="probQuestionImageInput" accept="image/*" multiple style="display:none" onchange="handleProbQuestionImageUpload(event)">
           <span id="probQuestionImageStatus" style="font-size:12px;color:#94a3b8;"></span>
         </div>
@@ -1617,6 +1688,7 @@
         <textarea id="inputProbSolution" rows="4" style="width:100%;padding:10px 12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;resize:vertical;outline:none;font-family:inherit;" placeholder="输入解题过程或思路..."></textarea>
         <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <button type="button" class="math-img-upload-btn" onclick="document.getElementById('probSolutionImageInput').click()">添加图片</button>
+          <button type="button" class="math-img-upload-btn" onclick="capturePhoto(function(url){ pendingProbSolutionImages.push(url); renderProbSolutionPreviews(); })">📷 拍照</button>
           <input type="file" id="probSolutionImageInput" accept="image/*" multiple style="display:none" onchange="handleProbSolutionImageUpload(event)">
           <span id="probSolutionImagesStatus" style="font-size:12px;color:#94a3b8;"></span>
         </div>
@@ -1650,6 +1722,7 @@
         <textarea id="inputMethodDesc" rows="4" style="width:100%;padding:10px 12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;resize:vertical;outline:none;font-family:inherit;" placeholder="描述这个方法的使用场景和思路..."></textarea>
         <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <button type="button" class="math-img-upload-btn" onclick="document.getElementById('methodImageInput').click()">添加图片</button>
+          <button type="button" class="math-img-upload-btn" onclick="capturePhoto(function(url){ pendingMethodImages.push(url); renderMethodImagePreviews(); })">📷 拍照</button>
           <input type="file" id="methodImageInput" accept="image/*" multiple style="display:none" onchange="handleMethodImageUpload(event)">
           <span id="methodImagesStatus" style="font-size:12px;color:#94a3b8;"></span>
         </div>
@@ -1741,6 +1814,24 @@
       </div>
       <button id="apiKeyBtn" class="btn btn-primary" onclick="saveApiKey()">保存 API Key</button>
       <button class="btn btn-outline" onclick="document.getElementById('apiKeyInput').value='';localStorage.removeItem('ebbinghaus_api_key');showToast('已清除 API Key');updateApiKeyUI();" style="margin-left:8px;">清除</button>
+    </div>
+    <div class="card">
+      <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;">闹钟设置</h3>
+      <div style="font-size:13px;color:#666;margin-bottom:12px;line-height:1.6;">
+        到复习时间时发出声音和震动提醒。
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:14px;">声音提醒</span>
+        <label class="switch" onclick="event.stopPropagation()">
+          <input type="checkbox" id="alarmToggle" onchange="toggleAlarmDisabled()">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+      <div style="font-size:12px;color:#94a3b8;margin-top:8px;">
+        <span id="alarmStatusText">已开启</span>
+        <span style="margin:0 8px;">|</span>
+        <span id="alarmSnoozeStatus">未延时</span>
+      </div>
     </div>
     <div class="card">
       <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;">账户</h3>
@@ -1930,6 +2021,31 @@ function getAuthHeaders() {
 }
 
 // ============================================================
+// 内存存储回退（localStorage 满了时自动使用内存数据）
+// ============================================================
+var _memStore = {};
+
+function _lsGet(key) {
+  // 优先返回内存数据（可能是 localStorage 写失败时最新的数据）
+  if (_memStore.hasOwnProperty(key)) return _memStore[key];
+  try {
+    var val = localStorage.getItem(key);
+    if (val !== null) { _memStore[key] = val; return val; }
+  } catch(e) {}
+  return null;
+}
+
+var _lsQuotaExceeded = false;
+
+function _lsSet(key, val) {
+  _memStore[key] = val;
+  if (_lsQuotaExceeded) return;
+  try { localStorage.setItem(key, val); } catch(e) {
+    _lsQuotaExceeded = true;
+  }
+}
+
+// ============================================================
 // 统一每日统计（复习 + 新增，支持全部类型）
 // 格式: {"2026-06-25": {review:{word:5,sentence:2,...}, add:{word:3,...}}}
 // 性能优先：同步自增 + 异步同步，绝不阻塞
@@ -1969,14 +2085,14 @@ function _sanitizeStats(data) {
     }
   }
   if (changed) {
-    localStorage.setItem('ebbinghaus_stats', JSON.stringify(data));
+    _lsSet('ebbinghaus_stats', JSON.stringify(data));
   }
 }
 
 function _saveStatsCache(data) {
   _statsCache = data;
   if (data) {
-    localStorage.setItem('ebbinghaus_stats', JSON.stringify(data));
+    _lsSet('ebbinghaus_stats', JSON.stringify(data));
   }
 }
 
@@ -2000,7 +2116,7 @@ function _migrateLegacyStats(data) {
     if (!data[d].review) { data[d].review = {}; changed = true; }
     if (!data[d].add) { data[d].add = {}; changed = true; }
   }
-  if (changed) localStorage.setItem('ebbinghaus_stats', JSON.stringify(data));
+  if (changed) { _lsSet('ebbinghaus_stats', JSON.stringify(data)); }
   return data;
 }
 
@@ -2267,12 +2383,12 @@ async function switchToUser(username, token) {
       var data = await res.json();
       if (data && data.words) {
         if (Array.isArray(data.words) && data.words.length > 0) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(data.words));
+          _lsSet(STORAGE_KEY, JSON.stringify(data.words));
         }
-        if (Array.isArray(data.sentences) && data.sentences.length > 0) localStorage.setItem(SENTENCE_KEY, JSON.stringify(data.sentences));
-        if (Array.isArray(data.mathProblems) && data.mathProblems.length > 0) localStorage.setItem(MATH_KEY, JSON.stringify(data.mathProblems));
-        if (Array.isArray(data.problems) && data.problems.length > 0) localStorage.setItem(PROBLEMS_KEY, JSON.stringify(data.problems));
-        if (Array.isArray(data.methods) && data.methods.length > 0) localStorage.setItem(METHODS_KEY, JSON.stringify(data.methods));
+        if (Array.isArray(data.sentences) && data.sentences.length > 0) _lsSet(SENTENCE_KEY, JSON.stringify(data.sentences));
+        if (Array.isArray(data.mathProblems) && data.mathProblems.length > 0) _lsSet(MATH_KEY, JSON.stringify(data.mathProblems));
+        if (Array.isArray(data.problems) && data.problems.length > 0) _lsSet(PROBLEMS_KEY, JSON.stringify(data.problems));
+        if (Array.isArray(data.methods) && data.methods.length > 0) _lsSet(METHODS_KEY, JSON.stringify(data.methods));
         if (data.avatar) localStorage.setItem(getAvatarKey(), data.avatar);
         // 头像下载后更新 saved users 列表中的头像
         saveUserToSaved(username, token);
@@ -2676,26 +2792,26 @@ async function hideLoginAndSync() {
       var data = await res.json();
       if (Array.isArray(data)) {
         if (data.length > 0) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
         }
       } else if (data && data.words) {
         if (Array.isArray(data.words) && data.words.length > 0) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(data.words));
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data.words)); } catch(e) {}
         }
         if (Array.isArray(data.sentences) && data.sentences.length > 0) {
-          localStorage.setItem(SENTENCE_KEY, JSON.stringify(data.sentences));
+          try { localStorage.setItem(SENTENCE_KEY, JSON.stringify(data.sentences)); } catch(e) {}
         }
         if (Array.isArray(data.mathProblems) && data.mathProblems.length > 0) {
-          localStorage.setItem(MATH_KEY, JSON.stringify(data.mathProblems));
+          try { localStorage.setItem(MATH_KEY, JSON.stringify(data.mathProblems)); } catch(e) {}
         }
         if (Array.isArray(data.problems) && data.problems.length > 0) {
-          localStorage.setItem(PROBLEMS_KEY, JSON.stringify(data.problems));
+          try { localStorage.setItem(PROBLEMS_KEY, JSON.stringify(data.problems)); } catch(e) {}
         }
         if (Array.isArray(data.methods) && data.methods.length > 0) {
-          localStorage.setItem(METHODS_KEY, JSON.stringify(data.methods));
+          try { localStorage.setItem(METHODS_KEY, JSON.stringify(data.methods)); } catch(e) {}
         }
         if (data.avatar) {
-          localStorage.setItem(getAvatarKey(), data.avatar);
+          try { localStorage.setItem(getAvatarKey(), data.avatar); } catch(e) {}
         }
       }
     }
@@ -2863,26 +2979,41 @@ async function syncFromServer() {
       const data = await res.json();
       if (Array.isArray(data)) {
         if (data.length > 0) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+          _lsSet(STORAGE_KEY, JSON.stringify(data));
         }
       } else if (data && data.words) {
-        if (Array.isArray(data.words) && data.words.length > 0) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(data.words));
-        }
-        if (Array.isArray(data.sentences) && data.sentences.length > 0) {
-          localStorage.setItem(SENTENCE_KEY, JSON.stringify(data.sentences));
-        }
-        if (Array.isArray(data.mathProblems) && data.mathProblems.length > 0) {
-          localStorage.setItem(MATH_KEY, JSON.stringify(data.mathProblems));
-        }
-        if (Array.isArray(data.problems) && data.problems.length > 0) {
-          localStorage.setItem(PROBLEMS_KEY, JSON.stringify(data.problems));
-        }
-        if (Array.isArray(data.methods) && data.methods.length > 0) {
-          localStorage.setItem(METHODS_KEY, JSON.stringify(data.methods));
-        }
+        // 写入内存缓存（不 stringify），UI 秒开
+        _parseCache['words'] = { raw: null, data: data.words };
+        _parseCache['sentences'] = { raw: null, data: data.sentences || [] };
+        _parseCache['methods'] = { raw: null, data: data.methods || [] };
+        if (data.mathProblems) _parseCache['mathProblems'] = { raw: null, data: data.mathProblems };
+        if (data.problems) _parseCache['problems'] = { raw: null, data: data.problems };
         if (data.avatar) {
-          localStorage.setItem(getAvatarKey(), data.avatar);
+          try { localStorage.setItem(getAvatarKey(), data.avatar); } catch(e) {}
+        }
+        // 后台写入 localStorage（不阻塞 UI）
+        (function(serverData) {
+          setTimeout(function() {
+            // 如果用户已保存过数据（raw !== null），跳过过期写入
+            if (_parseCache['words'] && _parseCache['words'].raw === null) {
+              var wj = JSON.stringify(serverData.words); _lsSet(STORAGE_KEY, wj); _parseCache['words'] = { raw: wj, data: serverData.words }; _jsonCache['words'] = wj;
+            }
+            if (_parseCache['sentences'] && _parseCache['sentences'].raw === null) {
+              var sj = JSON.stringify(serverData.sentences || []); _lsSet(SENTENCE_KEY, sj); _parseCache['sentences'] = { raw: sj, data: serverData.sentences || [] }; _jsonCache['sentences'] = sj;
+            }
+            if (serverData.mathProblems && _parseCache['mathProblems'] && _parseCache['mathProblems'].raw === null) {
+              var mj = JSON.stringify(serverData.mathProblems); _lsSet(MATH_KEY, mj); _parseCache['mathProblems'] = { raw: mj, data: serverData.mathProblems }; _jsonCache['mathProblems'] = mj;
+            }
+            if (serverData.problems && _parseCache['problems'] && _parseCache['problems'].raw === null) {
+              var pj = JSON.stringify(serverData.problems); _lsSet(PROBLEMS_KEY, pj); _parseCache['problems'] = { raw: pj, data: serverData.problems }; _jsonCache['problems'] = pj;
+            }
+            if (_parseCache['methods'] && _parseCache['methods'].raw === null) {
+              var mdj = JSON.stringify(serverData.methods || []); _lsSet(METHODS_KEY, mdj); _parseCache['methods'] = { raw: mdj, data: serverData.methods || [] }; _jsonCache['methods'] = mdj;
+            }
+          }, 0);
+        })(data);
+        if (data.avatar) {
+          try { localStorage.setItem(getAvatarKey(), data.avatar); } catch(e) {}
         }
       }
       refreshAll();
@@ -2898,37 +3029,54 @@ async function syncFromServer() {
   } catch(e) {}
 }
 
+// parse 缓存：避免反复 JSON.parse 大数据
+var _parseCache = {};
+
+function _loadWithCache(raw, cacheKey) {
+  var entry = _parseCache[cacheKey];
+  if (entry && entry.raw === raw) return entry.data;
+  var data = raw ? JSON.parse(raw) : [];
+  _parseCache[cacheKey] = { raw: raw, data: data };
+  return data;
+}
+
 function loadWords() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if ('words' in _parseCache) return _parseCache['words'].data;
+    return _loadWithCache(_lsGet(STORAGE_KEY), 'words');
   } catch { return []; }
 }
 
 // 保存到 localStorage，不再自动推送（手动推送通过 forceSyncToServer）
 async function saveWords(words) {
   words = _dedupById(words, true);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
-  await syncToServer();
+  var json = JSON.stringify(words);
+  _lsSet(STORAGE_KEY, json);
+  _parseCache['words'] = { raw: json, data: words };
+  _jsonCache['words'] = json;  // 缓存序列化结果，避免 syncToServer 重复 stringify
+  syncToServer({ words: words });
 }
 
 function loadSentences() {
   try {
-    const raw = localStorage.getItem(SENTENCE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if ('sentences' in _parseCache) return _parseCache['sentences'].data;
+    return _loadWithCache(_lsGet(SENTENCE_KEY), 'sentences');
   } catch { return []; }
 }
 
 async function saveSentences(sentences) {
   sentences = _dedupById(sentences, true);
-  localStorage.setItem(SENTENCE_KEY, JSON.stringify(sentences));
-  await syncToServer();
+  var json = JSON.stringify(sentences);
+  _lsSet(SENTENCE_KEY, json);
+  _parseCache['sentences'] = { raw: json, data: sentences };
+  _jsonCache['sentences'] = json;
+  syncToServer({ sentences: sentences });
 }
 
 function loadMathProblems() {
   try {
-    const raw = localStorage.getItem(MATH_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if ('mathProblems' in _parseCache) return _parseCache['mathProblems'].data;
+    return _loadWithCache(_lsGet(MATH_KEY), 'mathProblems');
   } catch { return []; }
 }
 
@@ -2940,8 +3088,8 @@ function _dedupById(items, changeIds) {
     if (seen[id] !== undefined) {
       var prev = seen[id];
       var keep, discard, oldId = id;
-      // 保留 stage 较小的（正在复习中的），合并 reviewedAt
-      if (items[i].stage < prev.stage) { keep = items[i]; discard = prev; }
+      // 保留 stage 较大的（复习进度多的），合并 reviewedAt
+      if (items[i].stage > prev.stage) { keep = items[i]; discard = prev; }
       else { keep = prev; discard = items[i]; }
       // 合并 reviewedAt
       if (discard.reviewedAt && discard.reviewedAt.length) {
@@ -3000,21 +3148,24 @@ function _applyIdChanges() {
       }
     });
     if (changed) {
-      localStorage.setItem(entry.key, JSON.stringify(items));
+      _lsSet(entry.key, JSON.stringify(items));
     }
   });
 }
 
 async function saveMathProblems(problems) {
   problems = _dedupById(problems, true);
-  localStorage.setItem(MATH_KEY, JSON.stringify(problems));
-  await syncToServer();
+  var json = JSON.stringify(problems);
+  _lsSet(MATH_KEY, json);
+  _parseCache['mathProblems'] = { raw: json, data: problems };
+  _jsonCache['mathProblems'] = json;
+  syncToServer({ mathProblems: problems });
 }
 
 function loadProblems() {
   try {
-    const raw = localStorage.getItem(PROBLEMS_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if ('problems' in _parseCache) return _parseCache['problems'].data;
+    return _loadWithCache(_lsGet(PROBLEMS_KEY), 'problems');
   } catch { return []; }
 }
 
@@ -3130,55 +3281,79 @@ function getActiveProblems() { return loadProblems().filter(function(p) { return
 
 async function saveProblems(problems) {
   problems = _dedupById(problems, true);
-  localStorage.setItem(PROBLEMS_KEY, JSON.stringify(problems));
-  await syncToServer();
+  var json = JSON.stringify(problems);
+  _lsSet(PROBLEMS_KEY, json);
+  _parseCache['problems'] = { raw: json, data: problems };
+  _jsonCache['problems'] = json;
+  syncToServer({ problems: problems });
 }
 
 function loadMethods() {
   try {
-    const raw = localStorage.getItem(METHODS_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if ('methods' in _parseCache) return _parseCache['methods'].data;
+    return _loadWithCache(_lsGet(METHODS_KEY), 'methods');
   } catch { return []; }
 }
 
 async function saveMethods(methods) {
   methods = _dedupById(methods, true);
-  localStorage.setItem(METHODS_KEY, JSON.stringify(methods));
-  await syncToServer();
+  var json = JSON.stringify(methods);
+  _lsSet(METHODS_KEY, json);
+  _parseCache['methods'] = { raw: json, data: methods };
+  _jsonCache['methods'] = json;
+  syncToServer({ methods: methods });
 }
 
 function getActiveMethods() { return loadMethods().filter(function(m) { return !m.deletedAt; }); }
 
-// 同时保存单词和句子（用于导入恢复等场景）
+// 同时保存所有数据（用于导入恢复等场景）
 async function saveData(words, sentences, mathProblems, problems, methods) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
-  localStorage.setItem(SENTENCE_KEY, JSON.stringify(sentences));
+  var wj = JSON.stringify(words); _lsSet(STORAGE_KEY, wj); _parseCache['words'] = { raw: wj, data: words }; _jsonCache['words'] = wj;
+  var sj = JSON.stringify(sentences); _lsSet(SENTENCE_KEY, sj); _parseCache['sentences'] = { raw: sj, data: sentences }; _jsonCache['sentences'] = sj;
   if (mathProblems !== undefined) {
-    localStorage.setItem(MATH_KEY, JSON.stringify(mathProblems));
+    var mj = JSON.stringify(mathProblems); _lsSet(MATH_KEY, mj); _parseCache['mathProblems'] = { raw: mj, data: mathProblems }; _jsonCache['mathProblems'] = mj;
   }
   if (problems !== undefined) {
-    localStorage.setItem(PROBLEMS_KEY, JSON.stringify(problems));
+    var pj = JSON.stringify(problems); _lsSet(PROBLEMS_KEY, pj); _parseCache['problems'] = { raw: pj, data: problems }; _jsonCache['problems'] = pj;
   }
   if (methods !== undefined) {
-    localStorage.setItem(METHODS_KEY, JSON.stringify(methods));
+    var mdj = JSON.stringify(methods); _lsSet(METHODS_KEY, mdj); _parseCache['methods'] = { raw: mdj, data: methods }; _jsonCache['methods'] = mdj;
   }
-  await syncToServer();
+  syncToServer({ words: words, sentences: sentences, mathProblems: mathProblems, problems: problems, methods: methods });
 }
 
-// 以 {words, sentences, mathProblems, problems, methods} 格式同步到服务器
-function syncToServer() {
-  if (!useServer) return Promise.resolve();
-  var words = loadWords();
-  var sentences = loadSentences();
-  var mathProblems = loadMathProblems();
-  var problems = loadProblems();
-  var methods = loadMethods();
+// 立即同步到服务器（无防抖），每次保存后立即发送，避免页面刷新丢失数据
+// 利用 _jsonCache 缓存已序列化的 JSON，避免重复 stringify
+var _jsonCache = {};
+
+function syncToServer(overrides) {
+  if (!useServer || !overrides) return;
+  var payloadKeys = [];
+  if (overrides.words !== undefined) payloadKeys.push('words');
+  if (overrides.sentences !== undefined) payloadKeys.push('sentences');
+  if (overrides.mathProblems !== undefined) payloadKeys.push('mathProblems');
+  if (overrides.problems !== undefined) payloadKeys.push('problems');
+  if (overrides.methods !== undefined) payloadKeys.push('methods');
   var avatar = localStorage.getItem(getAvatarKey()) || '';
-  return fetch('/api/words', {
+  if (payloadKeys.length === 0 && !avatar) return;
+  var parts = [];
+  for (var i = 0; i < payloadKeys.length; i++) {
+    var k = payloadKeys[i];
+    var cached = _jsonCache[k];
+    if (cached) {
+      parts.push('"' + k + '":' + cached);
+    } else {
+      parts.push('"' + k + '":' + JSON.stringify(overrides[k]));
+    }
+  }
+  if (avatar) {
+    parts.push('"avatar":"' + avatar.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"');
+  }
+  fetch('/api/words', {
     method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify({ words: words, sentences: sentences, mathProblems: mathProblems, problems: problems, methods: methods, avatar: avatar }),
-  }).catch(function() {});  // 静默处理网络错误，不阻塞调用方
+    body: '{' + parts.join(',') + '}',
+  }).catch(function() {});
 }
 
 // 手动推送本地数据到服务器（覆盖服务器数据）
@@ -3614,7 +3789,8 @@ function openItemEditor(type, id) {
         _renderImageFieldContent(f.key, f.single) +
         '</div>' +
         '<div style="margin-top:6px;">' +
-        '<button type="button" class="math-img-upload-btn" onclick="triggerItemImageUpload(\'' + f.key + '\',' + (f.single ? 'true' : 'false') + ')">📷 上传' + (f.single ? '图片' : '图片（可多选）') + '</button>' +
+        '<button type="button" class="math-img-upload-btn" onclick="triggerItemImageUpload(\'' + f.key + '\',' + (f.single ? 'true' : 'false') + ')">📁 上传</button>' +
+        '<button type="button" class="math-img-upload-btn" onclick="captureItemPhoto(\'' + f.key + '\')">📷 拍照</button>' +
         '</div></div>';
       return;
     }
@@ -3778,6 +3954,21 @@ function triggerItemImageUpload(key, single) {
     document.body.removeChild(input);
   });
   input.click();
+}
+
+// 用相机拍照添加到编辑器图片字段
+function captureItemPhoto(key) {
+  _activeImageFieldKey = key;
+  capturePhoto(function(url) {
+    var single = document.querySelector('.item-editor-images[data-key="' + key + '"]').getAttribute('data-single') === '1';
+    if (single) {
+      _pendingItemImages[key] = url;
+    } else {
+      if (!Array.isArray(_pendingItemImages[key])) _pendingItemImages[key] = [];
+      _pendingItemImages[key].push(url);
+    }
+    _refreshImageField(key);
+  });
 }
 
 // 删除编辑器中的某张图片
@@ -4057,7 +4248,7 @@ function handleImagePaste(event, addImageFn) {
         var img = new Image();
         img.onload = function() {
           var canvas = document.createElement('canvas');
-          var maxSize = 800;
+          var maxSize = 1600;
           var w = img.width, h = img.height;
           if (w > maxSize || h > maxSize) {
             var scale = Math.min(maxSize / w, maxSize / h);
@@ -4075,6 +4266,198 @@ function handleImagePaste(event, addImageFn) {
       reader.readAsDataURL(blob);
     }
   }
+}
+
+// 调用手机摄像头拍照（返回压缩后的 dataUrl）
+function capturePhoto(addFn) {
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.capture = 'environment';
+  input.style.display = 'none';
+  document.body.appendChild(input);
+  input.onchange = function(e) {
+    var files = e.target.files;
+    if (files && files.length > 0) {
+      var file = files[0];
+      compressImageDataUrl(URL.createObjectURL(file), 1600, function(dataUrl) {
+        openCrop(dataUrl, function(cropped) {
+          addFn(cropped || dataUrl);
+        });
+      });
+    }
+    document.body.removeChild(input);
+  };
+  input.click();
+}
+
+// ============================================================
+// 图片裁剪
+// ============================================================
+var _cropCallback = null;
+var _cropState = null; // { mode: 'draw'|'move'|'resize', corner: 'nw'|'ne'|'sw'|'se', startX, startY, selX, selY, selW, selH }
+var _cropDocHandlers = null; // { onMove, onEnd } 引用，用于 add/removeEventListener
+
+function openCrop(imageUrl, callback) {
+  _cropCallback = callback;
+  _cropState = null;
+  var img = document.getElementById('cropImage');
+  var sel = document.getElementById('cropSelection');
+  img.src = imageUrl;
+  sel.style.display = 'none';
+  _cropState = null;
+  document.getElementById('cropOverlay').classList.remove('hidden');
+  // 打开裁剪时注册 document 级事件
+  if (_cropDocHandlers) {
+    document.addEventListener('mousemove', _cropDocHandlers.onMove);
+    document.addEventListener('mouseup', _cropDocHandlers.onEnd);
+    document.addEventListener('touchmove', _cropDocHandlers.onMove, { passive: false });
+    document.addEventListener('touchend', _cropDocHandlers.onEnd);
+  }
+}
+
+function closeCrop() {
+  document.getElementById('cropOverlay').classList.add('hidden');
+  if (_cropDocHandlers) {
+    document.removeEventListener('mousemove', _cropDocHandlers.onMove);
+    document.removeEventListener('mouseup', _cropDocHandlers.onEnd);
+    document.removeEventListener('touchmove', _cropDocHandlers.onMove);
+    document.removeEventListener('touchend', _cropDocHandlers.onEnd);
+  }
+}
+
+function confirmCrop() {
+  var cb = _cropCallback;
+  var sel = document.getElementById('cropSelection');
+  if (sel.style.display === 'none' || !_cropState) {
+    closeCrop();
+    if (cb) cb();
+    return;
+  }
+  var img = document.getElementById('cropImage');
+  var rect = img.getBoundingClientRect();
+  var scaleX = img.naturalWidth / rect.width;
+  var scaleY = img.naturalHeight / rect.height;
+  var sx = _cropState.selX * scaleX;
+  var sy = _cropState.selY * scaleY;
+  var sw = _cropState.selW * scaleX;
+  var sh = _cropState.selH * scaleY;
+  var canvas = document.createElement('canvas');
+  canvas.width = sw;
+  canvas.height = sh;
+  var ctx = canvas.getContext('2d');
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+  var croppedUrl = canvas.toDataURL('image/jpeg', 0.85);
+  closeCrop();
+  if (cb) cb(croppedUrl);
+}
+
+// 初始化裁剪交互（由 DOMContentLoaded 调用）
+function initCrop() {
+  var container = document.getElementById('cropContainer');
+  var sel = document.getElementById('cropSelection');
+  var img = document.getElementById('cropImage');
+
+  function getPos(e) {
+    var rect = container.getBoundingClientRect();
+    var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return { x: Math.max(0, Math.min(clientX - rect.left, rect.width)), y: Math.max(0, Math.min(clientY - rect.top, rect.height)) };
+  }
+
+  function clampSel() {
+    var cr = container.getBoundingClientRect();
+    _cropState.selX = Math.max(0, Math.min(_cropState.selX, cr.width));
+    _cropState.selY = Math.max(0, Math.min(_cropState.selY, cr.height));
+    _cropState.selW = Math.max(10, Math.min(_cropState.selW, cr.width - _cropState.selX));
+    _cropState.selH = Math.max(10, Math.min(_cropState.selH, cr.height - _cropState.selY));
+  }
+
+  function updateSelUI() {
+    sel.style.left = _cropState.selX + 'px';
+    sel.style.top = _cropState.selY + 'px';
+    sel.style.width = _cropState.selW + 'px';
+    sel.style.height = _cropState.selH + 'px';
+    sel.style.display = 'block';
+  }
+
+  function onStart(e) {
+    e.preventDefault();
+    if (e.button && e.button !== 0) return;
+    var pos = getPos(e);
+    var target = e.target;
+    // 检查是否点击了手柄
+    if (target.classList.contains('crop-handle')) {
+      _cropState.mode = 'resize';
+      _cropState.corner = target.className.split(' ')[1];
+      _cropState.startX = pos.x;
+      _cropState.startY = pos.y;
+      return;
+    }
+    // 检查是否点击了选择框内部（移动）
+    if (sel.style.display !== 'none' && pos.x >= _cropState.selX && pos.x <= _cropState.selX + _cropState.selW && pos.y >= _cropState.selY && pos.y <= _cropState.selY + _cropState.selH) {
+      _cropState.mode = 'move';
+      _cropState.startX = pos.x;
+      _cropState.startY = pos.y;
+      return;
+    }
+    // 新建选择
+    _cropState = { mode: 'draw', startX: pos.x, startY: pos.y, selX: pos.x, selY: pos.y, selW: 0, selH: 0, startSelX: pos.x, startSelY: pos.y, startSelW: 0, startSelH: 0 };
+  }
+
+  function onMove(e) {
+    if (!_cropState) return;
+    e.preventDefault();
+    var pos = getPos(e);
+    if (_cropState.mode === 'draw') {
+      _cropState.selX = Math.min(_cropState.startX, pos.x);
+      _cropState.selY = Math.min(_cropState.startY, pos.y);
+      _cropState.selW = Math.abs(pos.x - _cropState.startX);
+      _cropState.selH = Math.abs(pos.y - _cropState.startY);
+      updateSelUI();
+    } else if (_cropState.mode === 'move') {
+      var dx = pos.x - _cropState.startX;
+      var dy = pos.y - _cropState.startY;
+      _cropState.selX = _cropState.startSelX + dx;
+      _cropState.selY = _cropState.startSelY + dy;
+      var cr = container.getBoundingClientRect();
+      _cropState.selX = Math.max(0, Math.min(_cropState.selX, cr.width - _cropState.selW));
+      _cropState.selY = Math.max(0, Math.min(_cropState.selY, cr.height - _cropState.selH));
+      updateSelUI();
+    } else if (_cropState.mode === 'resize') {
+      var corner = _cropState.corner;
+      var dx = pos.x - _cropState.startX;
+      var dy = pos.y - _cropState.startY;
+      if (corner.indexOf('e') >= 0) { _cropState.selW = Math.max(10, _cropState.startSelW + dx); }
+      if (corner.indexOf('w') >= 0) { _cropState.selX = Math.min(_cropState.startSelX + _cropState.startSelW - 10, _cropState.startSelX + dx); _cropState.selW = _cropState.startSelW + (_cropState.startSelX - _cropState.selX); }
+      if (corner.indexOf('s') >= 0) { _cropState.selH = Math.max(10, _cropState.startSelH + dy); }
+      if (corner.indexOf('n') >= 0) { _cropState.selY = Math.min(_cropState.startSelY + _cropState.startSelH - 10, _cropState.startSelY + dy); _cropState.selH = _cropState.startSelH + (_cropState.startSelY - _cropState.selY); }
+      updateSelUI();
+    }
+  }
+
+  function onEnd(e) {
+    if (!_cropState) return;
+    if (_cropState.mode === 'draw' && _cropState.selW < 5 && _cropState.selH < 5) {
+      sel.style.display = 'none';
+      _cropState = null;
+      return;
+    }
+    clampSel();
+    updateSelUI();
+    // 保存当前选择（startSel 在 move/resize 时引用）
+    if (_cropState) {
+      _cropState.startSelX = _cropState.selX;
+      _cropState.startSelY = _cropState.selY;
+      _cropState.startSelW = _cropState.selW;
+      _cropState.startSelH = _cropState.selH;
+    }
+  }
+
+  container.addEventListener('mousedown', onStart);
+  container.addEventListener('touchstart', onStart, { passive: false });
+  // 保存处理器引用，供 openCrop/closeCrop 注册/移除 document 事件
+  _cropDocHandlers = { onMove: onMove, onEnd: onEnd };
 }
 
 function compressImageDataUrl(dataUrl, maxSize, callback) {
@@ -4797,6 +5180,7 @@ function renderProblemList() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+  initCrop();
   document.getElementById('inputWord').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') {
       var defEl = document.getElementById('inputDef');
@@ -5167,6 +5551,47 @@ var currentReviewType = 'word'; // 'word' or 'sentence'
 var answerRevealed = false;
 var lastAlarmTime = 0;
 var snoozeUntil = 0; // 延时截止时间戳，0 表示未延时
+
+// --- 闹钟永久关闭设置 ---
+var ALARM_DISABLED_KEY = 'ebbinghaus_alarm_disabled';
+
+function isAlarmDisabled() {
+  return localStorage.getItem(ALARM_DISABLED_KEY) === '1';
+}
+
+function setAlarmDisabled(disabled) {
+  if (disabled) localStorage.setItem(ALARM_DISABLED_KEY, '1');
+  else localStorage.removeItem(ALARM_DISABLED_KEY);
+}
+
+function toggleAlarmDisabled() {
+  var cb = document.getElementById('alarmToggle');
+  setAlarmDisabled(cb.checked);
+  updateAlarmUI();
+  showToast(cb.checked ? '闹钟已永久关闭' : '闹钟已开启');
+}
+
+function updateAlarmUI() {
+  var disabled = isAlarmDisabled();
+  var cb = document.getElementById('alarmToggle');
+  var statusText = document.getElementById('alarmStatusText');
+  var snoozeText = document.getElementById('alarmSnoozeStatus');
+  var audioEl = document.getElementById('statAudioStatus');
+  if (cb) cb.checked = disabled;
+  if (statusText) statusText.textContent = disabled ? '已关闭' : '已开启';
+  if (snoozeText) {
+    if (disabled) snoozeText.textContent = '闹钟已关闭';
+    else if (snoozeUntil > Date.now()) {
+      var rem = Math.round((snoozeUntil - Date.now()) / 60000);
+      snoozeText.textContent = '延时中（剩余 ' + rem + ' 分钟）';
+    } else snoozeText.textContent = '未延时';
+  }
+  if (audioEl) {
+    if (disabled) { audioEl.textContent = '\u{1F507}'; audioEl.title = '闹钟已永久关闭，点击延时无效'; }
+    else if (snoozeUntil > Date.now()) { audioEl.textContent = '\u{23F0}'; audioEl.title = '延时中，点击取消延时'; }
+    else { audioEl.textContent = '\u{1F514}'; audioEl.title = '点击延时 10 分钟'; }
+  }
+}
 var editingMnemonicId = null; // 正在编辑背诵技巧的单词 ID
 
 // 题目练习模式状态
@@ -5217,12 +5642,13 @@ document.addEventListener('touchstart', onUserTap);
 // --- 延时按钮（点击后 5 分钟内不提醒）---
 
 function toggleSnooze() {
+  if (isAlarmDisabled()) { showToast('闹钟已永久关闭，请在设置中开启'); return; }
   if (snoozeUntil > Date.now()) {
     // 正在延时中 → 取消延时
     snoozeUntil = 0;
     showToast('已取消延时，恢复提醒');
   } else {
-    // 开启 5 分钟延时
+    // 开启 10 分钟延时
     snoozeUntil = Date.now() + 10 * 60 * 1000;
     showToast('已延时 10 分钟，到时自动恢复提醒');
   }
@@ -5232,6 +5658,7 @@ function toggleSnooze() {
 function updateSnoozeBtn() {
   var el = document.getElementById('statAudioStatus');
   if (!el) return;
+  if (isAlarmDisabled()) { updateAlarmUI(); return; }
   var remaining = snoozeUntil - Date.now();
   if (remaining > 0) {
     // 延时中：显示倒计时
@@ -5245,7 +5672,7 @@ function updateSnoozeBtn() {
   } else {
     snoozeUntil = 0; // 清理过期
     // 正常状态：显示音频状态
-    el.textContent = audioUnlocked ? '\uD83D\uDD14' : '\uD83D\uDD14';
+    el.textContent = '\uD83D\uDD14';
     el.style.fontSize = '22px';
     el.style.color = audioUnlocked ? '#22C55E' : '#94a3b8';
     el.title = '点击延时 5 分钟';
@@ -5312,6 +5739,8 @@ var alarmCheckerId = null;
 function startAlarmChecker() {
   if (alarmCheckerId) return;
   alarmCheckerId = setInterval(function() {
+    // 永久关闭
+    if (isAlarmDisabled()) { updateAlarmUI(); return; }
     // 延时中不提醒
     if (snoozeUntil > Date.now()) {
       updateSnoozeBtn();
@@ -5689,6 +6118,7 @@ function renderProblemReview(area, prob, dueItems, now) {
     }
 
     var uploadBtn = '<button type="button" class="math-img-upload-btn" onclick="document.getElementById(\'practiceImageInput\').click()">+ 添加解题图片</button>' +
+      '<button type="button" class="math-img-upload-btn" onclick="capturePhoto(function(url){ pendingPracticeImages.push(url); renderReview(); })">📷 拍照</button>' +
       '<input type="file" id="practiceImageInput" accept="image/*" multiple style="display:none" onchange="handlePracticeImageUpload(event)">';
 
     // Judge buttons or method buttons
@@ -6237,6 +6667,8 @@ function getConfusedWords(word) {
 }
 
 async function handleSentenceReview(remembered) {
+  // 每日复习计数（同步，绝不阻塞）- 在任何早期返回之前执行
+  incrementStat('review', 'sentence');
   try {
     var sentences = _dedupById(loadSentences());
     var idx = sentences.findIndex(function(s) { return s.id === currentReviewId; });
@@ -6273,6 +6705,8 @@ async function handleSentenceReview(remembered) {
 }
 
 async function handleMathReview(remembered) {
+  // 每日复习计数（同步，绝不阻塞）- 在任何早期返回之前执行
+  incrementStat('review', 'theorem');
   try {
     var problems = _dedupById(loadMathProblems());  // 先去重，确保只有一条记录
     var idx = problems.findIndex(function(p) { return p.id === currentReviewId; });
@@ -6329,6 +6763,8 @@ function resetMathStage(id) {
 }
 
 async function handleProblemReview(remembered) {
+  // 每日复习计数（同步，绝不阻塞）- 在任何早期返回之前执行
+  incrementStat('review', 'problem');
   try {
     var allProblems = _dedupById(loadProblems());  // 先去重
     var idx = allProblems.findIndex(function(p) { return p.id === currentReviewId; });
@@ -7117,5 +7553,26 @@ function switchMode(mode) {
   }
 }
 </script>
+
+<!-- Crop Overlay -->
+<div class="crop-overlay hidden" id="cropOverlay" onclick="if(event.target===this) closeCrop()">
+  <div class="crop-card">
+    <h3>裁剪图片</h3>
+    <div class="crop-container" id="cropContainer">
+      <img id="cropImage" src="" alt="裁剪">
+      <div class="crop-selection" id="cropSelection">
+        <div class="crop-handle nw"></div>
+        <div class="crop-handle ne"></div>
+        <div class="crop-handle sw"></div>
+        <div class="crop-handle se"></div>
+      </div>
+    </div>
+    <div class="crop-actions">
+      <button class="btn btn-primary" onclick="confirmCrop()">确认</button>
+      <button class="btn btn-warning" onclick="closeCrop()">取消</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
