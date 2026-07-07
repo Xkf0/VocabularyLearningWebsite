@@ -2361,7 +2361,7 @@ async function switchToUser(username, token) {
   if (!confirm('切换到用户「' + username + '」？\n当前数据会先保存到服务器。')) return;
   // 先推送当前数据
   if (useServer && authToken) {
-    await syncToServer();
+    syncToServer({ words: loadWords(), sentences: loadSentences(), mathProblems: loadMathProblems(), problems: loadProblems(), methods: loadMethods() });
   }
   // 清除当前数据
   clearAuth();
@@ -2686,7 +2686,7 @@ async function handleLogin() {
 
   // 如果已登录其他用户，先保存数据再切换
   if (authToken && currentUser && username !== currentUser) {
-    if (useServer) await syncToServer();
+    if (useServer) syncToServer({ words: loadWords(), sentences: loadSentences(), mathProblems: loadMathProblems(), problems: loadProblems(), methods: loadMethods() });
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(SENTENCE_KEY);
     localStorage.removeItem(MATH_KEY);
@@ -2730,7 +2730,7 @@ async function handleRegister() {
 
   // 如果已登录其他用户，先保存数据再切换
   if (authToken && currentUser && username !== currentUser) {
-    if (useServer) await syncToServer();
+    if (useServer) syncToServer({ words: loadWords(), sentences: loadSentences(), mathProblems: loadMathProblems(), problems: loadProblems(), methods: loadMethods() });
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(SENTENCE_KEY);
     localStorage.removeItem(MATH_KEY);
@@ -2766,7 +2766,7 @@ async function handleLogout() {
   if (!confirm('确定退出登录吗？')) return;
   // 退出前尝试推送一次本地数据到服务器
   if (useServer) {
-    await syncToServer();
+    syncToServer({ words: loadWords(), sentences: loadSentences(), mathProblems: loadMathProblems(), problems: loadProblems(), methods: loadMethods() });
   }
   clearAuth();
   // 清除本地单词数据，防止别人登录时混入
@@ -2792,24 +2792,38 @@ async function hideLoginAndSync() {
       var data = await res.json();
       if (Array.isArray(data)) {
         if (data.length > 0) {
-          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+          _lsSet(STORAGE_KEY, JSON.stringify(data));
+          _parseCache['words'] = { raw: null, data: data };
         }
       } else if (data && data.words) {
-        if (Array.isArray(data.words) && data.words.length > 0) {
-          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data.words)); } catch(e) {}
-        }
-        if (Array.isArray(data.sentences) && data.sentences.length > 0) {
-          try { localStorage.setItem(SENTENCE_KEY, JSON.stringify(data.sentences)); } catch(e) {}
-        }
-        if (Array.isArray(data.mathProblems) && data.mathProblems.length > 0) {
-          try { localStorage.setItem(MATH_KEY, JSON.stringify(data.mathProblems)); } catch(e) {}
-        }
-        if (Array.isArray(data.problems) && data.problems.length > 0) {
-          try { localStorage.setItem(PROBLEMS_KEY, JSON.stringify(data.problems)); } catch(e) {}
-        }
-        if (Array.isArray(data.methods) && data.methods.length > 0) {
-          try { localStorage.setItem(METHODS_KEY, JSON.stringify(data.methods)); } catch(e) {}
-        }
+        // 先写入内存缓存（_parseCache），确保 refreshAll 能立即读到数据
+        _parseCache['words'] = { raw: null, data: data.words };
+        _parseCache['sentences'] = { raw: null, data: data.sentences || [] };
+        if (data.mathProblems) _parseCache['mathProblems'] = { raw: null, data: data.mathProblems };
+        if (data.problems) _parseCache['problems'] = { raw: null, data: data.problems };
+        _parseCache['methods'] = { raw: null, data: data.methods || [] };
+
+        // 后台写入 localStorage（不阻塞 UI），使用 _lsSet 确保 _memStore 同步更新
+        (function(serverData) {
+          setTimeout(function() {
+            if (_parseCache['words'] && _parseCache['words'].raw === null) {
+              var wj = JSON.stringify(serverData.words); _lsSet(STORAGE_KEY, wj); _parseCache['words'] = { raw: wj, data: serverData.words }; _jsonCache['words'] = wj;
+            }
+            if (_parseCache['sentences'] && _parseCache['sentences'].raw === null) {
+              var sj = JSON.stringify(serverData.sentences || []); _lsSet(SENTENCE_KEY, sj); _parseCache['sentences'] = { raw: sj, data: serverData.sentences || [] }; _jsonCache['sentences'] = sj;
+            }
+            if (serverData.mathProblems && _parseCache['mathProblems'] && _parseCache['mathProblems'].raw === null) {
+              var mj = JSON.stringify(serverData.mathProblems); _lsSet(MATH_KEY, mj); _parseCache['mathProblems'] = { raw: mj, data: serverData.mathProblems }; _jsonCache['mathProblems'] = mj;
+            }
+            if (serverData.problems && _parseCache['problems'] && _parseCache['problems'].raw === null) {
+              var pj = JSON.stringify(serverData.problems); _lsSet(PROBLEMS_KEY, pj); _parseCache['problems'] = { raw: pj, data: serverData.problems }; _jsonCache['problems'] = pj;
+            }
+            if (_parseCache['methods'] && _parseCache['methods'].raw === null) {
+              var mdj = JSON.stringify(serverData.methods || []); _lsSet(METHODS_KEY, mdj); _parseCache['methods'] = { raw: mdj, data: serverData.methods || [] }; _jsonCache['methods'] = mdj;
+            }
+          }, 0);
+        })(data);
+
         if (data.avatar) {
           try { localStorage.setItem(getAvatarKey(), data.avatar); } catch(e) {}
         }
