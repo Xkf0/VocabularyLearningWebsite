@@ -3918,12 +3918,12 @@ function _renderImageFieldContent(key, single) {
   var data = _pendingItemImages[key];
   if (single) {
     if (!data) return '<div class="item-editor-img-placeholder">暂无图片</div>';
-    return '<div class="math-img-item"><img src="' + escapeHtml(data) + '" onclick="openImagePreview(this.src)">' +
+    return '<div class="math-img-item"><img src="' + escapeHtml(resolveImageUrl(data)) + '">' +
       '<button class="img-del" onclick="removeItemImage(\'' + key + '\',0)">x</button></div>';
   } else {
     if (!data || data.length === 0) return '<div class="item-editor-img-placeholder">暂无图片</div>';
     var htmls = data.map(function(src, idx) {
-      return '<div class="math-img-item"><img src="' + escapeHtml(src) + '" onclick="openImagePreview(this.src)">' +
+      return '<div class="math-img-item"><img src="' + escapeHtml(resolveImageUrl(src)) + '" onclick="openImagePreview(this.src)">' +
         '<button class="img-del" onclick="removeItemImage(\'' + key + '\',' + idx + ')">x</button></div>';
     });
     return htmls.join('');
@@ -4041,7 +4041,7 @@ function closeItemEditor() {
   document.getElementById('itemEditorOverlay').classList.add('hidden');
 }
 
-function confirmItemEditor() {
+async function confirmItemEditor() {
   var type = _editingItemType;
   var id = _editingItemId;
   if (!type || !id) { closeItemEditor(); return; }
@@ -4064,6 +4064,16 @@ function confirmItemEditor() {
       changed = true;
     }
   });
+
+  // 上传新图片到服务器
+  for (var key in _pendingItemImages) {
+    var val = _pendingItemImages[key];
+    if (Array.isArray(val)) {
+      _pendingItemImages[key] = await uploadPendingImages(val);
+    } else if (typeof val === 'string' && val.startsWith('data:')) {
+      _pendingItemImages[key] = await saveImageToServer(val);
+    }
+  }
 
   // 处理图片字段
   Object.keys(_pendingItemImages).forEach(function(key) {
@@ -4493,6 +4503,55 @@ function compressImageDataUrl(dataUrl, maxSize, callback) {
   img.src = dataUrl;
 }
 
+/**
+ * 将 base64 图片上传到服务器存为文件，返回 { file, data } 格式
+ * 若不上传（离线/浏览器模式），返回原 dataUrl 字符串（兼容旧格式）
+ */
+async function saveImageToServer(dataUrl) {
+  if (!useServer || !authToken) return dataUrl;
+  if (!dataUrl || typeof dataUrl !== 'string') return dataUrl;
+  try {
+    var res = await fetch('/api/upload-image', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ image: dataUrl }),
+    });
+    if (res.ok) {
+      var result = await res.json();
+      if (result.ok && result.path) {
+        return { file: result.path, data: dataUrl };
+      }
+    }
+  } catch(e) { /* 上传失败则回退到 dataUrl */ }
+  return dataUrl;
+}
+
+/**
+ * 解析图片字段为可显示的 src URL
+ * @param {string|object} img - 旧格式 (dataUrl 字符串) 或 新格式 ({ file, data })
+ * @returns {string} 可显示的图片 URL
+ */
+function resolveImageUrl(img) {
+  if (!img) return '';
+  if (typeof img === 'string') return img;
+  if (img.file && useServer) return '/api/images/' + img.file;
+  return img.data || '';
+}
+
+/**
+ * 将 pending 数组中的新图片（dataUrl 字符串）上传到服务器，
+ * 已上传的 { file, data } 对象保持不变
+ */
+async function uploadPendingImages(pending) {
+  if (!pending || !Array.isArray(pending)) return pending || [];
+  return await Promise.all(pending.map(function(img) {
+    if (typeof img === 'string' && useServer && authToken) {
+      return saveImageToServer(img);
+    }
+    return img;
+  }));
+}
+
 // ============================================================
 // 数学知识点
 // ============================================================
@@ -4535,7 +4594,7 @@ function renderMathTitlePreview() {
   }
   container.innerHTML = pendingMathTitleImage.map(function(src, idx) {
     return '<div class="math-img-item">' +
-      '<img src="' + escapeHtml(src) + '" alt="知识点名称图片" style="max-width:100%;max-height:120px;object-fit:contain;">' +
+      '<img src="' + escapeHtml(resolveImageUrl(src)) + '" alt="知识点名称图片" style="max-width:100%;max-height:120px;object-fit:contain;">' +
       '<button class="img-del" onclick="removeMathTitleImage(' + idx + ')">x</button></div>';
   }).join('');
   if (status) status.textContent = '已选择 ' + pendingMathTitleImage.length + ' 张图片';
@@ -4576,7 +4635,7 @@ function renderMathSolutionPreviews() {
   }
   container.innerHTML = pendingMathSolutionImages.map(function(src, idx) {
     return '<div class="math-img-item">' +
-      '<img src="' + escapeHtml(src) + '" alt="证明图片">' +
+      '<img src="' + escapeHtml(resolveImageUrl(src)) + '" alt="证明图片">' +
       '<button class="img-del" onclick="removeMathSolutionImage(' + idx + ')">x</button></div>';
   }).join('');
   if (status) status.textContent = '已选择 ' + pendingMathSolutionImages.length + ' 张图片';
@@ -4607,12 +4666,15 @@ async function addMathProblem() {
   });
   if (existing) {
     if (!confirm('知识点 "' + (existing.indexTitle || existing.title || '图片') + '" 已存在，是否覆盖？')) return;
+    // 上传图片到服务器
+    var titleImgUploaded = await uploadPendingImages(pendingMathTitleImage);
+    var solImgUploaded = await uploadPendingImages(pendingMathSolutionImages);
     existing.category = category;
     existing.indexTitle = indexTitle;
     existing.title = title;
-    existing.titleImage = pendingMathTitleImage.slice();
+    existing.titleImage = titleImgUploaded;
     existing.solutionText = solutionText;
-    existing.solutionImages = pendingMathSolutionImages.slice();
+    existing.solutionImages = solImgUploaded;
     existing.references = pendingMathReferences.slice();
     existing.stage = 0;
     existing.nextReviewAt = new Date(Date.now() + INTERVALS[0]).toISOString();
@@ -4627,14 +4689,16 @@ async function addMathProblem() {
   }
 
   var now = new Date();
+  var titleImgUploaded = await uploadPendingImages(pendingMathTitleImage);
+  var solImgUploaded = await uploadPendingImages(pendingMathSolutionImages);
   var problem = {
     id: Date.now() + Math.random(),
     category: category,
     indexTitle: indexTitle,
     title: title,
-    titleImage: pendingMathTitleImage.slice(),
+    titleImage: titleImgUploaded,
     solutionText: solutionText,
-    solutionImages: pendingMathSolutionImages.slice(),
+    solutionImages: solImgUploaded,
     references: pendingMathReferences.slice(),
     stage: 0,
     createdAt: now.toISOString(),
@@ -4723,7 +4787,7 @@ function renderMathProblemList() {
     var titleHtml = '';
     if (p.title) { titleHtml += '<div class="math-title">' + escapeHtml(p.title) + '</div>'; }
     if (p.titleImage) { titleHtml += (Array.isArray(p.titleImage) ? p.titleImage : [p.titleImage]).map(function(src) {
-      return '<img src="' + escapeHtml(src) + '" class="math-image" alt="知识点图片" onclick="openImagePreview(this.src)">';
+      return '<img src="' + escapeHtml(resolveImageUrl(src)) + '" class="math-image" alt="知识点图片" onclick="openImagePreview(this.src)">';
     }).join(''); }
     var solHtml = p.solutionText
       ? '<div class="math-solution">' + escapeHtml(p.solutionText) + '</div>'
@@ -4731,13 +4795,13 @@ function renderMathProblemList() {
     var solImgHtml = '';
     if (p.solutionImages && p.solutionImages.length > 0) {
       solImgHtml = p.solutionImages.map(function(src) {
-        return '<img src="' + escapeHtml(src) + '" class="math-image" alt="证明图片" onclick="openImagePreview(this.src)">';
+        return '<img src="' + escapeHtml(resolveImageUrl(src)) + '" class="math-image" alt="证明图片" onclick="openImagePreview(this.src)">';
       }).join('');
     }
     // Support old data with 'images' field
     if (!solImgHtml && p.images && p.images.length > 0) {
       solImgHtml = p.images.map(function(src) {
-        return '<img src="' + escapeHtml(src) + '" class="math-image" alt="证明图片" onclick="openImagePreview(this.src)">';
+        return '<img src="' + escapeHtml(resolveImageUrl(src)) + '" class="math-image" alt="证明图片" onclick="openImagePreview(this.src)">';
       }).join('');
     }
     // Build references HTML
@@ -4817,7 +4881,7 @@ function renderProbQuestionPreview() {
   }
   container.innerHTML = pendingProbQuestionImage.map(function(src, idx) {
     return '<div class="math-img-item">' +
-      '<img src="' + escapeHtml(src) + '" alt="题目图片">' +
+      '<img src="' + escapeHtml(resolveImageUrl(src)) + '" alt="题目图片">' +
       '<button class="img-del" onclick="removeProbQuestionImage(' + idx + ')">x</button></div>';
   }).join('');
   if (status) status.textContent = '已选择 ' + pendingProbQuestionImage.length + ' 张图片';
@@ -4858,7 +4922,7 @@ function renderProbSolutionPreviews() {
   }
   container.innerHTML = pendingProbSolutionImages.map(function(src, idx) {
     return '<div class="math-img-item">' +
-      '<img src="' + escapeHtml(src) + '" alt="解题图片">' +
+      '<img src="' + escapeHtml(resolveImageUrl(src)) + '" alt="解题图片">' +
       '<button class="img-del" onclick="removeProbSolutionImage(' + idx + ')">x</button></div>';
   }).join('');
   if (status) status.textContent = '已选择 ' + pendingProbSolutionImages.length + ' 张图片';
@@ -4899,7 +4963,7 @@ function renderMethodImagePreviews() {
   }
   container.innerHTML = pendingMethodImages.map(function(src, idx) {
     return '<div class="math-img-item">' +
-      '<img src="' + escapeHtml(src) + '" alt="方法图片">' +
+      '<img src="' + escapeHtml(resolveImageUrl(src)) + '" alt="方法图片">' +
       '<button class="img-del" onclick="removeMethodImage(' + idx + ')">x</button></div>';
   }).join('');
   if (status) status.textContent = '已选择 ' + pendingMethodImages.length + ' 张图片';
@@ -4924,14 +4988,16 @@ async function addMathProblemItem() {
 
   var problems = loadProblems();
   var now = new Date();
+  var qImgUploaded = await uploadPendingImages(pendingProbQuestionImage);
+  var sImgUploaded = await uploadPendingImages(pendingProbSolutionImages);
   var problem = {
     id: Date.now() + Math.random(),
     category: category,
     indexTitle: indexTitle,
     question: question,
-    questionImage: pendingProbQuestionImage.slice(),
+    questionImage: qImgUploaded,
     solutionText: solutionText,
-    solutionImages: pendingProbSolutionImages.slice(),
+    solutionImages: sImgUploaded,
     references: pendingProbReferences.slice(),
     practiceHistory: [],
     stage: 0,
@@ -5011,11 +5077,12 @@ async function addMethod() {
   var description = document.getElementById('inputMethodDesc').value.trim();
   var now = new Date();
   var methods = loadMethods();
+  var methodImages = await uploadPendingImages(pendingMethodImages);
   var method = {
     id: Date.now(),
     name: name,
     description: description,
-    images: pendingMethodImages.slice(),
+    images: methodImages,
     references: pendingMethodReferences.slice(),
     createdAt: now.toISOString(),
     lastModified: now.toISOString(),
@@ -5072,7 +5139,7 @@ function renderMethodList() {
     var imgHtml = '';
     if (m.images && m.images.length > 0) {
       imgHtml = m.images.map(function(src) {
-        return '<img src="' + escapeHtml(src) + '" class="math-image" alt="方法图片" onclick="openImagePreview(this.src)">';
+        return '<img src="' + escapeHtml(resolveImageUrl(src)) + '" class="math-image" alt="方法图片" onclick="openImagePreview(this.src)">';
       }).join('');
     }
     var refHtml = '';
@@ -5137,7 +5204,7 @@ function renderProblemList() {
     var questionHtml = '';
     if (p.question) { questionHtml += '<div class="math-title">' + escapeHtml(p.question) + '</div>'; }
     if (p.questionImage) { questionHtml += (Array.isArray(p.questionImage) ? p.questionImage : [p.questionImage]).map(function(src) {
-      return '<img src="' + escapeHtml(src) + '" class="math-image" alt="题目图片" onclick="openImagePreview(this.src)">';
+      return '<img src="' + escapeHtml(resolveImageUrl(src)) + '" class="math-image" alt="题目图片" onclick="openImagePreview(this.src)">';
     }).join(''); }
     var solHtml = p.solutionText
       ? '<div class="math-solution">' + escapeHtml(p.solutionText) + '</div>'
@@ -5145,13 +5212,13 @@ function renderProblemList() {
     var solImgHtml = '';
     if (p.solutionImages && p.solutionImages.length > 0) {
       solImgHtml = p.solutionImages.map(function(src) {
-        return '<img src="' + escapeHtml(src) + '" class="math-image" alt="解题图片" onclick="openImagePreview(this.src)">';
+        return '<img src="' + escapeHtml(resolveImageUrl(src)) + '" class="math-image" alt="解题图片" onclick="openImagePreview(this.src)">';
       }).join('');
     }
     // Support old data with 'images' field
     if (!solImgHtml && p.images && p.images.length > 0) {
       solImgHtml = p.images.map(function(src) {
-        return '<img src="' + escapeHtml(src) + '" class="math-image" alt="解题图片" onclick="openImagePreview(this.src)">';
+        return '<img src="' + escapeHtml(resolveImageUrl(src)) + '" class="math-image" alt="解题图片" onclick="openImagePreview(this.src)">';
       }).join('');
     }
     var practiceStats = '';
@@ -5993,17 +6060,17 @@ function renderMathReview(area, problem, dueItems, now) {
   var titleHtml = '';
   if (problem.title) { titleHtml += '<div class="math-title-card">' + escapeHtml(problem.title) + '</div>'; }
   if (problem.titleImage) { titleHtml += (Array.isArray(problem.titleImage) ? problem.titleImage : [problem.titleImage]).map(function(src) {
-    return '<img src="' + escapeHtml(src) + '" class="math-image-card" alt="知识点图片" onclick="openImagePreview(this.src)">';
+    return '<img src="' + escapeHtml(resolveImageUrl(src)) + '" class="math-image-card" alt="知识点图片" onclick="openImagePreview(this.src)">';
   }).join(''); }
 
   var solImgHtml = '';
   if (problem.solutionImages && problem.solutionImages.length > 0) {
     solImgHtml = problem.solutionImages.map(function(src) {
-      return '<img src="' + escapeHtml(src) + '" class="math-image-card" alt="证明图片" onclick="openImagePreview(this.src)">';
+      return '<img src="' + escapeHtml(resolveImageUrl(src)) + '" class="math-image-card" alt="证明图片" onclick="openImagePreview(this.src)">';
     }).join('');
   } else if (problem.images && problem.images.length > 0) {
     solImgHtml = problem.images.map(function(src) {
-      return '<img src="' + escapeHtml(src) + '" class="math-image-card" alt="证明图片" onclick="openImagePreview(this.src)">';
+      return '<img src="' + escapeHtml(resolveImageUrl(src)) + '" class="math-image-card" alt="证明图片" onclick="openImagePreview(this.src)">';
     }).join('');
   }
 
@@ -6074,17 +6141,17 @@ function renderProblemReview(area, prob, dueItems, now) {
   var questionHtml = '';
   if (prob.question) { questionHtml += '<div class="math-title-card" style="font-size:22px;">' + escapeHtml(prob.question) + '</div>'; }
   if (prob.questionImage) { questionHtml += (Array.isArray(prob.questionImage) ? prob.questionImage : [prob.questionImage]).map(function(src) {
-    return '<img src="' + escapeHtml(src) + '" class="math-image-card" alt="题目图片" onclick="openImagePreview(this.src)">';
+    return '<img src="' + escapeHtml(resolveImageUrl(src)) + '" class="math-image-card" alt="题目图片" onclick="openImagePreview(this.src)">';
   }).join(''); }
 
   var solImgHtml = '';
   if (prob.solutionImages && prob.solutionImages.length > 0) {
     solImgHtml = prob.solutionImages.map(function(src) {
-      return '<img src="' + escapeHtml(src) + '" class="math-image-card" alt="解题图片" onclick="openImagePreview(this.src)">';
+      return '<img src="' + escapeHtml(resolveImageUrl(src)) + '" class="math-image-card" alt="解题图片" onclick="openImagePreview(this.src)">';
     }).join('');
   } else if (prob.images && prob.images.length > 0) {
     solImgHtml = prob.images.map(function(src) {
-      return '<img src="' + escapeHtml(src) + '" class="math-image-card" alt="解题图片" onclick="openImagePreview(this.src)">';
+      return '<img src="' + escapeHtml(resolveImageUrl(src)) + '" class="math-image-card" alt="解题图片" onclick="openImagePreview(this.src)">';
     }).join('');
   }
 
@@ -6126,7 +6193,7 @@ function renderProblemReview(area, prob, dueItems, now) {
     if (pendingPracticeImages.length > 0) {
       previewHtml = '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">' +
         pendingPracticeImages.map(function(src, idx) {
-          return '<div class="math-img-item"><img src="' + escapeHtml(src) + '" style="max-height:120px;border-radius:6px;" alt="解题过程"><button class="img-del" onclick="removePracticeImage(' + idx + ')">x</button></div>';
+          return '<div class="math-img-item"><img src="' + escapeHtml(resolveImageUrl(src)) + '" style="max-height:120px;border-radius:6px;" alt="解题过程"><button class="img-del" onclick="removePracticeImage(' + idx + ')">x</button></div>';
         }).join('') +
         '</div>';
     }
@@ -6386,9 +6453,10 @@ async function finishPractice(methodMatches) {
   var now = new Date();
 
   if (!problem.practiceHistory) problem.practiceHistory = [];
+  var uploadedPracticeImages = await uploadPendingImages(pendingPracticeImages);
   problem.practiceHistory.push({
     timestamp: now.toISOString(),
-    images: pendingPracticeImages.slice(),
+    images: uploadedPracticeImages,
     correct: practiceCorrect,
     methodMatches: practiceCorrect ? (methodMatches === true) : null,
   });
