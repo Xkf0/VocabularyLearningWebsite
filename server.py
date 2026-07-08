@@ -15,6 +15,7 @@ import socket
 import ssl
 import sys
 import threading
+import uuid
 import urllib.request
 import urllib.error
 from datetime import datetime
@@ -23,6 +24,7 @@ from fractions import Fraction
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 3000
 USERS_FILE = os.path.join(os.path.dirname(__file__), 'users.json')
 DATA_DIR = os.path.dirname(__file__)
+IMAGE_DIR = os.path.join(DATA_DIR, 'images')
 
 # 线程锁，防止并发读写导致数据丢失
 _users_lock = threading.Lock()
@@ -1769,6 +1771,29 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._send_json({'ok': True, 'message': 'pong'})
             return
 
+        # 图片服务
+        if path.startswith('/api/images/'):
+            filename = path[len('/api/images/'):]
+            # 防止路径穿越
+            if '..' in filename or '/' in filename:
+                self.send_response(400)
+                self.end_headers()
+                return
+            filepath = os.path.join(IMAGE_DIR, filename)
+            if not os.path.exists(filepath):
+                self.send_response(404)
+                self.end_headers()
+                return
+            ctype_map = {'.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.gif': 'image/gif', '.webp': 'image/webp'}
+            ctype = ctype_map.get(os.path.splitext(filename)[1].lower(), 'application/octet-stream')
+            self.send_response(200)
+            self.send_header('Content-Type', ctype)
+            self.send_header('Cache-Control', 'max-age=86400')
+            self.end_headers()
+            with open(filepath, 'rb') as f:
+                self.wfile.write(f.read())
+            return
+
         if path == '/api/question/stats':
             username = self._get_token_user()
             if not username:
@@ -1822,6 +1847,34 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         path = self.path.split('?')[0]  # 去掉查询参数（时间戳等）
         if path.startswith('/api/auth/'):
             return self.do_AUTH()
+
+        if path == '/api/upload-image':
+            username = self._get_token_user()
+            if not username:
+                self._send_json({'ok': False, 'error': '未登录'}, 401)
+                return
+            try:
+                length = int(self.headers.get('Content-Length', 0))
+                body = json.loads(self.rfile.read(length).decode('utf-8'))
+                image_data = body.get('image', '')
+                if not image_data:
+                    self._send_json({'ok': False, 'error': '缺少图片数据'}, 400)
+                    return
+                import base64
+                m = re.match(r'^data:image/([^;]+);base64,(.+)$', image_data)
+                if not m:
+                    self._send_json({'ok': False, 'error': '图片格式无效'}, 400)
+                    return
+                ext = m.group(1).replace('jpeg', 'jpg')
+                raw = base64.b64decode(m.group(2))
+                filename = str(uuid.uuid4()) + '.' + ext
+                filepath = os.path.join(IMAGE_DIR, filename)
+                with open(filepath, 'wb') as f:
+                    f.write(raw)
+                self._send_json({'ok': True, 'path': filename})
+            except Exception as e:
+                self._send_json({'ok': False, 'error': str(e)}, 500)
+            return
 
         if path == '/api/words':
             username = self._get_token_user()
@@ -2012,6 +2065,9 @@ if __name__ == '__main__':
         s.close()
     except Exception:
         local_ip = '（无法检测，请在电脑上运行 ipconfig 查看）'
+
+    # 创建图片存储目录
+    os.makedirs(IMAGE_DIR, exist_ok=True)
 
     # 统计已注册用户
     users = _load_users()
