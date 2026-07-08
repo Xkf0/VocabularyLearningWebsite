@@ -4519,7 +4519,7 @@ async function saveImageToServer(dataUrl) {
     if (res.ok) {
       var result = await res.json();
       if (result.ok && result.path) {
-        return { file: result.path, data: dataUrl };
+        return { file: result.path };
       }
     }
   } catch(e) { /* 上传失败则回退到 dataUrl */ }
