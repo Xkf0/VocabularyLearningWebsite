@@ -2981,7 +2981,50 @@ function updateServerUI() {
   refreshAll();
 }
 
-// 从服务器拉取数据覆盖本地
+/**
+ * 合并本地和服务端数据：逐条比较 lastModified，保留较新的版本
+ * 本地有新修改（lastModified 更新）→ 保留本地
+ * 服务端有新修改 → 使用服务端
+ * 都没有 lastModified → 信任服务端（更完整）
+ * 只有一方有该条目 → 保留有的那方
+ */
+function _mergeLocalWithServer(localItems, serverItems, keyField, fallbackField) {
+  var map = {};
+  var result = [];
+  function _itemKey(item) {
+    if (item.id !== undefined && item.id !== null) return item.id;
+    var k = item[keyField];
+    if ((k === undefined || k === null) && fallbackField) k = item[fallbackField];
+    if (k === undefined || k === null) return null;
+    return typeof k === 'string' ? k.toLowerCase().trim() : k;
+  }
+  // 先放所有本地条目
+  for (var i = 0; i < localItems.length; i++) {
+    var key = _itemKey(localItems[i]);
+    if (key === null) { result.push(localItems[i]); continue; }
+    map[key] = localItems[i];
+  }
+  // 合并服务端条目
+  for (var i = 0; i < serverItems.length; i++) {
+    var key = _itemKey(serverItems[i]);
+    if (key === null) { result.push(serverItems[i]); continue; }
+    if (key in map) {
+      var local = map[key];
+      var localTS = local.lastModified || '';
+      var serverTS = serverItems[i].lastModified || '';
+      if (localTS && serverTS) {
+        map[key] = localTS >= serverTS ? local : serverItems[i];
+      }
+      // 都没有 lastModified → 保留 map 中已有的（先放的本地）
+    } else {
+      map[key] = serverItems[i];
+    }
+  }
+  for (var key in map) { result.push(map[key]); }
+  return result;
+}
+
+// 从服务器拉取数据（与本地合并，而非直接覆盖）
 async function syncFromServer() {
   if (!authToken) return;
   try {
@@ -2996,36 +3039,48 @@ async function syncFromServer() {
           _lsSet(STORAGE_KEY, JSON.stringify(data));
         }
       } else if (data && data.words) {
-        // 写入内存缓存（不 stringify），UI 秒开
-        _parseCache['words'] = { raw: null, data: data.words };
-        _parseCache['sentences'] = { raw: null, data: data.sentences || [] };
-        _parseCache['methods'] = { raw: null, data: data.methods || [] };
-        if (data.mathProblems) _parseCache['mathProblems'] = { raw: null, data: data.mathProblems };
-        if (data.problems) _parseCache['problems'] = { raw: null, data: data.problems };
+        // 先读取本地数据，用于按 lastModified 逐条合并
+        var localWords = loadWords();
+        var localSentences = loadSentences();
+        var localMath = loadMathProblems();
+        var localProbs = loadProblems();
+        var localMethods = loadMethods();
+        // 逐条合并：保留 lastModified 较新的版本
+        var mergedWords = _mergeLocalWithServer(localWords, data.words, 'word');
+        var mergedSentences = _mergeLocalWithServer(localSentences, data.sentences || [], 'id');
+        var mergedMath = _mergeLocalWithServer(localMath, data.mathProblems || [], 'indexTitle', 'title');
+        var mergedProbs = _mergeLocalWithServer(localProbs, data.problems || [], 'indexTitle', 'question');
+        var mergedMethods = _mergeLocalWithServer(localMethods, data.methods || [], 'id');
+        // 写入内存缓存（合并后的数据）
+        _parseCache['words'] = { raw: null, data: mergedWords };
+        _parseCache['sentences'] = { raw: null, data: mergedSentences };
+        _parseCache['methods'] = { raw: null, data: mergedMethods };
+        _parseCache['mathProblems'] = { raw: null, data: mergedMath };
+        _parseCache['problems'] = { raw: null, data: mergedProbs };
         if (data.avatar) {
           try { localStorage.setItem(getAvatarKey(), data.avatar); } catch(e) {}
         }
-        // 后台写入 localStorage（不阻塞 UI）
-        (function(serverData) {
+        // 后台写入 localStorage（用合并后的数据，不阻塞 UI）
+        (function(mergedData) {
           setTimeout(function() {
             // 如果用户已保存过数据（raw !== null），跳过过期写入
             if (_parseCache['words'] && _parseCache['words'].raw === null) {
-              var wj = JSON.stringify(serverData.words); _lsSet(STORAGE_KEY, wj); _parseCache['words'] = { raw: wj, data: serverData.words }; _jsonCache['words'] = wj;
+              var wj = JSON.stringify(mergedData.words); _lsSet(STORAGE_KEY, wj); _parseCache['words'] = { raw: wj, data: mergedData.words }; _jsonCache['words'] = wj;
             }
             if (_parseCache['sentences'] && _parseCache['sentences'].raw === null) {
-              var sj = JSON.stringify(serverData.sentences || []); _lsSet(SENTENCE_KEY, sj); _parseCache['sentences'] = { raw: sj, data: serverData.sentences || [] }; _jsonCache['sentences'] = sj;
+              var sj = JSON.stringify(mergedData.sentences || []); _lsSet(SENTENCE_KEY, sj); _parseCache['sentences'] = { raw: sj, data: mergedData.sentences || [] }; _jsonCache['sentences'] = sj;
             }
-            if (serverData.mathProblems && _parseCache['mathProblems'] && _parseCache['mathProblems'].raw === null) {
-              var mj = JSON.stringify(serverData.mathProblems); _lsSet(MATH_KEY, mj); _parseCache['mathProblems'] = { raw: mj, data: serverData.mathProblems }; _jsonCache['mathProblems'] = mj;
+            if (mergedData.mathProblems && _parseCache['mathProblems'] && _parseCache['mathProblems'].raw === null) {
+              var mj = JSON.stringify(mergedData.mathProblems); _lsSet(MATH_KEY, mj); _parseCache['mathProblems'] = { raw: mj, data: mergedData.mathProblems }; _jsonCache['mathProblems'] = mj;
             }
-            if (serverData.problems && _parseCache['problems'] && _parseCache['problems'].raw === null) {
-              var pj = JSON.stringify(serverData.problems); _lsSet(PROBLEMS_KEY, pj); _parseCache['problems'] = { raw: pj, data: serverData.problems }; _jsonCache['problems'] = pj;
+            if (mergedData.problems && _parseCache['problems'] && _parseCache['problems'].raw === null) {
+              var pj = JSON.stringify(mergedData.problems); _lsSet(PROBLEMS_KEY, pj); _parseCache['problems'] = { raw: pj, data: mergedData.problems }; _jsonCache['problems'] = pj;
             }
             if (_parseCache['methods'] && _parseCache['methods'].raw === null) {
-              var mdj = JSON.stringify(serverData.methods || []); _lsSet(METHODS_KEY, mdj); _parseCache['methods'] = { raw: mdj, data: serverData.methods || [] }; _jsonCache['methods'] = mdj;
+              var mdj = JSON.stringify(mergedData.methods || []); _lsSet(METHODS_KEY, mdj); _parseCache['methods'] = { raw: mdj, data: mergedData.methods || [] }; _jsonCache['methods'] = mdj;
             }
           }, 0);
-        })(data);
+        })({words: mergedWords, sentences: mergedSentences, mathProblems: mergedMath, problems: mergedProbs, methods: mergedMethods, avatar: data.avatar});
         if (data.avatar) {
           try { localStorage.setItem(getAvatarKey(), data.avatar); } catch(e) {}
         }
