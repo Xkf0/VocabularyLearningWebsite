@@ -73,7 +73,7 @@ python3 server.py 80
 git push
 
 # 2. 一行命令同步服务器并重启
-ssh root@<服务器IP> "cd /root/VocabularyLearningWebsite/ && git pull && pkill -f 'server.py' && nohup python3 server.py 80 > /dev/null 2>&1 &"
+ssh root@<服务器IP> "cd /root/VocabularyLearningWebsite/ && git pull && (pkill -f 'server.py' || true) && nohup python3 server.py 80 > /dev/null 2>&1 &"
 ```
 
 ### 数据文件
