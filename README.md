@@ -53,14 +53,26 @@
 
 ## 部署
 
-### 同步到服务器
+### 首次部署
+
+```bash
+# 服务器上克隆代码
+ssh root@<服务器IP>
+git clone https://github.com/Xkf0/VocabularyLearningWebsite.git /root/VocabularyLearningWebsite/
+cd /root/VocabularyLearningWebsite/
+
+# 启动服务
+python3 server.py 80
+```
+
+### 日常同步
 
 ```bash
 # 1. 本地开发完成后推送到 GitHub
 git push
 
-# 2. 登录服务器拉取最新代码并重启
-ssh root@<服务器IP> "cd VocabularyLearningWebsite && git pull && pkill -f 'server.py' && nohup python3 server.py 80 > /dev/null 2>&1 &"
+# 2. 一行命令同步服务器并重启
+ssh root@<服务器IP> "cd /root/VocabularyLearningWebsite/ && git pull && pkill -f 'server.py' && nohup python3 server.py 80 > /dev/null 2>&1 &"
 ```
 
 ### 数据文件
