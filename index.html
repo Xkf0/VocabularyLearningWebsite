@@ -1271,6 +1271,8 @@
     .history-date-detail table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .history-date-detail th { text-align: left; padding: 4px 8px; border-bottom: 1px solid #e2e8f0; }
     .history-date-detail td { padding: 4px 8px; border-bottom: 1px solid #f1f5f9; }
+    .history-date-note { font-size: 12px; color: #8b5cf6; padding: 2px 0 4px 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .history-date-note:hover { color: #7c3aed; }
 
     .confuse-picker-overlay {
       position: fixed;
@@ -2074,6 +2076,7 @@ function _sanitizeStats(data) {
   for (var d in data) {
     if (!data[d] || typeof data[d] !== 'object') continue;
     for (var t in data[d]) {
+      if (t === 'note') continue;
       if (t !== 'review' && t !== 'add') { delete data[d][t]; changed = true; continue; }
       if (!data[d][t] || typeof data[d][t] !== 'object') { data[d][t] = {}; changed = true; continue; }
       for (var cat in data[d][t]) {
@@ -2247,6 +2250,10 @@ async function pullStatsFromServer() {
               var sv = data[date].add[cat];
               if (sv > (local[date].add[cat] || 0)) local[date].add[cat] = sv;
             }
+          }
+          // 同步备注：本地没有时才用服务端的
+          if (data[date].note && !local[date].note) {
+            local[date].note = data[date].note;
           }
         }
         _saveStatsCache(local);
@@ -7240,11 +7247,16 @@ function renderHistoryTab() {
     if (dayStats.add) { for (var k in dayStats.add) aTotal += dayStats.add[k]; }
     var isToday = date === today;
     var label = isToday ? '<strong>' + date + ' (今天)</strong>' : date;
-    html += '<div class="history-date-row" onclick="toggleHistoryDetail(\'' + date + '\')" style="cursor:pointer;padding:10px 12px;border-bottom:1px solid #f1f5f9;">'
+    var note = dayStats.note || '';
+    html += '<div class="history-date-row" onclick="toggleHistoryDetail(\'' + date + '\')" style="cursor:pointer;padding:8px 12px;border-bottom:1px solid #f1f5f9;">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;">'
       + '<span style="font-size:14px;' + (isToday ? 'font-weight:600;color:#10b981;' : '') + '">' + label + '</span>'
-      + '<span style="font-size:13px;color:#64748b;">复习 <strong>' + rTotal + '</strong> | 新增 <strong>' + aTotal + '</strong></span>'
+      + '<span style="font-size:13px;color:#64748b;white-space:nowrap;">'
+      + '复习 <strong>' + rTotal + '</strong> | 新增 <strong>' + aTotal + '</strong>'
+      + ' <span onclick="event.stopPropagation();editDateNote(\'' + date + '\')" style="cursor:pointer;margin-left:4px;font-size:14px;" title="' + (note ? '编辑备注' : '添加备注') + '">' + (note ? '📝' : '➕') + '</span>'
+      + '</span>'
       + '</div>'
+      + (note ? '<div class="history-date-note">📌 ' + escapeHtml(note) + '</div>' : '')
       + '<div class="history-date-detail" id="hd-' + date + '" style="display:none;margin-top:8px;padding:8px 12px;background:#f8fafc;border-radius:8px;"></div>'
       + '</div>';
   }
@@ -7273,6 +7285,24 @@ function toggleHistoryDetail(date) {
   html += '</tbody></table>';
   el.innerHTML = html;
   el.style.display = 'block';
+}
+
+/** 为某天添加或编辑备注 */
+function editDateNote(date) {
+  var stats = getStats();
+  if (!stats[date]) stats[date] = {review: {}, add: {}};
+  var currentNote = stats[date].note || '';
+  var newNote = prompt('为 ' + date + ' 添加备注（留空删除备注）：', currentNote);
+  if (newNote === null) return;
+  newNote = newNote.trim();
+  if (newNote) {
+    stats[date].note = newNote;
+  } else {
+    delete stats[date].note;
+  }
+  _saveStatsCache(stats);
+  renderHistoryTab();
+  scheduleStatsSync();
 }
 
 function refreshAll() {
