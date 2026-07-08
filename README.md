@@ -58,8 +58,9 @@
 ```bash
 # 服务器上克隆代码
 ssh root@<服务器IP>
-git clone https://github.com/Xkf0/VocabularyLearningWebsite.git /root/VocabularyLearningWebsite/
-cd /root/VocabularyLearningWebsite/
+cd /root/
+git clone https://github.com/Xkf0/VocabularyLearningWebsite.git
+cd VocabularyLearningWebsite/
 
 # 启动服务
 python3 server.py 80
