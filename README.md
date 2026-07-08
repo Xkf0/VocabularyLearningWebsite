@@ -53,49 +53,19 @@
 
 ## 部署
 
-### 前提条件
-
-- 服务器已安装 Python 3、Git
-- 本地开发机已配置 SSH 密钥登录服务器
-- GitHub 仓库已添加服务器的 SSH 公钥（如需要）
-
-### 首次部署
+### 同步到服务器
 
 ```bash
-# 服务器上克隆代码
-ssh root@<服务器IP>
-git clone https://github.com/Xkf0/VocabularyLearningWebsite.git
-cd VocabularyLearningWebsite
-
-# 复制数据文件（如有）
-# cp /旧路径/vocabulary-data-*.json .
-# cp /旧路径/users.json .
-
-# 启动服务（前台测试）
-python3 server.py 3000
-
-# 后台运行（正式使用，端口按需修改）
-nohup python3 server.py 80 > /dev/null 2>&1 &
-```
-
-### 日常更新
-
-```bash
-# 本地开发完成后推送到 GitHub
+# 1. 本地开发完成后推送到 GitHub
 git push
 
-# 服务器拉取最新代码
-ssh root@<服务器IP>
-cd VocabularyLearningWebsite
-git pull
-
-# 重启服务
-pkill -f "server.py" && nohup python3 server.py 80 > /dev/null 2>&1 &
+# 2. 登录服务器拉取最新代码并重启
+ssh root@<服务器IP> "cd VocabularyLearningWebsite && git pull && pkill -f 'server.py' && nohup python3 server.py 80 > /dev/null 2>&1 &"
 ```
 
 ### 数据文件
 
-用户数据存储在 `vocabulary-data-{用户名}.json`，已加入 `.gitignore`，不会被 git 跟踪或误提交。部署时可跟随代码目录，不受 git pull 影响。
+用户数据存储在 `vocabulary-data-{用户名}.json`，已加入 `.gitignore`，不会被 git 跟踪或误提交。`git pull` 不会影响数据文件。
 
 ## 数据备份
 
