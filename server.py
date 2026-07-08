@@ -29,6 +29,12 @@ _users_lock = threading.Lock()
 _data_locks = {}
 _data_locks_lock = threading.Lock()
 
+# 内存缓存：避免重复读取大文件。LRU 淘汰，最多缓存 MAX_CACHE_USERS 个用户
+from collections import OrderedDict
+MAX_CACHE_USERS = 10
+_data_cache = OrderedDict()  # {username: (mtime, data)}
+_data_cache_lock = threading.Lock()
+
 
 def _get_user_data_lock(username):
     with _data_locks_lock:
@@ -75,7 +81,35 @@ def _get_user_data_file(username):
 
 
 def _read_user_data(username):
-    """读取某个用户的数据，返回 {words, sentences, mathProblems, problems, methods, avatar}"""
+    """读取某个用户的数据，带内存缓存。仅在文件 mtime 变化时重新读取。
+    使用 LRU 淘汰，最多缓存 MAX_CACHE_USERS 个用户。"""
+    path = _get_user_data_file(username)
+    try:
+        new_mtime = os.path.getmtime(path)
+    except OSError:
+        new_mtime = 0
+
+    with _data_cache_lock:
+        if username in _data_cache:
+            cached_mtime, cached_data = _data_cache[username]
+            if cached_mtime == new_mtime:
+                _data_cache.move_to_end(username)  # LRU: 标记为最近使用
+                return cached_data
+
+    # 缓存未命中或文件已变化，从磁盘读取
+    data = _read_user_data_raw(username)
+    with _data_cache_lock:
+        if username in _data_cache:
+            _data_cache.move_to_end(username)
+        else:
+            if len(_data_cache) >= MAX_CACHE_USERS:
+                _data_cache.popitem(last=False)  # LRU: 淘汰最久未用的
+        _data_cache[username] = (new_mtime, data)
+    return data
+
+
+def _read_user_data_raw(username):
+    """从磁盘读取用户数据（无缓存）"""
     path = _get_user_data_file(username)
     data = _load_json(path)
     if isinstance(data, list):
@@ -1821,6 +1855,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                         raise ValueError('无法识别的数据格式')
 
                     _save_json(_get_user_data_file(username), result)
+                    # 写入完成后更新缓存
+                    try:
+                        new_mtime = os.path.getmtime(_get_user_data_file(username))
+                    except OSError:
+                        new_mtime = 0
+                    with _data_cache_lock:
+                        _data_cache[username] = (new_mtime, result)
+                        _data_cache.move_to_end(username)
                 self._send_json({'ok': True, 'count': count, 'merged': True})
             except Exception as e:
                 self._send_json({'ok': False, 'error': str(e)}, 500)
