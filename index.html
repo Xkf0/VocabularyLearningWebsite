@@ -4373,18 +4373,18 @@ function initCrop() {
   var img = document.getElementById('cropImage');
 
   function getPos(e) {
-    var rect = container.getBoundingClientRect();
+    var rect = img.getBoundingClientRect();
     var clientX = e.touches ? e.touches[0].clientX : e.clientX;
     var clientY = e.touches ? e.touches[0].clientY : e.clientY;
     return { x: Math.max(0, Math.min(clientX - rect.left, rect.width)), y: Math.max(0, Math.min(clientY - rect.top, rect.height)) };
   }
 
   function clampSel() {
-    var cr = container.getBoundingClientRect();
-    _cropState.selX = Math.max(0, Math.min(_cropState.selX, cr.width));
-    _cropState.selY = Math.max(0, Math.min(_cropState.selY, cr.height));
-    _cropState.selW = Math.max(10, Math.min(_cropState.selW, cr.width - _cropState.selX));
-    _cropState.selH = Math.max(10, Math.min(_cropState.selH, cr.height - _cropState.selY));
+    var ir = img.getBoundingClientRect();
+    _cropState.selX = Math.max(0, Math.min(_cropState.selX, ir.width));
+    _cropState.selY = Math.max(0, Math.min(_cropState.selY, ir.height));
+    _cropState.selW = Math.max(10, Math.min(_cropState.selW, ir.width - _cropState.selX));
+    _cropState.selH = Math.max(10, Math.min(_cropState.selH, ir.height - _cropState.selY));
   }
 
   function updateSelUI() {
@@ -4434,9 +4434,9 @@ function initCrop() {
       var dy = pos.y - _cropState.startY;
       _cropState.selX = _cropState.startSelX + dx;
       _cropState.selY = _cropState.startSelY + dy;
-      var cr = container.getBoundingClientRect();
-      _cropState.selX = Math.max(0, Math.min(_cropState.selX, cr.width - _cropState.selW));
-      _cropState.selY = Math.max(0, Math.min(_cropState.selY, cr.height - _cropState.selH));
+      var ir = img.getBoundingClientRect();
+      _cropState.selX = Math.max(0, Math.min(_cropState.selX, ir.width - _cropState.selW));
+      _cropState.selY = Math.max(0, Math.min(_cropState.selY, ir.height - _cropState.selH));
       updateSelUI();
     } else if (_cropState.mode === 'resize') {
       var corner = _cropState.corner;
