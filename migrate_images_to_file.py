@@ -72,7 +72,7 @@ def transform_image_value(val, stats):
         filename = save_base64_to_file(val)
         if filename:
             stats['saved'] += 1
-            stats['bytes_saved'] += len(val)
+            
             print(f'    ✓ 已保存: {filename} ({(len(val) / 1024):.0f}KB)')
             return {'file': filename, 'data': val}
         else:
