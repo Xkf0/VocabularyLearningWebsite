@@ -1455,7 +1455,7 @@
 </head>
 <body>
 
-<input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="handleAvatarUpload(event)">
+<input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="handleAvatarUpload(event)" aria-label="上传头像">
 
 <!-- Login Overlay -->
 <div class="login-overlay" id="loginOverlay">
@@ -1467,11 +1467,11 @@
     <!-- 登录表单 -->
     <div id="loginForm">
       <div class="form-group">
-        <label>用户名</label>
+        <label for="loginUsername">用户名</label>
         <input type="text" id="loginUsername" placeholder="输入用户名" autocomplete="username">
       </div>
       <div class="form-group">
-        <label>密码</label>
+        <label for="loginPassword">密码</label>
         <input type="password" id="loginPassword" placeholder="输入密码" autocomplete="current-password">
       </div>
       <button class="btn btn-primary" onclick="handleLogin()" id="loginBtn">登录</button>
@@ -1481,11 +1481,11 @@
     <!-- 注册表单 -->
     <div id="registerForm" style="display:none;">
       <div class="form-group">
-        <label>用户名</label>
+        <label for="regUsername">用户名</label>
         <input type="text" id="regUsername" placeholder="2-20 个字符" autocomplete="off">
       </div>
       <div class="form-group">
-        <label>密码</label>
+        <label for="regPassword">密码</label>
         <input type="password" id="regPassword" placeholder="至少 4 个字符" autocomplete="new-password">
       </div>
       <button class="btn btn-primary" onclick="handleRegister()" id="regBtn">注册</button>
@@ -1589,7 +1589,7 @@
     <button class="btn btn-sm btn-primary" onclick="saveToFile()">保存到文件</button>
     <button class="btn btn-sm btn-outline" onclick="exportData()">导出备份</button>
     <button class="btn btn-sm btn-outline" onclick="document.getElementById('importInput').click()">导入</button>
-    <input type="file" id="importInput" accept=".json" style="display:none" onchange="importData(event)">
+    <input type="file" id="importInput" accept=".json" style="display:none" onchange="importData(event)" aria-label="导入数据">
   </div>
 </div>
 
@@ -1621,7 +1621,7 @@
         <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <button type="button" class="math-img-upload-btn" onclick="document.getElementById('mathTitleImageInput').click()">添加图片</button>
           <button type="button" class="math-img-upload-btn" onclick="capturePhoto(function(url){ pendingMathTitleImage.push(url); renderMathTitlePreview(); })">📷 拍照</button>
-          <input type="file" id="mathTitleImageInput" accept="image/*" multiple style="display:none" onchange="handleMathTitleImageUpload(event)">
+          <input type="file" id="mathTitleImageInput" accept="image/*" multiple style="display:none" onchange="handleMathTitleImageUpload(event)" aria-label="上传知识点标题图片">
           <span id="mathTitleImageStatus" style="font-size:12px;color:#94a3b8;"></span>
         </div>
         <div id="mathTitleImagePreview"></div>
@@ -1640,7 +1640,7 @@
         <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <button type="button" class="math-img-upload-btn" onclick="document.getElementById('mathSolutionImageInput').click()">添加图片</button>
           <button type="button" class="math-img-upload-btn" onclick="capturePhoto(function(url){ pendingMathSolutionImages.push(url); renderMathSolutionPreviews(); })">📷 拍照</button>
-          <input type="file" id="mathSolutionImageInput" accept="image/*" multiple style="display:none" onchange="handleMathSolutionImageUpload(event)">
+          <input type="file" id="mathSolutionImageInput" accept="image/*" multiple style="display:none" onchange="handleMathSolutionImageUpload(event)" aria-label="上传知识点证明图片">
           <span id="mathSolutionImagesStatus" style="font-size:12px;color:#94a3b8;"></span>
         </div>
         <div class="math-images-preview" id="mathSolutionImagesPreview"></div>
@@ -1655,7 +1655,7 @@
     <div class="card">
       <h3 style="font-size:14px;font-weight:600;color:#666;margin-bottom:12px;">已保存的知识点</h3>
       <div class="search-bar">
-        <input type="text" id="mathSearchInput" placeholder="搜索索引标题..." autocomplete="off" oninput="renderMathProblemList()">
+        <input type="text" id="mathSearchInput" placeholder="搜索索引标题..." autocomplete="off" oninput="renderMathProblemList()" aria-label="搜索知识点">
       </div>
       <div id="mathProblemList"></div>
     </div>
@@ -1670,7 +1670,7 @@
         <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <button type="button" class="math-img-upload-btn" onclick="document.getElementById('probQuestionImageInput').click()">添加图片</button>
           <button type="button" class="math-img-upload-btn" onclick="capturePhoto(function(url){ pendingProbQuestionImage.push(url); renderProbQuestionPreview(); })">📷 拍照</button>
-          <input type="file" id="probQuestionImageInput" accept="image/*" multiple style="display:none" onchange="handleProbQuestionImageUpload(event)">
+          <input type="file" id="probQuestionImageInput" accept="image/*" multiple style="display:none" onchange="handleProbQuestionImageUpload(event)" aria-label="上传题目图片">
           <span id="probQuestionImageStatus" style="font-size:12px;color:#94a3b8;"></span>
         </div>
         <div id="probQuestionImagePreview"></div>
@@ -1689,7 +1689,7 @@
         <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <button type="button" class="math-img-upload-btn" onclick="document.getElementById('probSolutionImageInput').click()">添加图片</button>
           <button type="button" class="math-img-upload-btn" onclick="capturePhoto(function(url){ pendingProbSolutionImages.push(url); renderProbSolutionPreviews(); })">📷 拍照</button>
-          <input type="file" id="probSolutionImageInput" accept="image/*" multiple style="display:none" onchange="handleProbSolutionImageUpload(event)">
+          <input type="file" id="probSolutionImageInput" accept="image/*" multiple style="display:none" onchange="handleProbSolutionImageUpload(event)" aria-label="上传题目解答图片">
           <span id="probSolutionImagesStatus" style="font-size:12px;color:#94a3b8;"></span>
         </div>
         <div class="math-images-preview" id="probSolutionImagesPreview"></div>
@@ -1704,7 +1704,7 @@
     <div class="card">
       <h3 style="font-size:14px;font-weight:600;color:#666;margin-bottom:12px;">已保存的题目</h3>
       <div class="search-bar">
-        <input type="text" id="probSearchInput" placeholder="搜索索引标题..." autocomplete="off" oninput="renderProblemList()">
+        <input type="text" id="probSearchInput" placeholder="搜索索引标题..." autocomplete="off" oninput="renderProblemList()" aria-label="搜索题目">
       </div>
       <div id="problemList"></div>
     </div>
@@ -1723,7 +1723,7 @@
         <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <button type="button" class="math-img-upload-btn" onclick="document.getElementById('methodImageInput').click()">添加图片</button>
           <button type="button" class="math-img-upload-btn" onclick="capturePhoto(function(url){ pendingMethodImages.push(url); renderMethodImagePreviews(); })">📷 拍照</button>
-          <input type="file" id="methodImageInput" accept="image/*" multiple style="display:none" onchange="handleMethodImageUpload(event)">
+          <input type="file" id="methodImageInput" accept="image/*" multiple style="display:none" onchange="handleMethodImageUpload(event)" aria-label="上传方法图片">
           <span id="methodImagesStatus" style="font-size:12px;color:#94a3b8;"></span>
         </div>
         <div class="math-images-preview" id="methodImagesPreview"></div>
@@ -1738,7 +1738,7 @@
     <div class="card">
       <h3 style="font-size:14px;font-weight:600;color:#666;margin-bottom:12px;">已保存的方法</h3>
       <div class="search-bar">
-        <input type="text" id="methodSearchInput" placeholder="搜索方法名称..." autocomplete="off" oninput="renderMethodList()">
+        <input type="text" id="methodSearchInput" placeholder="搜索方法名称..." autocomplete="off" oninput="renderMethodList()" aria-label="搜索方法">
       </div>
       <div id="methodList"></div>
     </div>
@@ -1772,7 +1772,7 @@
         <button class="filter-btn" data-filter="sentence">句子</button>
       </div>
       <div class="search-bar">
-        <input type="text" id="wordSearchInput" placeholder="搜索单词或释义..." autocomplete="off" oninput="renderBank()">
+        <input type="text" id="wordSearchInput" placeholder="搜索单词或释义..." autocomplete="off" oninput="renderBank()" aria-label="搜索单词或释义">
       </div>
       <div id="wordList"></div>
       <div id="sentenceList" style="margin-top:16px;border-top:1px solid #f0f0f0;padding-top:12px;display:none;"></div>
@@ -1823,7 +1823,7 @@
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <span style="font-size:14px;">声音提醒</span>
         <label class="switch" onclick="event.stopPropagation()">
-          <input type="checkbox" id="alarmToggle" onchange="toggleAlarmDisabled()">
+          <input type="checkbox" id="alarmToggle" onchange="toggleAlarmDisabled()" aria-label="声音提醒开关">
           <span class="switch-slider"></span>
         </label>
       </div>
@@ -1877,7 +1877,7 @@
       <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;">分类管理</h3>
       <div id="categoryManagerArea">
         <div style="display:flex;gap:8px;margin-bottom:12px;">
-          <input type="text" id="newCategoryInput" placeholder="新分类名称" autocomplete="off" style="flex:1;padding:8px 12px;border:2px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;">
+          <input type="text" id="newCategoryInput" placeholder="新分类名称" autocomplete="off" aria-label="新分类名称" style="flex:1;padding:8px 12px;border:2px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;">
           <button class="btn btn-primary" onclick="addCategory()" style="white-space:nowrap;">添加</button>
         </div>
         <div id="categoryList"></div>
@@ -1892,7 +1892,7 @@
   <div class="ref-picker-card" onclick="event.stopPropagation()">
     <h3>选择引用来源</h3>
     <div class="search-bar" style="margin:0 0 10px 0;">
-      <input type="text" id="refPickerSearch" placeholder="搜索知识点、题目或方法..." autocomplete="off" oninput="renderPickerList()">
+      <input type="text" id="refPickerSearch" placeholder="搜索知识点、题目或方法..." autocomplete="off" oninput="renderPickerList()" aria-label="搜索引用来源">
     </div>
     <div class="ref-picker-list" id="refPickerList"></div>
     <div class="ref-picker-actions">
@@ -1945,9 +1945,9 @@
     <h3 id="senEditorTitle">编辑句子</h3>
     <div class="sen-editor-label" id="senEditorLabel"></div>
     <div style="font-size:12px;color:#666;margin-bottom:4px;">英文：</div>
-    <textarea id="senEditorEnglish" placeholder="英文内容"></textarea>
+    <textarea id="senEditorEnglish" placeholder="英文内容" aria-label="英文内容"></textarea>
     <div style="font-size:12px;color:#666;margin-bottom:4px;">中文翻译：</div>
-    <textarea id="senEditorChinese" placeholder="中文翻译"></textarea>
+    <textarea id="senEditorChinese" placeholder="中文翻译" aria-label="中文翻译"></textarea>
     <div class="sen-editor-hint">修改后会自动保存，复习进度不受影响</div>
     <div class="sen-editor-actions">
       <button class="btn btn-primary" onclick="confirmSentenceEditor()">保存</button>
@@ -1973,7 +1973,7 @@
   <div class="confuse-picker-card">
     <h3>选择你弄混的单词</h3>
     <div class="confuse-picker-search">
-      <input type="text" id="confuseSearchInput" placeholder="搜索单词或释义..." oninput="renderConfusePickerList()">
+      <input type="text" id="confuseSearchInput" placeholder="搜索单词或释义..." oninput="renderConfusePickerList()" aria-label="搜索易混单词">
     </div>
     <div class="confuse-picker-list" id="confusePickerList"></div>
     <div class="confuse-picker-actions">
@@ -1988,7 +1988,7 @@
   <div class="def-editor-card">
     <h3 id="defEditorTitle">编辑释义</h3>
     <div class="word-label" id="defEditorWordLabel"></div>
-    <textarea id="defEditorTextarea" placeholder="输入释义"></textarea>
+    <textarea id="defEditorTextarea" placeholder="输入释义" aria-label="编辑释义"></textarea>
     <div class="editor-hint" id="defEditorHint">修改后旧释义会自动保存到历史记录中</div>
     <div class="def-editor-actions">
       <button class="btn btn-primary" onclick="confirmDefEditor()" id="defEditorConfirmBtn">保存</button>
@@ -3830,9 +3830,9 @@ function openItemEditor(type, id) {
 
     var val = item[f.key] || '';
     if (f.type === 'textarea') {
-      html += '<div class="field-group"><div class="field-label">' + f.label + '</div><textarea data-key="' + f.key + '">' + escapeHtml(val) + '</textarea></div>';
+      html += '<div class="field-group"><div class="field-label">' + f.label + '</div><textarea data-key="' + f.key + '" name="' + f.key + '">' + escapeHtml(val) + '</textarea></div>';
     } else {
-      html += '<div class="field-group"><div class="field-label">' + f.label + '</div><input data-key="' + f.key + '" value="' + escapeHtml(val) + '"></div>';
+      html += '<div class="field-group"><div class="field-label">' + f.label + '</div><input data-key="' + f.key + '" name="' + f.key + '" value="' + escapeHtml(val) + '"></div>';
     }
   });
   document.getElementById('itemEditorFields').innerHTML = html;
@@ -5958,7 +5958,7 @@ function renderWordReview(area, reviewWord, dueItems, now) {
       if (editingMnemonicId === reviewWord.id) {
         defHtml += '<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #ddd;">';
         defHtml += '<div style="font-size:12px;color:#888;margin-bottom:4px;">💡 背诵技巧</div>';
-        defHtml += '<textarea id="mnemonicEditor" style="width:100%;min-height:50px;font-size:13px;box-sizing:border-box;">' + escapeHtml(reviewWord.mnemonic || '') + '</textarea>';
+        defHtml += '<textarea id="mnemonicEditor" name="mnemonicEditor" style="width:100%;min-height:50px;font-size:13px;box-sizing:border-box;" aria-label="背诵技巧">' + escapeHtml(reviewWord.mnemonic || '') + '</textarea>';
         defHtml += '<div style="margin-top:4px;">';
         defHtml += '<button class="review-edit-btn" onclick="saveMnemonic(' + reviewWord.id + ')">保存</button>';
         defHtml += '<button class="review-edit-btn" onclick="cancelMnemonicEdit()" style="margin-left:4px;">取消</button>';
@@ -6200,7 +6200,7 @@ function renderProblemReview(area, prob, dueItems, now) {
 
     var uploadBtn = '<button type="button" class="math-img-upload-btn" onclick="document.getElementById(\'practiceImageInput\').click()">+ 添加解题图片</button>' +
       '<button type="button" class="math-img-upload-btn" onclick="capturePhoto(function(url){ pendingPracticeImages.push(url); renderReview(); })">📷 拍照</button>' +
-      '<input type="file" id="practiceImageInput" accept="image/*" multiple style="display:none" onchange="handlePracticeImageUpload(event)">';
+      '<input type="file" id="practiceImageInput" accept="image/*" multiple style="display:none" onchange="handlePracticeImageUpload(event)" aria-label="添加解题图片">';
 
     // Judge buttons or method buttons
     var actionHtml = '';
@@ -6652,7 +6652,7 @@ function renderConfusePickerList() {
   allWords.sort(function(a, b) { return a.word.localeCompare(b.word); });
   list.innerHTML = allWords.map(function(w) {
     return '<label class="confuse-picker-item">' +
-      '<input type="checkbox" value="' + w.id + '">' +
+      '<input type="checkbox" name="confuseWord" value="' + w.id + '">' +
       '<div><div class="cpi-word">' + escapeHtmlAndBold(w.word) + '</div><div class="cpi-def">' + escapeHtml(w.definition) + '</div></div>' +
       '</label>';
   }).join('');
@@ -7587,7 +7587,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="qg-desc">从 JSON 文件恢复练习记录</div>
         </div>
         <button class="qg-btn qg-btn-sm qg-btn-outline" onclick="document.getElementById('qgImportInput').click()">导入</button>
-        <input type="file" id="qgImportInput" accept=".json" style="display:none" onchange="QG.importData(event)">
+        <input type="file" id="qgImportInput" accept=".json" style="display:none" onchange="QG.importData(event)" aria-label="导入题目生成器数据">
       </div>
     </div>
 
