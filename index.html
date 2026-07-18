@@ -3937,6 +3937,15 @@ function _refreshImageField(key) {
   container.innerHTML = _renderImageFieldContent(key, single);
 }
 
+// 隐藏 file input 但保持可交互：display:none 在部分移动浏览器（尤其 iOS Safari）
+// 上会导致 click() 无法触发文件选择器，改用 visually hidden 让元素在渲染树中可交互
+function _hideFileInput(input) {
+  input.style.position = 'fixed';
+  input.style.top = '-1000px';
+  input.style.left = '-1000px';
+  input.style.opacity = '0';
+}
+
 // 上传图片到编辑器中的某个图片字段
 function triggerItemImageUpload(key, single) {
   _activeImageFieldKey = key;
@@ -3944,7 +3953,7 @@ function triggerItemImageUpload(key, single) {
   input.type = 'file';
   input.accept = 'image/*';
   if (!single) input.multiple = true;
-  input.style.display = 'none';
+  _hideFileInput(input);
   document.body.appendChild(input);
   input.addEventListener('change', function(e) {
     var files = e.target.files;
@@ -4298,7 +4307,7 @@ function capturePhoto(addFn) {
   input.type = 'file';
   input.accept = 'image/*';
   input.capture = 'environment';
-  input.style.display = 'none';
+  _hideFileInput(input);
   document.body.appendChild(input);
   input.onchange = function(e) {
     var files = e.target.files;
