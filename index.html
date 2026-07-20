@@ -1456,6 +1456,10 @@
 <body>
 
 <input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="handleAvatarUpload(event)">
+<!-- 静态复用 file input：动态创建的 input 在部分移动浏览器上 click() 不触发文件选择器，
+     预先放在 DOM 里的静态 input 可稳定触发。visually hidden 保持可交互 -->
+<input type="file" id="_cameraCaptureInput" accept="image/*" capture="environment" style="position:fixed;top:-1000px;left:-1000px;opacity:0;">
+<input type="file" id="_filePickInput" accept="image/*" multiple style="position:fixed;top:-1000px;left:-1000px;opacity:0;">
 
 <!-- Login Overlay -->
 <div class="login-overlay" id="loginOverlay">
@@ -3937,18 +3941,32 @@ function _refreshImageField(key) {
   container.innerHTML = _renderImageFieldContent(key, single);
 }
 
+// 隐藏 file input 但保持可交互：display:none 在部分移动浏览器（尤其 iOS Safari）
+// 上会导致 click() 无法触发文件选择器，改用 visually hidden 让元素在渲染树中可交互
+function _hideFileInput(input) {
+  input.style.position = 'fixed';
+  input.style.top = '-1000px';
+  input.style.left = '-1000px';
+  input.style.opacity = '0';
+}
+
 // 上传图片到编辑器中的某个图片字段
 function triggerItemImageUpload(key, single) {
   _activeImageFieldKey = key;
-  var input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*';
-  if (!single) input.multiple = true;
-  input.style.display = 'none';
-  document.body.appendChild(input);
-  input.addEventListener('change', function(e) {
+  // 复用静态 input：动态创建的 input 在部分移动浏览器上 click() 不触发文件选择器
+  var input = document.getElementById('_filePickInput');
+  if (!input) {
+    input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    _hideFileInput(input);
+    document.body.appendChild(input);
+  }
+  if (single) input.removeAttribute('multiple');
+  else input.multiple = true;
+  input.onchange = function(e) {
     var files = e.target.files;
-    if (!files || files.length === 0) { document.body.removeChild(input); return; }
+    if (!files || files.length === 0) { input.value = ''; return; }
     var processFile = function(file) {
       var reader = new FileReader();
       reader.onload = function(ev) {
@@ -3965,8 +3983,8 @@ function triggerItemImageUpload(key, single) {
       reader.readAsDataURL(file);
     };
     for (var i = 0; i < files.length; i++) { processFile(files[i]); }
-    document.body.removeChild(input);
-  });
+    input.value = '';  // 重置
+  };
   input.click();
 }
 
@@ -4294,12 +4312,16 @@ function handleImagePaste(event, addImageFn) {
 
 // 调用手机摄像头拍照（返回压缩后的 dataUrl）
 function capturePhoto(addFn) {
-  var input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*';
-  input.capture = 'environment';
-  input.style.display = 'none';
-  document.body.appendChild(input);
+  // 复用静态 input：动态创建的 input 在部分移动浏览器上 click() 不触发文件选择器
+  var input = document.getElementById('_cameraCaptureInput');
+  if (!input) {
+    input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment';
+    _hideFileInput(input);
+    document.body.appendChild(input);
+  }
   input.onchange = function(e) {
     var files = e.target.files;
     if (files && files.length > 0) {
@@ -4310,7 +4332,7 @@ function capturePhoto(addFn) {
         });
       });
     }
-    document.body.removeChild(input);
+    input.value = '';  // 重置，否则选同一文件不触发 change
   };
   input.click();
 }
